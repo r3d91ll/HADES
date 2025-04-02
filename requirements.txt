@@ -1,0 +1,41 @@
+# Core dependencies
+numpy>=1.24.0
+pandas>=2.0.0
+matplotlib>=3.7.0
+scikit-learn>=1.2.0
+tqdm>=4.65.0
+
+# Database connections
+python-arango>=7.5.0    # For PathRAG (ArangoDB)
+neo4j>=5.8.0            # For GraphRAG (Neo4j)
+redis>=4.5.1            # For HADES modular architecture
+
+# Embedding models
+sentence-transformers>=2.2.2
+faiss-cpu>=1.7.4        # Vector similarity search
+
+# LLM integration
+openai>=1.3.0           # For embeddings and inference
+requests>=2.28.0        # For Ollama API
+
+# Document processing
+pypdf>=3.15.1           # PDF processing
+python-docx>=0.8.11     # DOCX processing
+markdown>=3.4.3         # Markdown processing
+
+# Metrics and evaluation
+rouge>=1.0.1
+nltk>=3.8.0
+bert-score>=0.3.13
+py-rouge>=1.1
+sacrebleu>=2.3.0
+
+# Configuration and utilities
+pyyaml>=6.0             # YAML configuration files
+python-dotenv>=1.0.0    # Environment variable loading
+importlib>=1.0.4        # Dynamic module loading
+
+# API and utilities
+fastapi>=0.104.1
+uvicorn>=0.23.2
+pydantic>=2.0.0
