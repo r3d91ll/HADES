@@ -1,0 +1,1 @@
+# HADES\n\nProduction Agentic-RAG solution (currently a placeholder).\n\nThis repository will contain the production version of the Agentic RAG system, built based on learnings from the Limnos testing environment.
