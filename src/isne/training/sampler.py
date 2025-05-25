@@ -22,9 +22,18 @@ try:
 except ImportError:
     # Fallback implementation of index2ptr
     def index2ptr(index: torch.Tensor, size: int) -> torch.Tensor:
+        """Convert an index tensor to a compressed sparse row (CSR) pointer format.
+        
+        Args:
+            index: The index tensor to convert
+            size: The size of the pointer array
+        
+        Returns:
+            A tensor of pointers in CSR format
+        """
         ptr = torch.zeros(size + 1, dtype=torch.long, device=index.device)
-        torch.scatter_add_(ptr, 0, index + 1, torch.ones_like(index))
-        return torch.cumsum(ptr, 0)
+        torch.cumsum(torch.bincount(index, minlength=size), dim=0, out=ptr[1:])
+        return ptr
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -513,13 +522,15 @@ class NeighborSampler:
 
 
 class RandomWalkSampler:
-    """
-    Random walk-based sampling strategy for efficient ISNE training.
+    """Random walk-based sampling strategy for efficient ISNE training.
     
     This sampler follows the original ISNE paper's implementation, using random
     walks to generate positive pairs and randomly sampling nodes for negative pairs.
     This approach ensures better connectivity and valid sampling.
     """
+    # Class attribute to track torch_cluster availability
+    has_torch_cluster: bool = False
+    random_walk_fn: Optional[Callable] = None
     
     def __init__(
         self,
@@ -689,7 +700,7 @@ class RandomWalkSampler:
         
         return sampled_nodes
         
-    def sample_neighbors(self, nodes: Tensor) -> Tuple[List[Tensor], List[Tensor]]:
+    def sample_neighbors(self, nodes: Tensor) -> Tuple[List[List[int]], List[List[int]]]:
         """Sample multi-hop neighborhoods for a batch of nodes.
         
         Args:
@@ -700,6 +711,9 @@ class RandomWalkSampler:
                 - node_samples: List of node indices for each hop
                 - edge_samples: List of edge indices for each hop
         """
+        # Initialize to handle the attribute error gracefully
+        if not hasattr(self, 'has_torch_cluster'):
+            self.has_torch_cluster = False
         logger = logging.getLogger(__name__)
         
         try:
@@ -712,10 +726,16 @@ class RandomWalkSampler:
             # Sample random walks from each node
             if self.has_torch_cluster:
                 # Use torch_cluster for efficient random walks
-                walks = self.random_walk_fn(
-                    self.rowptr, self.col, nodes_cpu, 
-                    self.walk_length, self.p, self.q
-                )
+                if callable(self.random_walk_fn):
+                    walks = self.random_walk_fn(
+                        self.rowptr, self.col, nodes_cpu, 
+                        self.walk_length, self.p, self.q
+                    )
+                else:
+                    # If random_walk_fn is not callable, fall back to basic implementation
+                    logger.warning("random_walk_fn is not callable, falling back to basic implementation")
+                    # Return empty lists as fallback
+                    return ([], [])
                 
                 # Process walks to extract neighbors and edges
                 for hop in range(1, self.walk_length + 1):
@@ -801,7 +821,7 @@ class RandomWalkSampler:
             # Combine all sampled nodes
             all_nodes: List[Tensor] = []
             for nodes_tensor in node_samples:
-                if nodes_tensor.numel() > 0:
+                if isinstance(nodes_tensor, torch.Tensor) and nodes_tensor.numel() > 0:
                     all_nodes.append(nodes_tensor)
             
             if not all_nodes:
@@ -887,18 +907,21 @@ class RandomWalkSampler:
         logger = logging.getLogger(__name__)
         batch_size = batch_size or self.batch_size
         
-        try:
-            # Generate random walks for positive samples
-            # Safely check if has_torch_cluster attribute exists and is True
-            if hasattr(self, 'has_torch_cluster') and self.has_torch_cluster:
-                return self._sample_positive_pairs_torch_cluster(batch_size)
-            else:
-                return self._sample_positive_pairs_fallback(batch_size)
-                
-        except Exception as e:
-            logger.error(f"Error sampling positive pairs: {str(e)}")
-            logger.warning("Using fallback positive pairs due to sampling error.")
-            return self._generate_fallback_positive_pairs(batch_size)
+        # Initialize the has_torch_cluster attribute if it doesn't exist
+        if not hasattr(self, 'has_torch_cluster'):
+            self.has_torch_cluster = False
+            try:
+                # Check if torch_cluster is available
+                import torch_cluster
+                self.has_torch_cluster = True
+            except ImportError:
+                logger.warning("torch_cluster not available. Using fallback sampling methods.")
+        
+        # Use appropriate implementation based on availability
+        if self.has_torch_cluster:
+            return self._sample_positive_pairs_torch_cluster(batch_size)
+        else:
+            return self._sample_positive_pairs_fallback(batch_size)
             
     def _sample_positive_pairs_torch_cluster(self, batch_size: int) -> Tensor:
         """Sample positive pairs using torch_cluster random walks.
@@ -909,12 +932,25 @@ class RandomWalkSampler:
         Returns:
             Tensor of positive pair indices [num_pairs, 2]
         """
+        # Initialize random_walk_fn if not already set
+        if not hasattr(self, 'random_walk_fn') or self.random_walk_fn is None:
+            try:
+                from torch_cluster import random_walk
+                self.random_walk_fn = random_walk
+            except ImportError:
+                logger.warning("torch_cluster.random_walk not available, falling back")
+                self.has_torch_cluster = False
+                return self._sample_positive_pairs_fallback(batch_size)
         # Sample source nodes uniformly
         num_start_nodes = min(batch_size, self.effective_num_nodes) 
         start_nodes = torch.randint(0, self.effective_num_nodes, (num_start_nodes,), dtype=torch.long)
         
         # Generate random walks
         # Each walk is of form [start_node, node_1, node_2, ..., node_k]
+        if not callable(self.random_walk_fn):
+            logger.warning("random_walk_fn is not callable, falling back to fallback implementation")
+            return self._sample_positive_pairs_fallback(batch_size)
+            
         walks = self.random_walk_fn(self.rowptr, self.col, start_nodes, self.walk_length, self.p, self.q)
         
         # Extract pairs from walks
