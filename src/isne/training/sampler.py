@@ -259,14 +259,14 @@ class NeighborSampler:
             
             # Expand to multi-hop neighborhood
             for _ in range(self.num_hops):
-                neighbors: List[int] = []
+                neighbor_nodes: List[int] = []
                 for node in subset_nodes:
                     if node < 0 or node >= self.num_nodes:
                         continue
-                    neighbors.extend(self.adj_list[node])
+                    neighbor_nodes.extend(self.adj_list[node])
                 
                 # Add neighbors to subset_nodes
-                subset_nodes.extend(neighbors)
+                subset_nodes.extend(neighbor_nodes)
                 # Remove duplicates
                 subset_nodes = list(set(subset_nodes))
             
