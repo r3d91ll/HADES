@@ -10,10 +10,13 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple, Union, cast
+from typing import Dict, List, Any, Optional, Tuple, Union, cast, Type
 
 import torch
 import numpy as np
+
+# Define a union type for ISNE models
+ISNEModelTypes = Union[ISNEModel, SimplifiedISNEModel]
 
 from src.isne.models.isne_model import ISNEModel
 from src.isne.models.simplified_isne_model import SimplifiedISNEModel
@@ -148,7 +151,7 @@ class ISNEPipeline:
                     hidden_features=hidden_dim,  # Required parameter even though not used internally
                     out_features=output_dim
                 )
-                self.model = model
+                self.model = cast(ISNEModelTypes, model)
             else:
                 logger.info("Using full ISNEModel")
                 model = ISNEModel(
@@ -157,7 +160,7 @@ class ISNEPipeline:
                     out_features=output_dim,
                     num_layers=num_layers
                 )
-                self.model = model
+                self.model = cast(ISNEModelTypes, model)
             
             # Load model weights
             if self.model is not None:
@@ -167,7 +170,7 @@ class ISNEPipeline:
                 model.to(self.device)
                 model.eval()  # Set to evaluation mode
                 # Update self.model to ensure it keeps the reference
-                self.model = model
+                self.model = cast(ISNEModelTypes, model)
             else:
                 raise ValueError("Model initialization failed")
             
@@ -235,7 +238,7 @@ class ISNEPipeline:
                 if hasattr(graph, 'edge_attr') and graph.edge_attr is not None:
                     edge_attr = graph.edge_attr
                     # Convert to float tensor if needed
-                    if not isinstance(edge_attr, torch.FloatTensor) and not isinstance(edge_attr, torch.cuda.FloatTensor):
+                    if not isinstance(edge_attr, torch.Tensor) or edge_attr.dtype != torch.float:
                         edge_attr = edge_attr.float()
                     
                     # Reshape if needed

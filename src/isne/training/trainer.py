@@ -35,7 +35,8 @@ except ImportError:
     logger.warning("RandomWalkSampler not available. Will use default sampler unless provided in config.")
     # Use Optional[Type] for classes that might be None
     from typing import Type, Optional
-    RandomWalkSampler: Optional[Type] = None
+    # Use a different name to avoid conflict with the actual import
+    RandomWalkSamplerType: Optional[Type] = None
 
 
 class ISNETrainer:
@@ -248,7 +249,9 @@ class ISNETrainer:
                 if max_index - actual_num_nodes + 1 <= 100:  # If not too many additional nodes needed
                     logger.warning(f"Extending feature matrix to accommodate edge indices (+{max_index - actual_num_nodes + 1} rows)")
                     # Create padding with zeros for missing nodes
-                    padding = torch.zeros(max_index - actual_num_nodes + 1, features.size(1), device=self.device)
+                    # Ensure the size argument is an integer
+                    padding_size = int(max_index - actual_num_nodes + 1)
+                    padding = torch.zeros(padding_size, features.size(1), device=self.device)
                     features = torch.cat([features, padding], dim=0)
                     actual_num_nodes = features.size(0)
                     logger.info(f"Feature matrix extended to {actual_num_nodes} nodes")
@@ -917,7 +920,8 @@ class ISNETrainer:
             # Forward pass
             embeddings = self.model(features, edge_index)
             
-            return embeddings.cpu()
+            # Explicitly cast the result to ensure it's a Tensor
+            return torch.Tensor(embeddings.cpu())
     
     def save_model(self, path: Union[str, Path]) -> None:
         """
@@ -1004,12 +1008,17 @@ class ISNETrainer:
             Low-dimensional representation of embeddings [num_nodes, n_components]
         """
         try:
-            # Convert to numpy if tensor
-            if isinstance(embeddings, torch.Tensor):
-                embeddings_np = embeddings.cpu().numpy()
-            else:
-                embeddings_np = np.array(embeddings)
+            # Convert to numpy array with explicit type annotation
+            embeddings_np: np.ndarray
             
+            # Convert embeddings to numpy array
+            if isinstance(embeddings, torch.Tensor):
+                embeddings_np = embeddings.detach().cpu().numpy()
+            else:
+                # Handle non-tensor case
+                embeddings_np = np.asarray(embeddings, dtype=np.float32)
+            
+            # Apply dimensionality reduction based on selected method
             if method == 'tsne':
                 from sklearn.manifold import TSNE
                 embeddings_2d = TSNE(n_components=n_components, perplexity=perplexity, random_state=random_state).fit_transform(embeddings_np)

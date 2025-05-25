@@ -198,7 +198,11 @@ class ISNEModel(nn.Module):
             Node embeddings [num_nodes, out_features]
         """
         with torch.no_grad():
-            return self.forward(x, edge_index)
+            # Ensure we're returning just the tensor, not the attention weights
+            result = self.forward(x, edge_index)
+            if isinstance(result, tuple):
+                return result[0]  # Extract just the embeddings
+            return result
     
     def project_features(self, x: Tensor) -> Tensor:
         """
@@ -212,4 +216,7 @@ class ISNEModel(nn.Module):
         Returns:
             Projected features [num_nodes, out_features]
         """
-        return self.feature_projector(x)
+        # Ensure we return a properly typed Tensor
+        result = self.feature_projector(x)
+        # Cast to ensure proper typing
+        return cast(Tensor, result)
