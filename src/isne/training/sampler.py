@@ -96,22 +96,31 @@ class NeighborSampler:
             self.rng = np.random.RandomState()
     
     def _create_adj_list(self) -> None:
-        """Create adjacency list from edge index for efficient neighbor access.
-        Validates all indices to ensure they are within bounds.
-        """
-        # Move tensors to CPU for safer processing
-        edge_index_cpu = self.edge_index.cpu() if self.edge_index.is_cuda else self.edge_index
+        """Create an adjacency list for efficient neighbor access.
         
-        # Check if edge_index contains valid indices
+        This transforms the edge_index into a list of lists, where each sublist
+        contains the neighbors of the corresponding node.
+        """
+        # Create adjacency list
+        self.adj_list: List[List[int]] = [[] for _ in range(self.num_nodes)]
+        
+        # Initialize nodes_with_neighbors set
+        self.nodes_with_neighbors: Set[int] = set()
+        
+        # Handle empty edge index case
+        if self.edge_index.numel() == 0:
+            return
+            
+        # Move to CPU for more efficient list creation
+        edge_index_cpu = self.edge_index.cpu()
+        
+        # Check for out-of-bounds indices
         max_node_idx = edge_index_cpu.max().item()
         if max_node_idx >= self.num_nodes:
             logger.warning(f"Edge index contains node indices that exceed num_nodes ({max_node_idx} >= {self.num_nodes})")
             logger.warning("Filtering out-of-bounds edges to prevent errors.")
             valid_edges_mask = (edge_index_cpu[0] < self.num_nodes) & (edge_index_cpu[1] < self.num_nodes)
             edge_index_cpu = edge_index_cpu[:, valid_edges_mask]
-        
-        # Initialize adjacency list
-        self.adj_list: List[List[int]] = [[] for _ in range(self.num_nodes)]
         
         # Fill adjacency list from edge index
         for i in range(edge_index_cpu.size(1)):
@@ -120,27 +129,36 @@ class NeighborSampler:
             
             # Add edge to adjacency list
             self.adj_list[src].append(dst)
+            self.nodes_with_neighbors.add(src)
             
             # If undirected, add the reverse edge as well
             if not self.directed:
                 self.adj_list[dst].append(src)
+                self.nodes_with_neighbors.add(dst)
         
         # Create set of nodes that have neighbors (for efficient sampling)
-        self.nodes_with_neighbors: Set[int] = {i for i, neighbors in enumerate(self.adj_list) if neighbors}
+ # The nodes_with_neighbors set has already been populated during edge iteration
     
     def sample_nodes(self, batch_size: Optional[int] = None) -> Tensor:
-        """Sample random nodes from the graph.
+        """Sample nodes uniformly at random from the graph.
         
         Args:
             batch_size: Number of nodes to sample (defaults to self.batch_size)
             
         Returns:
-            Tensor of sampled node indices
+            Tensor of sampled node indices [batch_size]
         """
         batch_size = batch_size or self.batch_size
         
-        # Sample random indices from 0 to num_nodes-1
-        node_indices: np.ndarray = self.rng.choice(self.num_nodes, size=batch_size, replace=self.replace)
+        # Check if we need to enforce replacement
+        replace = self.replace
+        if not replace and batch_size > self.num_nodes:
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Cannot sample {batch_size} unique nodes from a graph with {self.num_nodes} nodes. Using replacement.")
+            replace = True
+            
+        # Sample node indices
+        node_indices: np.ndarray = self.rng.choice(self.num_nodes, size=batch_size, replace=replace)
         
         # Convert to tensor and match device of edge_index
         return torch.tensor(node_indices, dtype=torch.long, device=self.edge_index.device)
@@ -533,14 +551,27 @@ class RandomWalkSampler:
             directed: Whether the graph is directed
             seed: Random seed for reproducibility
         """
+        # Initialize basic attributes directly
         self.edge_index = edge_index
         self.num_nodes = num_nodes
         self.batch_size = batch_size
+        
+        # Store parameters
         self.walk_length = walk_length
         self.context_size = context_size
         self.walks_per_node = walks_per_node
         self.p = p
         self.q = q
+        
+        # Initialize effective_num_nodes to avoid attribute errors
+        self.effective_num_nodes = self.num_nodes
+        self.effective_num_edges = self.edge_index.size(1) if self.edge_index.numel() > 0 else 0
+        
+        # Initialize random number generator
+        if seed is not None:
+            self.rng = np.random.RandomState(seed)
+        else:
+            self.rng = np.random.RandomState()
         self.num_negative_samples = num_negative_samples
         self.directed = directed
         
@@ -564,6 +595,14 @@ class RandomWalkSampler:
         """
         logger = logging.getLogger(__name__)
         
+        # Handle empty edge index case
+        if self.edge_index.numel() == 0:
+            # Create empty CSR format
+            self.rowptr = torch.zeros(self.num_nodes + 1, dtype=torch.long)
+            self.col = torch.zeros(0, dtype=torch.long)
+            logger.info(f"CSR format created with {self.num_nodes} nodes and 0 edges")
+            return
+            
         # Validate edge_index to ensure all indices are within bounds
         edge_index_cpu = self.edge_index.cpu() if self.edge_index.is_cuda else self.edge_index
         max_node_idx = edge_index_cpu.max().item()
@@ -613,7 +652,7 @@ class RandomWalkSampler:
                 self.adj_list[dst].append(src)
         
         # Create set of nodes that have neighbors (for efficient sampling)
-        self.nodes_with_neighbors: Set[int] = {i for i, neighbors in enumerate(self.adj_list) if neighbors}
+ # The nodes_with_neighbors set has already been populated during edge iteration
         
         # Store effective number of nodes and edges
         self.effective_num_nodes = self.num_nodes
@@ -622,13 +661,14 @@ class RandomWalkSampler:
         logger.info(f"CSR format created with {self.effective_num_nodes} nodes and {self.effective_num_edges} edges")
         
         # Check if torch_cluster is available for random walks
+        self.has_torch_cluster = False  # Default to False
         try:
             import torch_cluster
             self.random_walk_fn = torch_cluster.random_walk
             self.has_torch_cluster = True
             logger.info("Using torch_cluster for random walks")
         except ImportError:
-            self.has_torch_cluster = False
+            # Already set to False by default
             logger.warning("torch_cluster not available. Using fallback sampling methods.")
     
     def sample_nodes(self, batch_size: Optional[int] = None) -> Tensor:
@@ -849,7 +889,8 @@ class RandomWalkSampler:
         
         try:
             # Generate random walks for positive samples
-            if self.has_torch_cluster:
+            # Safely check if has_torch_cluster attribute exists and is True
+            if hasattr(self, 'has_torch_cluster') and self.has_torch_cluster:
                 return self._sample_positive_pairs_torch_cluster(batch_size)
             else:
                 return self._sample_positive_pairs_fallback(batch_size)
