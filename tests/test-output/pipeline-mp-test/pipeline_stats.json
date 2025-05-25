@@ -1,0 +1,12 @@
+{
+  "total_files": 0,
+  "total_chunks": 0,
+  "total_embeddings": 0,
+  "processing_time": {
+    "document_processing": 0,
+    "chunking": 0,
+    "embedding": 0,
+    "total": 0
+  },
+  "file_details": {}
+}

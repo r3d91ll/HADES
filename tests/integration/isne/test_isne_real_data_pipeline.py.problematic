@@ -1,0 +1,331 @@
+"""
+Integration test for the ISNE module using real data.
+
+This test uses real research paper data from previous test runs
+to validate the complete ISNE pipeline without contrastive loss sampling issues.
+"""
+
+import os
+import json
+import tempfile
+import time
+import unittest
+import logging
+import traceback
+from pathlib import Path
+from typing import Dict, List, Any, Optional, Tuple
+import numpy as np
+import random
+import torch
+from torch import Tensor
+from torch_geometric.data import Data, HeteroData
+
+from src.isne.models.isne_model import ISNEModel
+from src.isne.training.trainer import ISNETrainer
+from src.isne.loaders.graph_dataset_loader import GraphDatasetLoader
+from src.isne.types.models import IngestDocument, DocumentRelation, RelationType, DocumentType
+from src.isne.retrieval.retriever import ISNERetriever
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, 
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+class TestISNERealDataPipeline(unittest.TestCase):
+    """
+    Integration test for the ISNE module using real paper data.
+    
+    This test verifies that the ISNE pipeline works correctly with real
+    research paper data from the test-output directory, specifically using
+    the ISNE paper and PathRAG paper outputs from previous test runs.
+    """
+    
+    def setUp(self) -> None:
+        """Set up test environment and load real data."""
+        # Use CPU for tests
+        self.device = "cpu"
+        
+        # Paths to real data files
+        self.isne_paper_path = "/home/todd/ML-Lab/Olympus/HADES-PathRAG/test-output/modernbert-cpu-test/complete_ISNE_paper_output.json"
+        self.pathrag_paper_path = "/home/todd/ML-Lab/Olympus/HADES-PathRAG/test-output/modernbert-cpu-test/complete_PathRAG_paper_output.json"
+        
+        # Ensure data files exist
+        if not os.path.exists(self.isne_paper_path):
+            logger.warning(f"ISNE paper file not found at {self.isne_paper_path}. Tests may be skipped.")
+        else:
+            logger.info(f"ISNE paper file found at {self.isne_paper_path}")
+            
+        if not os.path.exists(self.pathrag_paper_path):
+            logger.warning(f"PathRAG paper file not found at {self.pathrag_paper_path}. Tests may be skipped.")
+        else:
+            logger.info(f"PathRAG paper file found at {self.pathrag_paper_path}")
+        
+        # Create temporary directory for model output
+        self.temp_dir = tempfile.mkdtemp()
+        self.model_path = os.path.join(self.temp_dir, 'isne_model.pt')
+        
+        # Load real data
+        self.documents, self.relations = self._load_test_data()
+        self.embedding_dim = self._determine_embedding_dim()
+
+    def tearDown(self) -> None:
+        """Clean up temporary files."""
+        import shutil
+        if os.path.exists(self.temp_dir):
+            shutil.rmtree(self.temp_dir)
+    
+    def _load_test_data(self) -> Tuple[List[IngestDocument], List[DocumentRelation]]:
+        """
+        Load real paper data from test output files.
+        
+        Returns:
+            Tuple of (list of IngestDocument, list of DocumentRelation)
+        """
+        documents = []
+        relations = []
+        
+        # Load the ISNE paper data
+        if os.path.exists(self.isne_paper_path):
+            main_doc, doc_relations, child_docs = self._load_paper_data(self.isne_paper_path, "ISNE")
+            if main_doc:
+                documents.append(main_doc)
+                documents.extend(child_docs)
+                relations.extend(doc_relations)
+                
+        # Load the PathRAG paper data
+        if os.path.exists(self.pathrag_paper_path):
+            main_doc, doc_relations, child_docs = self._load_paper_data(self.pathrag_paper_path, "PathRAG")
+            if main_doc:
+                documents.append(main_doc)
+                documents.extend(child_docs)
+                relations.extend(doc_relations)
+                
+        # Create relations between the papers (citations)
+        if len(documents) >= 2:
+            # Only create inter-document relations if we have the main documents (not just child pages)
+            main_docs = [doc for doc in documents if not doc.id.endswith('_p0')]
+            if len(main_docs) >= 2:
+                # PathRAG paper references ISNE paper
+                relations.append(DocumentRelation(
+                    source_id=main_docs[1].id,
+                    target_id=main_docs[0].id,
+                    relation_type=RelationType.REFERENCES.value,
+                    metadata={"confidence": 0.95}
+                ))
+                
+                # Both papers have similar topics
+                relations.append(DocumentRelation(
+                    source_id=main_docs[0].id,
+                    target_id=main_docs[1].id,
+                    relation_type=RelationType.SIMILAR_TO.value,
+                    metadata={"similarity": 0.85}
+                ))
+                
+                # Add more relation types for testing
+                relations.append(DocumentRelation(
+                    source_id=main_docs[1].id,
+                    target_id=main_docs[0].id,
+                    relation_type=RelationType.REFERS_TO.value,
+                    metadata={"context": "methodology"}
+                ))
+        
+        return documents, relations
+        
+    def _load_paper_data(self, file_path: str, paper_name: str) -> Tuple[Optional[IngestDocument], List[DocumentRelation], List[IngestDocument]]:
+        """
+        Load paper data from JSON file and create IngestDocument.
+        
+        Args:
+            file_path: Path to paper JSON file
+            paper_name: Name of the paper (for logging)
+            
+        Returns:
+            Tuple of (main document, list of relations, list of child documents) or (None, [], []) if loading failed
+        """
+        try:
+            logger.info(f"Attempting to load {paper_name} paper data from {file_path}")
+            
+            # Initialize empty lists for child documents and relations
+            child_documents = []
+            doc_relations = []
+            
+            with open(file_path, 'r') as f:
+                data = json.load(f)
+                
+            # Extract document ID from the data
+            doc_id = data.get('id')
+            if not doc_id:
+                logger.error(f"No document ID found in {paper_name} paper data")
+                return None, [], []
+                
+            logger.info(f"Successfully loaded {paper_name} paper data with id: {doc_id}")
+            
+            # Create IngestDocument
+            main_doc = IngestDocument(
+                id=doc_id,
+                content=data.get('text', ''),
+                source=file_path,  # Add source parameter
+                metadata={
+                    'title': f"{paper_name} Paper",
+                    'source': 'test-output',
+                    'filetype': 'pdf'
+                },
+                document_type=DocumentType.PDF.value
+            )
+            
+            # Extract page-level embeddings and create child documents
+            for page_idx, page_data in enumerate(data.get('pages', [])):
+                page_id = f"{doc_id}_p{page_idx}"
+                page_content = page_data.get('text', '')
+                
+                # Get embedding if available
+                embedding = None
+                if 'embedding' in page_data:
+                    embedding_data = page_data['embedding']
+                    if isinstance(embedding_data, list):
+                        embedding = torch.tensor(embedding_data, dtype=torch.float32)
+                        logger.info(f"Loaded embedding for document {page_id} with shape {embedding.shape}")
+                    else:
+                        logger.warning(f"Embedding for page {page_idx} is not a list")
+                
+                # Create child document for the page
+                child_doc = IngestDocument(
+                    id=page_id,
+                    content=page_content,
+                    source=f"{file_path}#page{page_idx}",  # Add source parameter for page
+                    metadata={
+                        'page': page_idx,
+                        'parent_id': doc_id
+                    },
+                    document_type=DocumentType.PDF.value,
+                    embedding=embedding
+                )
+                child_documents.append(child_doc)
+                
+                # Create a CONTAINS relation from parent to child
+                doc_relations.append(DocumentRelation(
+                    source_id=doc_id,
+                    target_id=page_id,
+                    relation_type=RelationType.CONTAINS.value,
+                    metadata={"page": page_idx}
+                ))
+            
+            return main_doc, doc_relations, child_documents
+            
+        except Exception as e:
+            logger.error(f"Error loading {paper_name} paper data: {str(e)}")
+            return None, [], []
+            
+    def _determine_embedding_dim(self) -> int:
+        """
+        Determine embedding dimension from loaded documents.
+        
+        Returns:
+            Embedding dimension (default 768 if no embeddings found)
+        """
+        for doc in self.documents:
+            if doc.embedding is not None:
+                logger.info(f"Determined embedding dimension: {doc.embedding.shape[0]} from document {doc.id}")
+                return doc.embedding.shape[0]
+        
+        logger.warning("No document embeddings found, using default dimension 768")
+        return 768
+        
+    def test_document_loading_from_json(self):
+        """
+        Test that JSON output files can be loaded and processed.
+        
+        This minimal test verifies that:
+        1. JSON test output files can be loaded correctly
+        2. IngestDocument objects can be created from the data
+        3. Basic document properties and structures are as expected
+        """
+        # Skip full test if no documents were loaded
+        if not self.documents:
+            logger.error("No documents were loaded. Skipping remainder of test.")
+            self.skipTest("No documents loaded")
+            
+        # Test document properties
+        for idx, doc in enumerate(self.documents):
+            logger.info(f"Document {idx}: ID={doc.id}, Type={doc.document_type}")
+            self.assertIsInstance(doc.id, str, "Document ID should be a string")
+            self.assertIsInstance(doc.content, str, "Document content should be a string")
+            self.assertIsInstance(doc.source, str, "Document source should be a string")
+            
+        # Verify relations if any exist
+        if self.relations:
+            for idx, relation in enumerate(self.relations[:5]):  # Check first 5 to avoid excessive logging
+                logger.info(f"Relation {idx}: {relation.source_id} -[{relation.relation_type}]-> {relation.target_id}")
+                self.assertIsNotNone(relation.source_id, "Relation source_id should not be None")
+                self.assertIsNotNone(relation.target_id, "Relation target_id should not be None")
+                self.assertIsNotNone(relation.relation_type, "Relation type should not be None")
+        
+        logger.info("Document loading from JSON test completed successfully")
+    
+    def test_pathrag_json_structure(self):
+        """
+        Test the PathRAG test output JSON file structure.
+        
+        This test verifies that:
+        1. The PathRAG JSON file can be loaded correctly
+        2. The structure matches expected format
+        3. The document contains expected fields
+        """
+        logger.info("Starting test_pathrag_json_structure")
+        
+        # Skip if the PathRAG paper file doesn't exist
+        if not os.path.exists(self.pathrag_paper_path):
+            logger.warning(f"PathRAG paper file not found at {self.pathrag_paper_path}. Test skipped.")
+            self.skipTest("PathRAG paper file not found")
+            
+        try:
+            # Load the raw JSON
+            with open(self.pathrag_paper_path, 'r') as f:
+                pathrag_data = json.load(f)
+                
+            # Verify basic JSON structure (similar to ISNE paper test)
+            self.assertIn('id', pathrag_data, "JSON missing 'id' field")
+            self.assertIn('text', pathrag_data, "JSON missing 'text' field")
+            self.assertIn('pages', pathrag_data, "JSON missing 'pages' field")
+            
+            # Verify document ID format
+            doc_id = pathrag_data.get('id')
+            logger.info(f"PathRAG paper document ID: {doc_id}")
+            self.assertTrue(doc_id.startswith('pdf_'), "Document ID should start with 'pdf_'")
+            
+            # Verify pages structure
+            pages = pathrag_data.get('pages', [])
+            logger.info(f"PathRAG paper has {len(pages)} pages")
+            self.assertGreater(len(pages), 0, "Document should have at least one page")
+            
+            # Check for page embeddings
+            embedding_counts = {"with_embedding": 0, "without_embedding": 0}
+            for page_idx, page in enumerate(pages):
+                self.assertIn('text', page, f"Page {page_idx} missing 'text' field")
+                if 'embedding' in page:
+                    embedding_counts["with_embedding"] += 1
+                    embedding = page['embedding']
+                    # Basic validation of embedding format
+                    self.assertIsInstance(embedding, list, f"Embedding for page {page_idx} should be a list")
+                    if len(embedding) > 0:
+                        # Check first few dimensions of embedding
+                        logger.info(f"Page {page_idx} has embedding of length {len(embedding)}")
+                else:
+                    embedding_counts["without_embedding"] += 1
+                    
+            # Log embedding statistics
+            logger.info(f"Pages with embeddings: {embedding_counts['with_embedding']}")
+            logger.info(f"Pages without embeddings: {embedding_counts['without_embedding']}")
+            
+            # Log success
+            logger.info(f"Successfully validated PathRAG paper JSON structure")
+            
+        except Exception as e:
+            logger.error(f"Error validating PathRAG paper JSON: {str(e)}")
+            self.fail(f"PathRAG paper JSON validation failed: {str(e)}")
+
+
+if __name__ == "__main__":
+    # Set logging to INFO level for detailed output when running the test directly
+    logging.basicConfig(level=logging.INFO)
+    unittest.main()

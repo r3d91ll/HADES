@@ -1,0 +1,105 @@
+# Model Configuration for HADES-PathRAG
+# This file configures both ingestion and inference models
+# with multiple supported backends (vllm, ollama, etc.)
+
+# Global server settings
+server:
+  host: localhost
+  port: 8000
+  tensor_parallel_size: 1
+  gpu_memory_utilization: 0.85
+  dtype: auto
+  max_model_len: 4096
+  backend: vllm  # Default backend (vllm, ollama, huggingface)
+
+# Ingestion-related models (used by Chonky, ISNE, etc.)
+ingestion:
+  # Primary embedding model for document ingestion
+  # After Chonky creates semantic chunks, this model embeds them
+  # These embeddings are then used as input features for the ISNE GNN
+  embedding:
+    model_id: BAAI/bge-large-en-v1.5
+    max_tokens: 512
+    context_window: 4096
+    truncate_input: true
+    backend: vllm
+    batch_size: 32
+    
+  # Code-specific embedding model (specialized for source code)
+  code_embedding:
+    model_id: Xenova/code-llama-7b  # Can be replaced with code-specific embedding model
+    max_tokens: 512
+    context_window: 8192
+    truncate_input: true
+    backend: vllm
+    batch_size: 32
+    
+  # Chunking model for Chonky semantic chunking
+  # Used by ChonkyProcessor for semantic document chunking
+  # Note: Chonky only performs chunking and does NOT create embeddings
+  chunking:
+    model_id: mirth/chonky_modernbert_large_1
+    max_tokens: 1024
+    temperature: 0.2
+    top_p: 0.9
+    top_k: 40
+    context_window: 8192
+    truncate_input: true
+    backend: vllm
+    batch_size: 16
+    
+  # Relationship extraction model for ISNE
+  # Used to extract relationships between documents if not already defined
+  relationship:
+    model_id: Qwen2.5-7b-instruct
+    max_tokens: 1024
+    temperature: 0.1
+    top_p: 0.95
+    top_k: 50
+    context_window: 8192
+    truncate_input: true
+    backend: vllm
+    batch_size: 8
+    
+  # Note: The ISNE model itself is a Graph Neural Network implemented with PyTorch Geometric
+  # It is not directly a vLLM model, but uses the embeddings from the embedding model above
+  # The ISNE model creates graph embeddings that are stored in ArangoDB
+
+# Inference-related models (used for querying the knowledge base)
+inference:
+  # Default model for general-purpose inference
+  default:
+    model_id: meta-llama/Llama-3-8b
+    max_tokens: 2048
+    temperature: 0.7
+    top_p: 0.9
+    top_k: 40
+    context_window: 8192
+    truncate_input: true
+    backend: vllm
+    batch_size: 1
+  
+  # Code-optimized model for programming tasks
+  code:
+    model_id: Qwen2.5-7b-coder
+    max_tokens: 4096
+    temperature: 0.2  # Lower temperature for more deterministic outputs
+    top_p: 0.95
+    top_k: 50
+    context_window: 16384  # Larger context window for code
+    truncate_input: true
+    backend: vllm
+    batch_size: 1
+  
+  # Path-planning model for complex reasoning tasks
+  # This model is used for generating paths through the ISNE graph
+  pathfinder:
+    model_id: meta-llama/Llama-3-70b
+    max_tokens: 2048
+    temperature: 0.3
+    top_p: 0.9
+    top_k: 40
+    context_window: 8192
+    truncate_input: true
+    backend: vllm
+    batch_size: 1

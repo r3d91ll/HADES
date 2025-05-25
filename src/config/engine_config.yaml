@@ -1,0 +1,48 @@
+# GPU Engine Configuration
+# This file defines the configuration for the GPU-orchestrated batch engine
+
+pipeline:
+  # Pipeline layout defines which GPU handles which processing stages
+  layout:
+    # Default layout (1-hop NVLink transfer)
+    gpu0: [DocProc, Chunk]     # First GPU handles document processing and chunking
+    gpu1: [Embed, ISNE]        # Second GPU handles embedding and ISNE
+
+  # Batch processing settings
+  batch_size: 128              # Number of documents per batch
+  queue_depth: 4               # Number of batches to buffer between stages
+  nvlink_peer_copy: true       # Use direct GPU-to-GPU transfer when possible
+  
+  # Stage-specific settings
+  stages:
+    DocProc:
+      timeout_seconds: 60      # Maximum time to wait for document processing
+      
+    Chunk:
+      max_tokens: 2048         # Maximum tokens per chunk
+      use_overlap: true        # Use overlap context for better retrieval
+      
+    Embed:
+      model: "modern-bert"     # Embedding model to use
+      batch_size: 32           # Embedding batch size (can be different from pipeline batch)
+      
+    ISNE:
+      gnn_layers: 2            # Number of GNN layers
+      embedding_dim: 768       # Dimension of node embeddings
+
+# Performance monitoring settings
+monitoring:
+  enabled: true                # Enable performance monitoring
+  prometheus_port: 9090        # Port for Prometheus metrics
+  log_metrics: true            # Log metrics to console
+  metrics:
+    - gpu_utilization          # Track GPU utilization
+    - queue_length             # Track queue lengths
+    - batch_latency            # Track batch processing time
+    - memory_usage             # Track GPU memory usage
+
+# Error handling settings
+error_handling:
+  max_retries: 3               # Maximum number of retries for failed batches
+  backoff_factor: 2            # Exponential backoff factor for retries
+  dead_letter_queue: true      # Store failed batches in dead letter queue

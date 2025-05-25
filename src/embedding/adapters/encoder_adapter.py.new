@@ -1,0 +1,383 @@
+"""Encoder adapter for embedding generation.
+
+This module provides an implementation of the EmbeddingAdapter protocol
+that uses encoder models (like ModernBERT, CodeBERT) to convert text into
+vector embeddings. It supports both CPU and GPU configurations.
+
+The adapter is designed to work with any HuggingFace encoder model and can be
+configured to use different models based on the content type or project requirements.
+
+Supported models include:
+- ModernBERT: Optimized for general text (answerdotai/ModernBERT-base)
+- CodeBERT: Optimized for code and technical documentation (microsoft/codebert-base)
+"""
+
+from __future__ import annotations
+import asyncio
+import logging
+import os
+from pathlib import Path
+from typing import Dict, List, Optional, Union, Any, cast
+
+import numpy as np
+import torch
+from transformers import AutoModel, AutoTokenizer
+
+from src.embedding.adapters.base import BaseEmbeddingAdapter
+from src.embedding.models import EmbeddingVector
+from src.embedding.registry import register_adapter
+
+logger = logging.getLogger(__name__)
+
+
+class EncoderEmbeddingAdapter(BaseEmbeddingAdapter):
+    """Adapter for generating embeddings using encoder models.
+    
+    This adapter can be configured to use different encoder models like:
+    - ModernBERT (answerdotai/ModernBERT-base): Good for general text content
+    - CodeBERT (microsoft/codebert-base): Optimized for code and technical documentation
+    
+    The model is specified via constructor parameters.
+    """
+    
+    def __init__(
+        self,
+        model_name: str = "microsoft/codebert-base",
+        device: Optional[str] = None,
+        batch_size: int = 32,
+        max_length: int = 512,
+        pooling_strategy: str = "mean",
+        normalize_embeddings: bool = True,
+        **kwargs
+    ):
+        """Initialize the encoder embedding adapter.
+        
+        Args:
+            model_name: Name or path of the transformer model to use
+            device: Device to run inference on ('cpu', 'cuda', 'cuda:0', etc.)
+            batch_size: Maximum batch size for processing
+            max_length: Maximum sequence length
+            pooling_strategy: How to pool token embeddings ('mean', 'cls', 'max')
+            normalize_embeddings: Whether to normalize embeddings to unit length
+        """
+        super().__init__(**kwargs)
+        
+        # Configuration
+        self.model_name = model_name
+        self.batch_size = batch_size
+        self.max_length = max_length
+        self.pooling_strategy = pooling_strategy
+        self.normalize_embeddings = normalize_embeddings
+        
+        # Check for device setting in the pipeline configuration
+        pipeline_device = self._get_pipeline_device('embedding')
+        # Allow explicit parameter to override, then pipeline config, then default to CPU
+        self.device = device or pipeline_device or "cpu"
+        
+        # Log the device selection
+        if pipeline_device:
+            logger.info(f"Using device from pipeline config: {pipeline_device}")
+        elif device:
+            logger.info(f"Using explicitly provided device: {device}")
+        else:
+            logger.info(f"Using device from adapter config: {self.device}")
+        
+        # Adjust for CUDA_VISIBLE_DEVICES remapping
+        self.adjusted_device = self._get_adjusted_device(self.device)
+        
+        # Model placeholders
+        self._tokenizer = None
+        self._model = None
+        self._model_loaded = False
+        
+        # Metrics
+        self.total_texts_processed = 0
+        self.total_batches_processed = 0
+    
+    def _get_adjusted_device(self, device: str) -> str:
+        """Adjust requested device based on CUDA_VISIBLE_DEVICES setting.
+        
+        When CUDA_VISIBLE_DEVICES is set, it remaps available devices. For example,
+        with CUDA_VISIBLE_DEVICES=1, the physical GPU 1 is available as cuda:0.
+        This function handles this remapping.
+        
+        Args:
+            device: The requested device (e.g., 'cuda:1')
+            
+        Returns:
+            Adjusted device string for current environment
+        """
+        # If not CUDA, no adjustment needed
+        if not device.startswith("cuda"):
+            return device
+        
+        # Check if CUDA is actually available
+        if not torch.cuda.is_available():
+            logger.warning("CUDA requested but not available, falling back to CPU")
+            return "cpu"
+        
+        # Parse device index if specified
+        if ":" in device:
+            try:
+                requested_idx = int(device.split(":")[1])
+            except (ValueError, IndexError):
+                logger.warning(f"Invalid CUDA device format: {device}, using cuda:0")
+                requested_idx = 0
+        else:
+            # Just 'cuda' means cuda:0
+            requested_idx = 0
+        
+        # Check if the requested index is valid
+        device_count = torch.cuda.device_count()
+        if requested_idx >= device_count:
+            logger.warning(
+                f"Requested CUDA device {requested_idx} but only {device_count} devices available. "
+                f"Falling back to cuda:0"
+            )
+            return "cuda:0"
+        
+        return f"cuda:{requested_idx}"
+    
+    def _get_pipeline_device(self, component_name: str) -> Optional[str]:
+        """Get the device configuration for a specific component from the pipeline config.
+        
+        Args:
+            component_name: Name of the component (e.g., 'embedding', 'chunking', 'docproc')
+            
+        Returns:
+            The configured device string or None if not configured/available
+        """
+        try:
+            # Import here to avoid circular imports
+            from src.config.config_loader import get_component_device
+            return get_component_device(component_name)
+        except (ImportError, AttributeError) as e:
+            logger.debug(f"Could not get pipeline device: {e}")
+            return None
+    
+    async def _ensure_model_loaded(self) -> None:
+        """Ensure the encoder model is loaded.
+        
+        This method handles loading the model and tokenizer with appropriate
+        error handling and resource management.
+        
+        Raises:
+            RuntimeError: If model loading fails
+        """
+        if self._model_loaded:
+            return
+        
+        try:
+            # Use a lock file to prevent concurrent model loading in multiprocessing
+            lock_path = Path(f"/tmp/encoder_model_loading_{os.getpid()}.lock")
+            
+            try:
+                # Create lock file
+                with open(lock_path, 'w') as f:
+                    f.write(str(os.getpid()))
+                
+                # Log the actual device being used
+                logger.info(f"Loading encoder model: {self.model_name} on {self.adjusted_device}")
+                
+                # Load tokenizer first
+                if not hasattr(self, '_tokenizer') or self._tokenizer is None:
+                    self._tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+                    logger.info(f"Tokenizer loaded successfully for {self.model_name}")
+
+                # Load model if not already loaded
+                if not hasattr(self, '_model') or self._model is None:
+                    # Check available GPU memory if using CUDA
+                    if self.adjusted_device.startswith("cuda"):
+                        # Get device index
+                        device_idx = int(self.adjusted_device.split(":")[-1]) if ":" in self.adjusted_device else 0
+                        
+                        # Check available memory
+                        if torch.cuda.is_available():
+                            total_memory = torch.cuda.get_device_properties(device_idx).total_memory
+                            reserved = torch.cuda.memory_reserved(device_idx)
+                            allocated = torch.cuda.memory_allocated(device_idx)
+                            free_memory = total_memory - (reserved + allocated)
+                            
+                            # If less than 1GB free, fall back to CPU
+                            if free_memory < 1 * 1024**3:  # 1GB
+                                logger.warning(
+                                    f"Insufficient GPU memory on {self.adjusted_device}. "
+                                    f"Falling back to CPU for {self.model_name}"
+                                )
+                                self.adjusted_device = "cpu"
+                    
+                    # Load the model
+                    self._model = AutoModel.from_pretrained(self.model_name)
+                    self._model.to(self.adjusted_device)
+                    self._model.eval()  # Set to evaluation mode
+                    logger.info(f"Model {self.model_name} loaded successfully on {self.adjusted_device}")
+                
+                self._model_loaded = True
+                
+            finally:
+                # Clean up lock file
+                if lock_path.exists():
+                    lock_path.unlink()
+                
+        except Exception as e:
+            logger.error(f"Failed to load encoder model: {e}")
+            raise RuntimeError(f"Model loading failed: {e}") from e
+    
+    async def _get_embeddings_from_model(self, texts: List[str]) -> List[List[float]]:
+        """Generate embeddings directly using the transformer model.
+        
+        Args:
+            texts: List of text strings to embed
+            
+        Returns:
+            List of embedding vectors
+            
+        Raises:
+            RuntimeError: If the embedding generation fails
+        """
+        if not self._model_loaded:
+            await self._ensure_model_loaded()
+        
+        try:
+            # Process the texts in batches to avoid OOM issues
+            all_embeddings = []
+            
+            # Create mini-batches to process
+            for i in range(0, len(texts), self.batch_size):
+                batch_texts = texts[i:i + self.batch_size]
+                logger.debug(f"Processing batch {i//self.batch_size + 1} with {len(batch_texts)} texts")
+                
+                with torch.no_grad():
+                    # Tokenize the input texts
+                    encoding = self._tokenizer(
+                        batch_texts,
+                        padding=True,
+                        truncation=True,
+                        max_length=self.max_length,
+                        return_tensors="pt"
+                    )
+                    
+                    # Move tensors to the correct device
+                    input_ids = encoding["input_ids"].to(self._model.device)
+                    attention_mask = encoding["attention_mask"].to(self._model.device)
+                    
+                    # Forward pass
+                    outputs = self._model(
+                        input_ids=input_ids,
+                        attention_mask=attention_mask,
+                        output_hidden_states=True,
+                        return_dict=True
+                    )
+                    
+                    # Apply pooling based on strategy
+                    if self.pooling_strategy == "cls":
+                        # CLS token embedding (first token)
+                        batch_embeddings = outputs.last_hidden_state[:, 0, :]
+                    elif self.pooling_strategy == "mean":
+                        # Mean pooling - average token embeddings
+                        token_embeddings = outputs.last_hidden_state
+                        input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
+                        batch_embeddings = torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
+                    elif self.pooling_strategy == "max":
+                        # Max pooling - take maximum values
+                        token_embeddings = outputs.last_hidden_state
+                        input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
+                        batch_embeddings = torch.max(token_embeddings * input_mask_expanded, dim=1)[0]
+                    else:
+                        raise ValueError(f"Invalid pooling strategy: {self.pooling_strategy}")
+                    
+                    # Normalize if requested
+                    if self.normalize_embeddings:
+                        batch_embeddings = torch.nn.functional.normalize(batch_embeddings, p=2, dim=1)
+                    
+                    # Convert to list and add to results
+                    batch_embeddings_np = batch_embeddings.cpu().numpy()
+                    all_embeddings.extend(batch_embeddings_np.tolist())
+            
+            logger.info(f"Generated {len(all_embeddings)} embeddings with dimension {len(all_embeddings[0]) if all_embeddings else 0}")
+            return all_embeddings
+            
+        except Exception as e:
+            logger.error(f"Encoder embedding generation failed: {e}")
+            raise RuntimeError(f"Failed to generate embeddings: {e}") from e
+    
+    async def embed(self, texts: List[str], **kwargs: Any) -> List[EmbeddingVector]:
+        """Generate embeddings for a list of texts using the encoder model.
+        
+        Args:
+            texts: List of text strings to embed
+            **kwargs: Additional parameters to pass to the model
+            
+        Returns:
+            List of embedding vectors
+            
+        Raises:
+            RuntimeError: If embedding generation fails
+        """
+        if not texts:
+            return []
+        
+        # Filter out empty texts
+        non_empty_texts = []
+        non_empty_indices = []
+        
+        for i, text in enumerate(texts):
+            if text and isinstance(text, str) and text.strip():
+                non_empty_texts.append(text)
+                non_empty_indices.append(i)
+            else:
+                logger.warning(f"Skipping empty or invalid text at index {i}")
+        
+        if not non_empty_texts:
+            logger.warning("No valid texts to embed")
+            return [EmbeddingVector(vector=[0.0]) for _ in texts]
+        
+        # Get embeddings for non-empty texts
+        embeddings = await self._get_embeddings_from_model(non_empty_texts)
+        
+        # Convert to EmbeddingVector objects
+        embedding_vectors = [EmbeddingVector(vector=emb) for emb in embeddings]
+        
+        # Create final result with zeros for empty texts
+        result = []
+        embedding_idx = 0
+        
+        for i in range(len(texts)):
+            if i in non_empty_indices:
+                result.append(embedding_vectors[embedding_idx])
+                embedding_idx += 1
+            else:
+                # Create zero vector with same dimension as other embeddings
+                dim = len(embedding_vectors[0].vector) if embedding_vectors else 1
+                result.append(EmbeddingVector(vector=[0.0] * dim))
+        
+        self.total_texts_processed += len(texts)
+        return result
+    
+    async def embed_single(self, text: str, **kwargs: Any) -> EmbeddingVector:
+        """Generate an embedding for a single text string.
+        
+        Args:
+            text: Text to embed
+            **kwargs: Additional parameters to pass to the model
+            
+        Returns:
+            Embedding vector
+            
+        Raises:
+            RuntimeError: If the embedding operation fails
+        """
+        if not text or not isinstance(text, str) or not text.strip():
+            logger.warning("Empty or invalid text provided to embed_single")
+            return EmbeddingVector(vector=[0.0])
+        
+        results = await self.embed([text], **kwargs)
+        if not results:
+            raise RuntimeError("Empty results from encoder embedding model")
+        return results[0]
+
+
+# Register the adapter for different model types
+register_adapter("modernbert", EncoderEmbeddingAdapter)  # For backward compatibility
+register_adapter("codebert", EncoderEmbeddingAdapter)    # For code repositories
+register_adapter("encoder", EncoderEmbeddingAdapter)     # Generic name

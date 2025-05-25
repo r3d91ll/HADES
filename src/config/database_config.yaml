@@ -1,0 +1,38 @@
+# ArangoDB Configuration for HADES-PathRAG
+#
+# This file contains configuration settings for connecting to 
+# and interacting with ArangoDB in the HADES-PathRAG system.
+#
+# Connection Settings
+# ------------------
+
+# Database server connection
+host: localhost
+port: 8529
+username: root  # Default username, override with ARANGO_USER environment variable
+password: ""    # Default password, override with ARANGO_PASSWORD environment variable
+use_ssl: false  # Whether to use SSL for connection
+
+# Database Settings
+# ----------------
+
+# Database name
+database_name: hades  # Default database name, override with ARANGO_DB environment variable
+
+# Collection names
+documents_collection: documents
+chunks_collection: chunks
+relationships_collection: relationships
+
+# Operation Settings
+# -----------------
+
+# Timeout for database operations in seconds
+timeout: 60
+
+# Retry configuration for failed operations
+retry_attempts: 3
+retry_delay: 1.0  # Delay between retry attempts in seconds
+
+# Batch size for bulk operations
+batch_size: 100

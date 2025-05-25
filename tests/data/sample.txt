@@ -1,0 +1,8 @@
+Sample Text Document
+    
+This is a plain text document used for testing.
+It contains multiple paragraphs and some formatting.
+
+Line 1
+Line 2
+Line 3

@@ -1,0 +1,66 @@
+# Configuration for content chunking in HADES-PathRAG
+# This file controls how different file types are chunked during the ingestion process
+# Two primary chunking systems are defined:
+# - AST-based chunking for code files (respects code structure)
+# - Chonky for semantic text chunking (natural language content)
+
+version: 1
+
+# Map languages/file types to appropriate chunker
+chunker_mapping:
+  python: 'ast'
+  javascript: 'ast'
+  java: 'ast'
+  cpp: 'ast'
+  markdown: 'chonky'
+  text: 'chonky'
+  html: 'chonky'
+  pdf: 'chonky'
+  default: 'chonky'  # Fallback chunker for unknown file types
+
+# AST-based code chunker configuration
+ast:
+  max_tokens: 2048        # Maximum tokens per chunk
+  use_class_boundaries: true    # Respect class boundaries
+  use_function_boundaries: true # Respect function boundaries
+  extract_imports: true         # Create separate chunk for imports
+  preserve_docstrings: true     # Keep docstrings with their symbol
+
+# Chonky semantic text chunker configuration
+chonky:
+  # Model settings
+  model_id: "mirth/chonky_modernbert_large_1"  # Modern BERT model for improved chunking
+  model_engine: "haystack"                    # Which model engine to use (haystack, huggingface, vllm)
+  device: "cuda:0"                           # Device to load model on (cuda:0, cpu, etc.)
+  
+  # Chunking parameters
+  max_tokens: 2048                           # Maximum tokens per chunk
+  min_tokens: 64                            # Minimum tokens per chunk
+  overlap_tokens: 200                       # Token overlap between chunks
+  semantic_chunking: true                   # Use semantic chunking vs. static
+  preserve_structure: true                  # Attempt to preserve document structure
+  batch_size: 8                             # Batch size for processing multiple documents
+  
+  # Overlap context settings
+  overlap_context:
+    enabled: true                           # Whether to use the new overlap context structure
+    store_pre_context: true                 # Store text before the chunk
+    store_post_context: true                # Store text after the chunk
+    max_pre_context_chars: 1000             # Maximum characters for pre-context
+    max_post_context_chars: 1000            # Maximum characters for post-context
+    store_position_info: true               # Store position information for precise reconstruction
+  
+  # Cache settings
+  cache_with_device: true                   # Whether to include device in cache key
+  cache_size: 4                             # Number of models to keep in cache
+  
+  # Model engine settings
+  early_availability_check: true            # Check model engine availability at module initialization
+  auto_start_engine: true                   # Automatically try to start the engine if not running
+  max_startup_retries: 3                    # Maximum number of retries when starting the engine
+  
+  # Advanced settings
+  tokenizer_name: null                      # Optional custom tokenizer (defaults to model_id)
+  force_reload: false                       # Whether to force reload model even if cached
+  trust_remote_code: true                   # Whether to trust remote code when loading model
+  timeout: 30                               # Timeout in seconds for model operations

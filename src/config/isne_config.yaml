@@ -1,0 +1,66 @@
+---
+# ISNE Configuration File
+# Controls the behavior of the ISNE (Inductive Shallow Node Embedding) training and inference
+
+# Model configuration
+model:
+  embedding_dim: 768       # Input dimension from ModernBERT
+  hidden_dim: 256          # Hidden representation size
+  output_dim: 768          # Final embedding dimension (matches input for compatibility)
+  num_layers: 2            # Number of ISNE layers
+  num_heads: 8             # Number of attention heads
+  dropout: 0.1             # Dropout rate for regularization
+  activation: "elu"        # Activation function (options: elu, relu, leaky_relu)
+  add_self_loops: true     # Whether to add self-loops to graph edges
+
+# Training configuration
+training:
+  learning_rate: 0.001     # Initial learning rate
+  weight_decay: 1e-5       # L2 regularization
+  epochs: 50               # Maximum number of training epochs
+  batch_size: 32           # Batch size for training
+  num_hops: 1              # Number of hops for neighborhood sampling
+  neighbor_size: 10        # Maximum number of neighbors to sample per node
+  eval_interval: 5         # Interval for evaluation during training
+  early_stopping_patience: 10  # Patience for early stopping
+  checkpoint_interval: 5   # Interval for model checkpointing
+  device: "cpu"            # Training device (cpu or cuda:x)
+  
+  # Loss weights
+  lambda_feat: 1.0         # Weight for feature preservation loss
+  lambda_struct: 1.0       # Weight for structural preservation loss  
+  lambda_contrast: 0.5     # Weight for contrastive loss
+
+# Inference configuration
+inference:
+  batch_size: 64           # Batch size for inference
+  device: "cpu"            # Inference device (cpu or cuda:x)
+  cache_embeddings: true   # Whether to cache enhanced embeddings
+  model_path: "./models/isne/isne_model_latest.pt"  # Path to the trained ISNE model
+                                                   # IMPORTANT: This is used by the ingestion service
+                                                   # when porting from test script to production service
+
+# Directory configuration
+directories:
+  data_dir: "./data/isne"                     # Base directory for ISNE data
+  input_dir: "./test-output/pipeline-mp-test"  # Default input directory for pipeline output
+  output_dir: "./test-output/isne-enhanced"    # Default output directory for enhanced embeddings
+  model_dir: "./models/isne"                   # Directory for model storage and loading
+  cache_dir: "./cache/isne-embeddings"         # Cache directory for embeddings
+
+# Graph construction parameters
+graph:
+  similarity_threshold: 0.7  # Minimum similarity for connecting nodes
+  max_neighbors: 5           # Maximum number of neighbors per node based on similarity
+  sequential_weight: 0.9     # Edge weight for sequential connections
+  similarity_weight: 0.7     # Base weight for similarity-based connections
+  window_size: 3             # Window size for sequential context connections
+  add_reverse_edges: true    # Whether to make edges bidirectional
+
+# Performance settings
+performance:
+  num_workers: 4             # Number of worker threads for data loading
+  prefetch_factor: 2         # Number of batches to prefetch
+  pin_memory: true           # Whether to use pinned memory for faster GPU transfer
+  max_memory_mb: 32768       # Maximum memory usage (32GB)
+  chunk_size: 1000           # Process documents in chunks to limit memory usage

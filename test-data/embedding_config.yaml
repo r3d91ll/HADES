@@ -1,0 +1,58 @@
+# Embedding Configuration for HADES-PathRAG
+version: 1
+
+# Default adapter to use
+default_adapter: "modernbert"
+
+# Adapter configurations
+adapters:
+  cpu:
+    type: "cpu"
+    config:
+      model_name: "all-MiniLM-L6-v2"
+      pooling_strategy: "mean"
+      device: "cpu"
+      
+  modernbert:
+    type: "modernbert"
+    config:
+      model_name: "answerdotai/ModernBERT-base"
+      pooling_strategy: "cls"
+      # Set to CPU for resource efficiency in ingestion pipeline
+      device: "cpu"
+      use_model_engine: true
+      batch_size: 8
+      
+  modernbert_gpu:
+    type: "modernbert"
+    config:
+      model_name: "answerdotai/ModernBERT-base"
+      pooling_strategy: "cls"
+      device: "cuda:0"
+      use_model_engine: true
+      batch_size: 16
+
+# Base configuration for CPU adapter
+cpu:
+  model_name: "all-MiniLM-L6-v2"
+  max_length: 512
+  pooling_strategy: "mean"
+  normalize_embeddings: true
+  batch_size: 32
+  device: "cpu"
+
+# Base configuration for ModernBERT adapter
+modernbert:
+  model_name: "answerdotai/ModernBERT-base"
+  max_length: 8192
+  pooling_strategy: "cls"
+  normalize_embeddings: true
+  batch_size: 8
+  device: "cpu"  # Default to CPU, override in specific adapters if needed
+  
+  # Model engine settings
+  use_model_engine: true
+  engine_type: "haystack"
+  early_availability_check: true
+  auto_start_engine: true
+  max_startup_retries: 3
