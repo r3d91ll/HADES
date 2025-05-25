@@ -1,0 +1,102 @@
+{
+  "timestamp": 1748042430.1277988,
+  "runs_per_benchmark": 3,
+  "sizes": [
+    {
+      "num_docs": 10,
+      "chunks_per_doc": 10,
+      "total_chunks": 100,
+      "pre_validation": {
+        "avg_time": 4.593531290690104e-05,
+        "min_time": 4.076957702636719e-05,
+        "max_time": 5.340576171875e-05,
+        "total_docs": 10,
+        "total_chunks": 100,
+        "chunks_per_second": 2176974.394463668
+      },
+      "post_validation": {
+        "avg_time": 7.398923238118489e-05,
+        "min_time": 7.152557373046875e-05,
+        "max_time": 7.581710815429688e-05,
+        "chunks_per_second": 1351548.0128893664
+      },
+      "summary_creation": {
+        "avg_time": 3.973642985026042e-07,
+        "min_time": 2.384185791015625e-07,
+        "max_time": 4.76837158203125e-07
+      }
+    },
+    {
+      "num_docs": 100,
+      "chunks_per_doc": 10,
+      "total_chunks": 1000,
+      "pre_validation": {
+        "avg_time": 0.00017054875691731772,
+        "min_time": 0.00016641616821289062,
+        "max_time": 0.00017595291137695312,
+        "total_docs": 100,
+        "total_chunks": 1000,
+        "chunks_per_second": 5863425.908667288
+      },
+      "post_validation": {
+        "avg_time": 0.0004475911458333333,
+        "min_time": 0.00044083595275878906,
+        "max_time": 0.0004601478576660156,
+        "chunks_per_second": 2234181.8181818184
+      },
+      "summary_creation": {
+        "avg_time": 1.5894571940104166e-07,
+        "min_time": 0.0,
+        "max_time": 2.384185791015625e-07
+      }
+    },
+    {
+      "num_docs": 100,
+      "chunks_per_doc": 100,
+      "total_chunks": 10000,
+      "pre_validation": {
+        "avg_time": 0.0011292298634847004,
+        "min_time": 0.0011262893676757812,
+        "max_time": 0.001131296157836914,
+        "total_docs": 100,
+        "total_chunks": 10000,
+        "chunks_per_second": 8855592.93405588
+      },
+      "post_validation": {
+        "avg_time": 0.004116932551066081,
+        "min_time": 0.0037407875061035156,
+        "max_time": 0.00462651252746582,
+        "chunks_per_second": 2428992.915468216
+      },
+      "summary_creation": {
+        "avg_time": 3.178914388020833e-07,
+        "min_time": 2.384185791015625e-07,
+        "max_time": 4.76837158203125e-07
+      }
+    },
+    {
+      "num_docs": 1000,
+      "chunks_per_doc": 100,
+      "total_chunks": 100000,
+      "pre_validation": {
+        "avg_time": 0.02295200030008952,
+        "min_time": 0.021659135818481445,
+        "max_time": 0.02438640594482422,
+        "total_docs": 1000,
+        "total_chunks": 100000,
+        "chunks_per_second": 4356918.730068593
+      },
+      "post_validation": {
+        "avg_time": 0.05435864130655924,
+        "min_time": 0.05378460884094238,
+        "max_time": 0.05485653877258301,
+        "chunks_per_second": 1839633.9127765025
+      },
+      "summary_creation": {
+        "avg_time": 4.76837158203125e-07,
+        "min_time": 2.384185791015625e-07,
+        "max_time": 7.152557373046875e-07
+      }
+    }
+  ]
+}

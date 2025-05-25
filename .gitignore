@@ -1,0 +1,129 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+venv/
+env/
+ENV/
+.env
+.venv
+env.bak/
+venv.bak/
+.python-version
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# PyBuilder
+target/
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-workspace
+*.sublime-project
+
+# ArangoDB specific
+arangodb/
+.arango_password
+.arangodb
+
+# Ollama specific
+.ollama/
+model_cache/
+
+# ML/AI specific
+*.h5
+*.pkl
+*.joblib
+#models/
+embeddings/
+checkpoints/
+logs/
+tensorboard/
+
+# HADES-PathRAG specific
+# Add any project-specific files/dirs that shouldn't be committed
+data/raw/
+data/processed/
+.credentials
+config/local.yaml
+
+# OS specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs and temp files
+*.log
+logs/
+tmp/
+temp/
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Database
+db.sqlite3
+
+# Environment variables
+*.env
+.env.*
+!.env.template
+
+.mypy_cache
+
+# Dead code
+dead-code/*
+
+# windsurf rules
+.windsurfrules
+test-output/markdown_output/
+test-data/*.pdf
+test-output/*
+.coveragerc
+test-data2/*
+models/isne/isne_model_v1*
+models/isne/simplified_isne_model.pt
