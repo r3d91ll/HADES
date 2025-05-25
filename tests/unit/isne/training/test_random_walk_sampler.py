@@ -19,7 +19,7 @@ from typing import Tuple
 # Add the src directory to the path so we can import our modules
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../')))
 
-from src.isne.training.random_walk_sampler import RandomWalkSampler
+from src.isne.training.sampler import RandomWalkSampler
 
 
 class TestRandomWalkSampler(unittest.TestCase):
