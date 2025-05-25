@@ -7,7 +7,7 @@ The `sampler.py` module provides efficient graph sampling strategies for trainin
 1. **NeighborSampler**: Samples nodes and edges based on local neighborhood structure.
 2. **RandomWalkSampler**: Samples nodes and edges using random walks on the graph.
 
-Both samplers are designed to handle large graphs efficiently and provide various sampling methods required for training graph embedding models.
+Both samplers are designed to handle large graphs efficiently and provide various sampling methods required for training graph embedding models. The module includes robust error handling, comprehensive type annotations, and fallback mechanisms for when optional dependencies are unavailable.
 
 ## Classes
 
