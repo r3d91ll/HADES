@@ -15,11 +15,11 @@ from typing import Dict, List, Any, Optional, Tuple, Union, cast, Type
 import torch
 import numpy as np
 
-# Define a union type for ISNE models
-ISNEModelTypes = Union[ISNEModel, SimplifiedISNEModel]
-
 from src.isne.models.isne_model import ISNEModel
 from src.isne.models.simplified_isne_model import SimplifiedISNEModel
+
+# Define a union type for ISNE models
+ISNEModelTypes = Union[ISNEModel, SimplifiedISNEModel]
 from src.validation.embedding_validator import (
     validate_embeddings_before_isne,
     validate_embeddings_after_isne,

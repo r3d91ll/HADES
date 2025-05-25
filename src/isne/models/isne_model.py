@@ -5,7 +5,7 @@ This module implements the complete ISNE model architecture as described in the 
 It combines multiple ISNE layers to create a powerful graph neural network for inductive node embedding.
 """
 
-from typing import Dict, List, Optional, Union, Any, Callable, Tuple
+from typing import Dict, List, Any, Optional, Union, Tuple, cast, Callable
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
