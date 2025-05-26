@@ -1,5 +1,35 @@
 # Document Processing Module (docproc)
 
+## Type System Improvements (May 2025)
+
+The document processing module has been updated with improved type annotations to ensure compatibility with mypy type checking. Key improvements include:
+
+### Type Fixes Summary
+
+- Added proper type annotations for entity extractors in the markdown adapter
+- Fixed dictionary update operations in YAML and JSON adapters with appropriate type casts
+- Resolved incompatible types in collection assignments and dictionary updates
+- Added explicit casts for return values to match declared return types
+- Improved error handling with proper type annotations for error responses
+
+### Remaining Type Issues
+
+Some type issues remain that would require further work:
+
+- Missing type stubs for the YAML library (could be resolved by installing `types-PyYAML`)
+- Some complex type incompatibilities in the YAML and JSON adapters related to TypedDict usage
+- Return type issues in the schemas/utils.py module
+
+### Type Annotation Guidelines
+
+When making future changes to the document processing module, follow these guidelines:
+
+1. Use explicit type annotations for all function parameters and return values
+2. When working with collections, prefer concrete types like `Dict[str, Any]` over `Collection[str]`
+3. Use `cast()` from the typing module when type inference isn't sufficient
+4. For TypedDict classes like YAMLNodeInfo, ensure assignments maintain type compatibility
+5. Run mypy periodically during development to catch type issues early
+
 ## Overview
 
 The document processing module provides a unified interface for processing a wide range of document formats. It converts them to standardized formats for both RAG pipeline ingestion and direct model inference, supporting comprehensive document processing needs.

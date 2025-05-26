@@ -10,7 +10,8 @@ focusing on extracting structure, keys, and relationships between components.
 import logging
 import yaml
 import hashlib
-from typing import Dict, Any, List, Optional, Union, Tuple, Set, TypedDict, cast
+from pathlib import Path
+from typing import Dict, Any, List, Optional, Union, Tuple, Set, TypedDict, cast, Collection, MutableMapping
 from collections import defaultdict
 
 from .base import BaseAdapter
@@ -52,25 +53,42 @@ class YAMLAdapter(BaseAdapter):
         self.options = options or {}
         self.create_symbol_table = create_symbol_table
         
-    def process(self, file_path: Union[str, Path], options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """
-        Process a YAML file.
+    def process(self, file_path: Union[str, Path], options: Optional[Union[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
+        """Process a YAML file or content.
         
         Args:
             file_path: Path to the YAML file
-            options: Additional processing options
+            options: Additional processing options (can contain content as an option)
             
         Returns:
             Processed YAML document
         """
-        options = options or {}
-        path_obj = Path(file_path) if isinstance(file_path, str) else file_path
+
+        # Process options
+        options_dict = {}
+        content = None
         
-        if not path_obj.exists():
-            raise FileNotFoundError(f"YAML file not found: {path_obj}")
+        if options is None:
+            pass
+        elif isinstance(options, str):
+            content = options
+        elif isinstance(options, dict):
+            options_dict = options
+            content = options.get('content')
+        
+        # Handle the case where content is provided directly
+        if content is not None and isinstance(content, str):
+            text = content
+            path_obj = Path(str(file_path)) if file_path else Path("")
+        else:
+            # Process from file path
+            path_obj = Path(file_path) if isinstance(file_path, str) else file_path
             
-        # Read the file content
-        text = path_obj.read_text(encoding="utf-8", errors="replace")
+            if not path_obj.exists():
+                raise FileNotFoundError(f"YAML file not found: {path_obj}")
+                
+            # Read the file content
+            text = path_obj.read_text(encoding="utf-8", errors="replace")
         
         # Process the YAML content
         result = self.process_text(text)
@@ -93,9 +111,10 @@ class YAMLAdapter(BaseAdapter):
             file_hash = hashlib.md5(text.encode()).hexdigest()[:8]
             result["id"] = f"yaml_{file_hash}_{path_obj.stem}"
             
-        return result
+        return cast(Dict[str, Any], result)
     
-    def extract_metadata(self, document: Dict[str, Any]) -> Dict[str, Any]:
+    def extract_metadata(self, content: Union[str, Dict[str, Any]], options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        document = content if isinstance(content, dict) else {}
         """
         Extract metadata from a YAML document.
         
@@ -111,9 +130,10 @@ class YAMLAdapter(BaseAdapter):
         if "symbol_table" in document:
             metadata["key_count"] = len(document["symbol_table"])
             
-        return metadata
+        return cast(Dict[str, Any], metadata)
     
-    def extract_entities(self, document: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def extract_entities(self, content: Union[str, Dict[str, Any]], options: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        document = content if isinstance(content, dict) else {}
         """
         Extract entities from a YAML document.
         
@@ -123,23 +143,28 @@ class YAMLAdapter(BaseAdapter):
         Returns:
             List of extracted entities
         """
-        entities = []
+        entities: List[Dict[str, Any]] = []
         
-        # Extract top-level keys as entities
+        # Track entities by key
+        entities_by_key: Dict[str, Dict[str, Any]] = {}
+        
+        # If we have nodes, convert them to entities
         if "symbol_table" in document:
             for symbol_id, symbol_info in document["symbol_table"].items():
                 if symbol_info.get("path", "").count("/") <= 1:  # Only top-level or direct children
-                    entities.append({
+                    entity = {
                         "id": symbol_id,
                         "type": "yaml_key",
                         "name": symbol_info.get("key", ""),
                         "value_type": symbol_info.get("value_type", ""),
                         "path": symbol_info.get("path", ""),
-                    })
-                    
+                    }
+                    entities.append(entity)
+                    entities_by_key[symbol_id] = entity
+        
         return entities
         
-    def process_text(self, text: str) -> Dict[str, Any]:
+    def process_text(self, text: str, options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Process YAML text content.
         
@@ -150,7 +175,7 @@ class YAMLAdapter(BaseAdapter):
             Processed YAML information
         """
         if not text or not text.strip():
-            return {"error": "Empty YAML content"}
+            return cast(Dict[str, Any], {"error": "Empty YAML content"})
             
         try:
             # Parse the YAML content
@@ -181,22 +206,26 @@ class YAMLAdapter(BaseAdapter):
                     line_positions, 
                     text
                 )
+                # Fix Collection[str] type issue
+                elements_dict: Dict[str, Dict[str, Any]] = elements
+                # Ensure elements has the right type for symbol_table
+                elements = cast(Dict[str, Any], elements)
                 
-                result["symbol_table"] = elements
+                result["symbol_table"] = elements_dict
                 result["relationships"] = relationships
                 
                 # Add structure statistics
-                result["metadata"]["element_count"] = len(elements)
+                result["metadata"]["element_count"] = len(elements_dict)
                 result["metadata"]["relationship_count"] = len(relationships)
                 
             return result
             
         except yaml.YAMLError as e:
             logger.error(f"Error parsing YAML: {e}")
-            return {"error": f"YAML parsing error: {str(e)}"}
+            return cast(Dict[str, Any], {"error": f"YAML parsing error: {str(e)}"})
         except Exception as e:
             logger.error(f"Unexpected error processing YAML: {e}")
-            return {"error": f"Processing error: {str(e)}"}
+            return cast(Dict[str, Any], {"error": f"Processing error: {str(e)}"})
     
     def _create_line_mapping(self, text: str) -> Dict[int, int]:
         """
@@ -236,8 +265,8 @@ class YAMLAdapter(BaseAdapter):
         Returns:
             Tuple of (elements, relationships)
         """
-        elements = {}
-        relationships = []
+        node_map: Dict[str, YAMLNodeInfo] = {}
+        relationships: List[Dict[str, Any]] = []
         
         # Process based on data type
         if isinstance(data, dict):
@@ -263,7 +292,7 @@ class YAMLAdapter(BaseAdapter):
                     "parent": parent_id
                 }
                 
-                elements[element_id] = element_info
+                node_map[element_id] = element_info
                 
                 # Create relationship to parent if exists
                 if parent_id:
@@ -281,11 +310,13 @@ class YAMLAdapter(BaseAdapter):
                     )
                     
                     # Update with child information
-                    elements.update(child_elements)
+                    # Update with properly typed dictionary
+                    for k, v in child_elements.items():
+                        node_map[k] = v  # v is already of type Dict[str, Any], compatible with YAMLNodeInfo
                     relationships.extend(child_relationships)
                     
                     # Add child IDs to parent
-                    elements[element_id]["children"] = list(child_elements.keys())
+                    node_map[element_id]["children"] = list(child_elements.keys())
         
         elif isinstance(data, list):
             for i, item in enumerate(data):
@@ -309,7 +340,7 @@ class YAMLAdapter(BaseAdapter):
                     "parent": parent_id
                 }
                 
-                elements[element_id] = element_info
+                node_map[element_id] = element_info
                 
                 # Create relationship to parent if exists
                 if parent_id:
@@ -327,13 +358,21 @@ class YAMLAdapter(BaseAdapter):
                     )
                     
                     # Update with child information
-                    elements.update(child_elements)
+                    # Update with properly typed dictionary
+                    for k, v in child_elements.items():
+                        node_map[k] = v  # v is already of type Dict[str, Any], compatible with YAMLNodeInfo
                     relationships.extend(child_relationships)
                     
                     # Add child IDs to parent
-                    elements[element_id]["children"] = list(child_elements.keys())
+                    node_map[element_id]["children"] = list(child_elements.keys())
         
-        return elements, relationships
+        # Update the node map with root info by converting to compatible types
+        nodes: Dict[str, YAMLNodeInfo] = {}
+        for key, value in node_map.items():
+            nodes[key] = cast(YAMLNodeInfo, value)
+        
+        # Return the node map and relationships list with proper types
+        return nodes, relationships
     
     def _get_type_name(self, value: Any) -> str:
         """Get the type name of a value."""

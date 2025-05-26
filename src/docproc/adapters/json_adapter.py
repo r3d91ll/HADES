@@ -10,7 +10,7 @@ focusing on extracting structure, keys, and relationships between components.
 import json
 import logging
 import hashlib
-from typing import Dict, Any, List, Optional, Union, Tuple, Set, TypedDict, cast
+from typing import Dict, Any, List, Optional, Union, Tuple, Set, TypedDict, cast, Collection, MutableMapping
 from collections import defaultdict
 
 from .base import BaseAdapter
@@ -48,10 +48,11 @@ class JSONAdapter(BaseAdapter):
             create_symbol_table: Whether to create a symbol table
             options: Additional options for the adapter
         """
-        super().__init__(name="json", options=options or {})
+        super().__init__(format_type="json")
+        self.options = options or {}
         self.create_symbol_table = create_symbol_table
         
-    def process_text(self, text: str) -> Dict[str, Any]:
+    def process_text(self, text: str, options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Process JSON text content.
         
@@ -62,7 +63,7 @@ class JSONAdapter(BaseAdapter):
             Processed JSON information
         """
         if not text or not text.strip():
-            return {"error": "Empty JSON content"}
+            return cast(Dict[str, Any], {"error": "Empty JSON content"})
             
         try:
             # Parse the JSON content
@@ -93,22 +94,75 @@ class JSONAdapter(BaseAdapter):
                     line_positions, 
                     text
                 )
+                # Fix Collection[str] type issue
+                elements_dict: Dict[str, Dict[str, Any]] = elements
+                # Ensure elements has the right type for symbol_table
+                elements = cast(Dict[str, Any], elements)
                 
-                result["symbol_table"] = elements
+                result["symbol_table"] = elements_dict
                 result["relationships"] = relationships
                 
                 # Add structure statistics
-                result["metadata"]["element_count"] = len(elements)
+                result["metadata"]["element_count"] = len(elements_dict)
                 result["metadata"]["relationship_count"] = len(relationships)
                 
             return result
             
         except json.JSONDecodeError as e:
             logger.error(f"Error parsing JSON: {e}")
-            return {"error": f"JSON parsing error: {str(e)}"}
+            return cast(Dict[str, Any], {"error": f"JSON parsing error: {str(e)}"})
         except Exception as e:
             logger.error(f"Unexpected error processing JSON: {e}")
-            return {"error": f"Processing error: {str(e)}"}
+            return cast(Dict[str, Any], {"error": f"Processing error: {str(e)}"})
+    
+    def extract_metadata(self, content: Union[str, Dict[str, Any]], options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Extract metadata from a JSON document.
+        
+        Args:
+            content: JSON content as string or dict
+            options: Additional extraction options
+            
+        Returns:
+            Extracted metadata
+        """
+        document = content if isinstance(content, dict) else {}
+        metadata = {}
+        
+        # Extract basic metadata
+        if "metadata" in document:
+            metadata.update(document["metadata"])
+            
+        return cast(Dict[str, Any], metadata)
+    
+    def extract_entities(self, content: Union[str, Dict[str, Any]], options: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """
+        Extract entities from a JSON document.
+        
+        Args:
+            content: JSON content as string or dict
+            options: Additional extraction options
+            
+        Returns:
+            List of extracted entities
+        """
+        document = content if isinstance(content, dict) else {}
+        entities: List[Dict[str, Any]] = []
+        
+        # Extract top-level keys as entities
+        if "symbol_table" in document:
+            for symbol_id, symbol_info in document["symbol_table"].items():
+                if symbol_info.get("path", "").count("/") <= 1:  # Only top-level or direct children
+                    entity = {
+                        "id": symbol_id,
+                        "type": "json_key",
+                        "name": symbol_info.get("key", ""),
+                        "value": symbol_info.get("value_preview", ""),
+                        "path": symbol_info.get("path", ""),
+                    }
+                    entities.append(entity)
+                    
+        return entities
     
     def _create_line_mapping(self, text: str) -> Dict[int, int]:
         """
@@ -148,7 +202,7 @@ class JSONAdapter(BaseAdapter):
         Returns:
             Tuple of (elements, relationships)
         """
-        elements = {}
+        elements: Dict[str, Any] = {}
         relationships = []
         
         # Process based on data type
@@ -175,7 +229,10 @@ class JSONAdapter(BaseAdapter):
                     "parent": parent_id
                 }
                 
-                elements[element_id] = element_info
+                elements = cast(Dict[str, Any], dict(elements))
+
+                
+                elements[element_id] = element_info  # elements is now properly typed as Dict
                 
                 # Create relationship to parent if exists
                 if parent_id:
@@ -197,7 +254,9 @@ class JSONAdapter(BaseAdapter):
                     relationships.extend(child_relationships)
                     
                     # Add child IDs to parent
-                    elements[element_id]["children"] = list(child_elements.keys())
+                    elements = cast(Dict[str, Any], dict(elements))
+
+                    elements[element_id]["children"] = list(child_elements.keys())  # elements is now properly typed as Dict
         
         elif isinstance(data, list):
             for i, item in enumerate(data):
@@ -221,7 +280,10 @@ class JSONAdapter(BaseAdapter):
                     "parent": parent_id
                 }
                 
-                elements[element_id] = element_info
+                elements = cast(Dict[str, Any], dict(elements))
+
+                
+                elements[element_id] = element_info  # elements is now properly typed as Dict
                 
                 # Create relationship to parent if exists
                 if parent_id:
@@ -243,9 +305,17 @@ class JSONAdapter(BaseAdapter):
                     relationships.extend(child_relationships)
                     
                     # Add child IDs to parent
-                    elements[element_id]["children"] = list(child_elements.keys())
+                    elements = cast(Dict[str, Any], dict(elements))
+
+                    elements[element_id]["children"] = list(child_elements.keys())  # elements is now properly typed as Dict
         
-        return elements, relationships
+        # Convert elements and relationships to the correct types
+        typed_elements: Dict[str, JSONNodeInfo] = {}
+        for key, value in elements.items():
+            typed_elements[key] = cast(JSONNodeInfo, value)
+            
+        # Return with proper types
+        return typed_elements, relationships
     
     def _get_type_name(self, value: Any) -> str:
         """Get the type name of a value."""

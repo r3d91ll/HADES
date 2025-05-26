@@ -266,7 +266,7 @@ class MarkdownAdapter:
         if in_test:
             # In tests, sometimes the MarkdownEntityExtractor is mocked
             try:
-                entity_extractor = MarkdownEntityExtractor()
+                entity_extractor: EntityExtractor = MarkdownEntityExtractor()
             except Exception:
                 # If that fails, fall back to the normal approach
                 entity_extractor = get_markdown_extractor()
@@ -308,6 +308,11 @@ class MarkdownAdapter:
         }
         
         # Ensure metadata has doc_type field for test compatibility
+        # Ensure metadata is properly typed
+        result["metadata"] = cast(Dict[str, Any], result["metadata"])
+        # Ensure we can index into metadata
+        if not isinstance(result["metadata"], dict):
+            result["metadata"] = {}
         if "doc_type" not in result["metadata"]:
             result["metadata"]["doc_type"] = "markdown"
         
