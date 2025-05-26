@@ -9,7 +9,11 @@ that represent meaningful elements within the code.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Union
+import logging
+from typing import Any, Dict, List, Optional, Union, cast
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 from .ast_chunker import chunk_python_code
 from .python_chunker import PythonCodeChunker
@@ -66,15 +70,24 @@ def chunk_code(
         raise ValueError(f"No chunker registered for language: {lang}")
     
     # Apply chunking strategy based on type
+    result: Union[List[Dict[str, Any]], str] = []
+    
     if callable(chunker) and not isinstance(chunker, type):  # Check if it's a function, not a class
-        # Function-based chunker
-        return chunker(document, max_tokens=max_tokens, output_format=output_format)
-    else:
+        # Function-based chunker - call it and explicitly cast the result
+        func_result = chunker(document, max_tokens=max_tokens, output_format=output_format)
+        return cast(Union[List[Dict[str, Any]], str], func_result)
+    elif isinstance(chunker, type):  # Ensure chunker is a class type before instantiating
         # Class-based chunker - ensure we initialize it properly
         chunker_instance = chunker(name=lang, config={"max_tokens": max_tokens})
         # Call chunk with the proper document content
         # Ensure we're passing the right content format (either the document dict or its content)
         if isinstance(document, dict) and "content" in document:
-            return chunker_instance.chunk(document["content"], **{"document": document})
+            chunk_result = chunker_instance.chunk(document["content"], **{"document": document})
+            return cast(Union[List[Dict[str, Any]], str], chunk_result)
         else:
-            return chunker_instance.chunk(document)
+            chunk_result = chunker_instance.chunk(document)
+            return cast(Union[List[Dict[str, Any]], str], chunk_result)
+    else:
+        # Handle the case where chunker is neither callable nor a class
+        logger.warning(f"Invalid chunker type: {type(chunker)}")
+        return []

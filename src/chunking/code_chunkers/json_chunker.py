@@ -13,7 +13,52 @@ from pathlib import Path
 from collections import defaultdict
 
 from src.chunking.base import BaseChunker
-from src.docproc.adapters.json_adapter import JSONAdapter
+# Import the concrete implementation instead of the abstract class
+from src.docproc.adapters.json_adapter import JSONAdapter as JSONAdapterBase
+
+# Create a concrete implementation of JSONAdapter that implements all abstract methods
+class JSONAdapter(JSONAdapterBase):
+    def __init__(self, create_symbol_table: bool = True, options: Optional[Dict[str, Any]] = None):
+        super().__init__(create_symbol_table, options or {})
+    
+    def process(self, file_path: Union[str, Path], options: Optional[Union[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
+        """Process JSON file into a structured representation.
+        
+        This implements the abstract method from BaseAdapter.
+        
+        Args:
+            file_path: Path to the JSON file or the JSON content as a string
+            options: Additional processing options
+            
+        Returns:
+            A dictionary with structured JSON information
+        """
+        # Call the parent implementation if it exists
+        # Otherwise provide a minimal implementation to satisfy the abstract requirement
+        # Since the superclass method is abstract, we can't safely call it
+        # Instead, implement a concrete version directly
+        # This avoids the unsafe super() call to an abstract method
+        
+        # Minimal implementation for chunking purposes
+        # If file_path is a string but not a file path, treat it as content
+        content = ""
+        if isinstance(file_path, str) and not Path(file_path).exists():
+            content = file_path
+        elif isinstance(file_path, (str, Path)):
+            try:
+                with open(file_path, 'r') as f:
+                    content = f.read()
+            except Exception as read_error:
+                logger.warning(f"Error reading JSON file: {read_error}")
+                content = str(file_path)
+        
+        return {
+            "content": content,
+            "content_type": "json",
+            "symbol_table": {},
+            "relationships": [],
+            "metadata": {}
+        }
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +95,7 @@ class JSONCodeChunker(BaseChunker):
         
         logger.info(f"Initialized JSONCodeChunker with config: {self.config}")
     
-    def chunk(self, content: Union[str, Dict[str, Any]], **kwargs) -> List[Dict[str, Any]]:
+    def chunk(self, content: Union[str, Dict[str, Any]], **kwargs: Any) -> List[Dict[str, Any]]:
         """
         Chunk JSON content into semantically meaningful chunks.
         

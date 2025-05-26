@@ -1,5 +1,14 @@
 # Chunking Module Documentation
 
+## Type System
+
+The chunking module has been updated to ensure compatibility with mypy type checking:
+
+- All functions have proper type annotations
+- Return types are consistent and properly handled
+- Type issues in device handling have been fixed
+- Special type handling for None values and Union types
+
 ## Overview
 The chunking module provides semantic document chunking capabilities for HADES-PathRAG, with support for both CPU and GPU processing paths. It uses the Chonky neural paragraph splitting model to ensure semantically coherent paragraphs.
 

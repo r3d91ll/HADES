@@ -402,7 +402,9 @@ def _get_splitter_with_engine(model_id: str, device: str = "cuda") -> ParagraphS
         # Continue with provided or default device
     
     # Adjust device to match runtime environment
-    device = _get_adjusted_device(device)
+    # Ensure device is a string before adjusting
+    device_str = "cpu" if device is None else device
+    device = _get_adjusted_device(device_str)
     
     global _SPLITTER_CACHE
     
@@ -583,7 +585,9 @@ def chunk_text(
         logger.info(f"Using explicitly provided device: {device}")
         
     # Adjust device to match runtime environment
-    device = _get_adjusted_device(device)
+    # Ensure device is a string before adjusting
+    device_str = "cpu" if device is None else device
+    device = _get_adjusted_device(device_str)
     
     logger.info(f"Using device: {device}")
     

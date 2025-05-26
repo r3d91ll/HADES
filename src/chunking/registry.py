@@ -27,7 +27,7 @@ def register_chunker(name: str, chunker_cls: Type) -> None:
     _CHUNKER_REGISTRY[name] = chunker_cls
 
 
-def get_chunker(name: str, **kwargs) -> Any:
+def get_chunker(name: str, **kwargs: Any) -> Any:
     """Get a chunker instance by name.
     
     Args:

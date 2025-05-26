@@ -32,7 +32,7 @@ class BaseChunker(ABC):
         self.config = config or {}
     
     @abstractmethod
-    def chunk(self, content: Union[str, Dict[str, Any]], **kwargs) -> List[Dict[str, Any]]:
+    def chunk(self, content: Union[str, Dict[str, Any]], **kwargs: Any) -> List[Dict[str, Any]]:
         """Chunk a document into smaller parts.
         
         Args:
@@ -60,7 +60,7 @@ def register_chunker(name: str, chunker_cls: Type[BaseChunker]) -> None:
     _CHUNKER_REGISTRY[name] = chunker_cls
 
 
-def get_chunker(name: str, **kwargs) -> BaseChunker:
+def get_chunker(name: str, **kwargs: Any) -> BaseChunker:
     """Get a chunker instance by name.
     
     Args:
