@@ -26,7 +26,8 @@ from src.chunking.text_chunkers.cpu_chunker import (
 from src.chunking.text_chunkers.chonky_chunker import (
     ParagraphSplitter
 )
-from src.schema.document_schema import DocumentSchema, DocumentType
+from src.schemas.documents.base import DocumentSchema
+from src.schemas.common.enums import DocumentType
 
 
 class TestCPUChunker(unittest.TestCase):
