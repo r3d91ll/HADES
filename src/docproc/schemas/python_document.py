@@ -8,7 +8,26 @@ validation of Python-specific fields and relationships.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Optional, List, Dict, Any, Union, Literal, Set, cast, Callable, TypeVar
+
+# Type variables for validator functions
+T = TypeVar('T')
+ValidatorFunc = Callable[[Any, T], T]
+
+# Create a typed wrapper for field validators
+def typed_field_validator(field_name: str) -> Callable[[Callable[[Any, T], T]], Callable[[Any, T], T]]:
+    """Typed wrapper for field_validator to make mypy happy."""
+    def decorator(func: Callable[[Any, T], T]) -> Callable[[Any, T], T]:
+        return cast(Callable[[Any, T], T], field_validator(field_name)(func))
+    return decorator
+
+# Create a typed wrapper for model validators
+def typed_model_validator(mode: str = 'after') -> Callable[[Callable[[Any], Any]], Callable[[Any], Any]]:
+    """Typed wrapper for model_validator to make mypy happy."""
+    def decorator(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
+        return cast(Callable[[Any], Any], model_validator(mode=mode)(func))
+    return decorator
+
 from pydantic import Field, field_validator, model_validator, ConfigDict
 
 from src.schemas.common.base import BaseSchema
@@ -46,7 +65,7 @@ class CodeRelationship(BaseSchema):
     weight: float = Field(..., ge=0.0, le=1.0, description="Weight/strength of the relationship")
     line: Optional[int] = Field(None, description="Line number where relationship is defined")
     
-    @field_validator("type")
+    @typed_field_validator("type")
     @classmethod
     def validate_relationship_type(cls, v: str) -> str:
         """Validate relationship type against defined values."""
@@ -136,7 +155,7 @@ class PythonDocument(BaseDocument):
     relationships: Optional[List[CodeRelationship]] = Field(None, description="Code relationships")
     symbol_table: Optional[SymbolTable] = Field(None, description="Python symbol table")
     
-    @model_validator(mode='after')
+    @typed_model_validator(mode='after')
     def validate_code_consistency(self) -> 'PythonDocument':
         """Ensure code-specific fields are consistent."""
         # If there are syntax errors, symbol_table might be missing

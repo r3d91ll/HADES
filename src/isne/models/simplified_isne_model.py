@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import logging
-from typing import Dict, Any, Optional, List, Union
+from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
 
 logger = logging.getLogger(__name__)
 
@@ -45,9 +45,9 @@ class SimplifiedISNEModel(nn.Module):
         
         logger.info(f"Initialized SimplifiedISNEModel with input={in_features}, output={out_features}")
         
-    def forward(self, x: torch.Tensor, *args: Any, **kwargs: Any) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        Forward pass for the simplified ISNE model.
+        Forward pass through the model.
         
         Args:
             x: Input tensor of shape [batch_size, in_features]
@@ -55,9 +55,11 @@ class SimplifiedISNEModel(nn.Module):
         Returns:
             Output tensor of shape [batch_size, out_features]
         """
-        return self.linear(x)
+        # Explicitly cast the return value to Tensor to satisfy type checking
+        result: torch.Tensor = self.linear(x)
+        return result
     
-    def load_state_dict(self, state_dict: Dict[str, Any], strict: bool = True) -> None:
+    def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True, assign: bool = False) -> Any:
         """
         Load a state dictionary from various formats.
         
@@ -73,21 +75,34 @@ class SimplifiedISNEModel(nn.Module):
         """
         # Handle case where state_dict is already in the right format
         if "linear.weight" in state_dict and "linear.bias" in state_dict:
-            # Just return original dict if already in right format
-            super().load_state_dict(state_dict, strict)
-            return None
+            # Return the result of the parent's load_state_dict call
+            return super().load_state_dict(state_dict, strict=strict, assign=assign)
         
         # Handle case where state_dict is nested in 'model_state_dict'
         elif 'model_state_dict' in state_dict:
-            super().load_state_dict(state_dict['model_state_dict'], strict)
-            return None
+            inner_dict = state_dict['model_state_dict']
+            if isinstance(inner_dict, dict):
+                # Direct assignment for compatibility
+                if 'linear.weight' in inner_dict:
+                    return super().load_state_dict(inner_dict, strict=strict, assign=assign)
+                
+                # Try to adapt based on keys
+                adapted_dict = {}
+                for k, v in inner_dict.items():
+                    if k.startswith('linear.'):
+                        adapted_dict[k] = v
+                
+                if adapted_dict:
+                    return super().load_state_dict(adapted_dict, strict=False, assign=assign)
         
-        # If we get here, we couldn't find the right format
-        logger.error(f"Could not load state_dict with keys: {list(state_dict.keys())}")
-        if "model_state_dict" in state_dict:
-            logger.error(f"model_state_dict has keys: {list(state_dict['model_state_dict'].keys())}")
+        # Handle case where weights/biases are exposed directly
+        # This is common in exported/simplified models
+        if 'weight' in state_dict and 'bias' in state_dict:
+            adapted_dict = {
+                'linear.weight': state_dict['weight'],
+                'linear.bias': state_dict['bias']
+            }
+            return super().load_state_dict(adapted_dict, strict=False, assign=assign)
         
-        # Try to load whatever is available, non-strictly
-        logger.warning("Attempting to load state dictionary in unknown format")
-        super().load_state_dict(state_dict, strict=False)
-        return None
+        # Fall back to default behavior
+        return super().load_state_dict(state_dict, strict=False, assign=assign)

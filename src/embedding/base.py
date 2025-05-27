@@ -7,12 +7,14 @@ provides a registry mechanism to manage different embedding adapters.
 from __future__ import annotations
 
 import abc
-from typing import Dict, List, Protocol, TypeVar, Union, runtime_checkable, cast, Optional
+from typing import Any, Dict, List, Protocol, TypeVar, Union, runtime_checkable, cast, Optional
 import logging
 import numpy as np
 
 # Type definitions
-EmbeddingVector = List[float]  # or np.ndarray, but List[float] is more JSON-serializable
+# Note: List[float] is more JSON-serializable than np.ndarray
+# Using a more flexible type definition to handle all embedding vector types
+EmbeddingVector = Union[List[float], np.ndarray]  # Supports both list and ndarray return types
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +27,7 @@ class EmbeddingAdapter(Protocol):
     """Protocol defining the interface for embedding adapters."""
     
     @abc.abstractmethod
-    async def embed(self, texts: List[str], **kwargs) -> List[EmbeddingVector]:
+    async def embed(self, texts: List[str], **kwargs: Any) -> List[EmbeddingVector]:
         """Generate embeddings for a list of texts.
         
         Args:
@@ -41,7 +43,7 @@ class EmbeddingAdapter(Protocol):
         pass
     
     @abc.abstractmethod
-    async def embed_single(self, text: str, **kwargs) -> EmbeddingVector:
+    async def embed_single(self, text: str, **kwargs: Any) -> EmbeddingVector:
         """Generate an embedding for a single text.
         
         Args:
@@ -70,7 +72,7 @@ def register_adapter(name: str, adapter_cls: type[EmbeddingAdapter]) -> None:
     logger.debug(f"Registered embedding adapter '{name}'")
 
 
-def get_adapter(name: str, **init_kwargs) -> EmbeddingAdapter:
+def get_adapter(name: str, **init_kwargs: Any) -> EmbeddingAdapter:
     """Get an instance of a registered embedding adapter.
     
     Args:

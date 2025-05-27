@@ -26,7 +26,8 @@ except ImportError:
     # Fallback implementation of index2ptr
     def index2ptr(index: Tensor, size: int) -> Tensor:
         ptr = torch.zeros(size + 1, dtype=torch.long, device=index.device)
-        torch.scatter_add_(ptr, 0, index + 1, torch.ones_like(index))
+        # Call scatter_add_ as a method on the tensor, not as a torch function
+        ptr.scatter_add_(0, index + 1, torch.ones_like(index))
         return torch.cumsum(ptr, 0)
 
 
@@ -462,16 +463,18 @@ class RandomWalkSampler:
             src_indices = torch.randint(0, max_idx + 1, (batch_size,), dtype=torch.long)
             
             # For each source, generate a destination that isn't the same node
-            dst_indices = []
+            # Start with a list of integers that will be converted to a tensor
+            dst_indices_list: list[int] = []
             for src in src_indices:
                 src_val = src.item()
                 dst_val = random.randint(0, max_idx)
                 # Avoid self-loops
                 if dst_val == src_val:
                     dst_val = (dst_val + 1) % (max_idx + 1)
-                dst_indices.append(dst_val)
+                dst_indices_list.append(dst_val)
                 
-            dst_indices = torch.tensor(dst_indices, dtype=torch.long)
+            # Convert the list to a tensor
+            dst_indices = torch.tensor(dst_indices_list, dtype=torch.long)
             
             # Stack to create pairs [batch_size, 2]
             neg_pairs = torch.stack([src_indices, dst_indices], dim=1)
@@ -748,7 +751,7 @@ class RandomWalkSampler:
                         local_pos_edges.add((local_src, local_dst))
             
             # Generate negative pairs by random sampling within local batch indices
-            local_neg_pairs = []
+            local_neg_pairs: List[Tuple[int, int]] = []
             batch_size_value = batch_size
             
             # Try to generate up to 5x batch_size candidates to account for duplicates and positives
@@ -772,8 +775,8 @@ class RandomWalkSampler:
                     if (local_src, local_dst) in local_pos_edges:
                         continue
                     
-                    # Add the pair (in local space)
-                    local_neg_pairs.append([local_src, local_dst])
+                    # Add the pair (in local space) as a tuple with exactly two integers
+                    local_neg_pairs.append((int(local_src), int(local_dst)))
                 else:
                     # Not enough distinct nodes in batch
                     break

@@ -53,7 +53,7 @@ class YAMLCodeChunker(BaseChunker):
         
         logger.info(f"Initialized YAMLCodeChunker with config: {self.config}")
     
-    def chunk(self, content: Union[str, Dict[str, Any]], **kwargs) -> List[Dict[str, Any]]:
+    def chunk(self, content: Union[str, Dict[str, Any]], **kwargs: Any) -> List[Dict[str, Any]]:
         """
         Chunk YAML content into semantically meaningful chunks.
         

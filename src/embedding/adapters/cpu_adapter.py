@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 _CPU_EXECUTOR = ThreadPoolExecutor(max_workers=os.cpu_count() or 4)
 
 
-class CPUEmbeddingAdapter:
+class CPUEmbeddingAdapter(EmbeddingAdapter):
     """Adapter for generating embeddings using CPU-optimized models."""
     
     def __init__(
@@ -31,8 +31,8 @@ class CPUEmbeddingAdapter:
         model_name: str = "all-MiniLM-L6-v2",  # Lightweight model for CPU
         max_length: int = 512,
         batch_size: int = 32,
-        **kwargs
-    ):
+        **kwargs: Any
+    ) -> None:
         """Initialize the CPU embedding adapter.
         
         Args:
@@ -48,7 +48,7 @@ class CPUEmbeddingAdapter:
         self._model = None
         
     @property
-    def model(self):
+    def model(self) -> Any:
         """Lazy-load the model when first needed."""
         if self._model is None:
             try:
@@ -67,7 +67,7 @@ class CPUEmbeddingAdapter:
         
         return self._model
     
-    async def embed(self, texts: List[str], **kwargs) -> List[EmbeddingVector]:
+    async def embed(self, texts: List[str], **kwargs: Any) -> List[EmbeddingVector]:
         """Generate embeddings for a list of texts using CPU.
         
         Args:
@@ -111,7 +111,7 @@ class CPUEmbeddingAdapter:
             logger.error(f"CPU embedding generation failed: {e}")
             raise RuntimeError(f"Failed to generate embeddings: {e}") from e
     
-    async def embed_single(self, text: str, **kwargs) -> EmbeddingVector:
+    async def embed_single(self, text: str, **kwargs: Any) -> EmbeddingVector:
         """Generate an embedding for a single text.
         
         Args:

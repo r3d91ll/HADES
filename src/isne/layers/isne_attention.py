@@ -3,15 +3,16 @@ ISNE Attention mechanism implementation.
 
 This module contains the attention mechanism used in the ISNE model as described
 in the original research paper. The attention mechanism computes weights for 
-neighborhood nodes based on their feature similarity and structural importance.
+neighboring nodes based on their features, allowing the model to focus on the
+most relevant connections.
 """
 
-from typing import Optional, Tuple, Union
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 import logging
+from typing import Optional, Tuple, Union, cast
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -28,13 +29,13 @@ class ISNEAttention(nn.Module):
     """
     
     def __init__(
-        self,
-        in_features: int,
-        hidden_dim: int = 32,
-        dropout: float = 0.1,
-        alpha: float = 0.2,
-        concat: bool = True
-    ) -> None:
+            self,
+            in_features: int,
+            hidden_dim: int = 32,
+            dropout: float = 0.1,
+            alpha: float = 0.2,
+            concat: bool = True
+        ) -> None:
         """
         Initialize the ISNE attention mechanism.
         
@@ -70,11 +71,11 @@ class ISNEAttention(nn.Module):
         self.leakyrelu = nn.LeakyReLU(self.alpha)
     
     def forward(
-        self,
-        x: Tensor,
-        edge_index: Tensor,
-        return_attention_weights: bool = False
-    ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
+            self,
+            x: Tensor,
+            edge_index: Tensor,
+            return_attention_weights: bool = False
+        ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
         """
         Forward pass for the attention mechanism.
         
@@ -87,41 +88,55 @@ class ISNEAttention(nn.Module):
             - Node features with attention applied
             - Attention weights (if return_attention_weights is True)
         """
-        # Apply feature transformation
-        # Shape: [N, hidden_dim]
-        Wh = torch.mm(x, self.W)
+        # Linear transformation of input features
+        Wh = torch.matmul(x, self.W)  # [num_nodes, hidden_dim]
         
         # Get source and target nodes from edge_index
-        src, dst = edge_index[0], edge_index[1]
+        source, target = edge_index[0], edge_index[1]
         
-        # Prepare concatenated features for attention computation
-        # Shape: [num_edges, 2 * hidden_dim]
-        edge_h = torch.cat([Wh[src], Wh[dst]], dim=1)
+        # Prepare attention coefficients
+        # Concatenate source and target node features
+        a_input = torch.cat([Wh[source], Wh[target]], dim=1)  # [num_edges, 2*hidden_dim]
         
-        # Compute attention scores
-        # Shape: [num_edges, 1]
-        edge_attention = self.leakyrelu(torch.matmul(edge_h, self.a))
+        # Compute attention coefficients
+        e = self.leakyrelu(torch.matmul(a_input, self.a).squeeze(-1))  # [num_edges]
         
-        # Create a sparse attention matrix and fill with computed attention scores
-        attention = torch.sparse_coo_tensor(
-            edge_index, edge_attention.view(-1), 
-            size=(x.size(0), x.size(0))
-        ).to_dense()
+        # Apply softmax to get attention weights (node-wise normalization)
+        # First, we need to convert to a sparse format for efficient normalization
+        num_nodes = x.size(0)
         
-        # Apply softmax row-wise to normalize the attention scores for each node
-        # This ensures attention weights sum to 1 for each node's neighborhood
-        attention = F.softmax(attention, dim=1)
+        # Create a mapping from edges to their indices
+        edge_to_idx = torch.zeros(num_nodes, num_nodes, device=x.device) - 1
+        edge_to_idx[source, target] = torch.arange(source.size(0), device=x.device)
+        
+        # Apply softmax normalization row-wise (per node)
+        attention = torch.zeros_like(e)
+        for i in range(num_nodes):
+            # Get indices of all edges from node i
+            mask = (source == i)
+            if mask.any():
+                # Apply softmax only to existing edges
+                attention[mask] = F.softmax(e[mask], dim=0)
         
         # Apply dropout to attention weights
         attention = self.dropout_layer(attention)
         
-        # Compute weighted sum of neighbor features using attention weights
-        h_prime = torch.matmul(attention, Wh)
+        # Apply attention weights to aggregate node features
+        output = torch.zeros_like(x)
+        for i in range(num_nodes):
+            # Get indices of all edges from node i
+            neighbors = target[source == i]
+            if neighbors.numel() > 0:
+                # Get corresponding attention weights
+                neighbor_weights = attention[source == i]
+                # Weighted sum of neighbor features
+                output[i] = torch.sum(Wh[neighbors] * neighbor_weights.unsqueeze(-1), dim=0)
         
+        # Return values with correct typing
         if return_attention_weights:
-            return h_prime, attention
+            return output, attention
         else:
-            return h_prime
+            return output
 
 
 class MultiHeadISNEAttention(nn.Module):
@@ -133,15 +148,15 @@ class MultiHeadISNEAttention(nn.Module):
     """
     
     def __init__(
-        self,
-        in_features: int,
-        out_features: int,
-        num_heads: int = 8,
-        dropout: float = 0.1,
-        alpha: float = 0.2,
-        concat: bool = True,
-        residual: bool = True
-    ) -> None:
+            self,
+            in_features: int,
+            out_features: int,
+            num_heads: int = 8,
+            dropout: float = 0.1,
+            alpha: float = 0.2,
+            concat: bool = True,
+            residual: bool = True
+        ) -> None:
         """
         Initialize multi-head ISNE attention.
         
@@ -191,13 +206,13 @@ class MultiHeadISNEAttention(nn.Module):
         self.residual_proj = None
         if residual and in_features != out_features:
             self.residual_proj = nn.Linear(in_features, out_features)
-        
+    
     def forward(
-        self,
-        x: Tensor,
-        edge_index: Tensor,
-        return_attention_weights: bool = False
-    ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
+            self,
+            x: Tensor,
+            edge_index: Tensor,
+            return_attention_weights: bool = False
+        ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
         """
         Forward pass for multi-head attention.
         
@@ -210,37 +225,38 @@ class MultiHeadISNEAttention(nn.Module):
             - Node features with multi-head attention applied
             - Attention weights (if return_attention_weights is True)
         """
-        # Process each attention head
+        # Apply each attention head
         head_outputs = []
         all_attentions = []
         
         for attention in self.attentions:
             if return_attention_weights:
-                head_output, attention_weights = attention(x, edge_index, True)
-                head_outputs.append(head_output)
-                all_attentions.append(attention_weights)
+                out, att = attention(x, edge_index, return_attention_weights=True)
+                head_outputs.append(out)
+                all_attentions.append(att)
             else:
-                head_output = attention(x, edge_index, False)
-                head_outputs.append(head_output)
+                out = attention(x, edge_index, return_attention_weights=False)
+                head_outputs.append(out)
         
         # Combine outputs from all heads
         if self.concat:
-            # Concatenate outputs from all heads
-            multi_head_output = torch.cat(head_outputs, dim=1)
+            # Concatenate all head outputs
+            output = torch.cat(head_outputs, dim=1)
         else:
-            # Average outputs from all heads
-            multi_head_output = torch.mean(torch.stack(head_outputs), dim=0)
+            # Average all head outputs
+            output = torch.mean(torch.stack(head_outputs), dim=0)
         
         # Apply output projection
-        output = self.out_proj(multi_head_output)
+        output = self.out_proj(output)
         
-        # Apply residual connection if enabled
+        # Apply residual connection if specified
         if self.residual:
             if self.residual_proj is not None:
                 output = output + self.residual_proj(x)
             else:
                 output = output + x
         
+        # Return values with correct typing
         if return_attention_weights:
             # Average attention weights from all heads
             avg_attention = torch.mean(torch.stack(all_attentions), dim=0)

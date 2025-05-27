@@ -46,7 +46,7 @@ def validate_document(data: Dict[str, Any]) -> BaseDocument:
     # Try to validate against the appropriate model
     if doc_format == "python":
         try:
-            return PythonDocument.model_validate(data)
+            return cast(BaseDocument, PythonDocument.model_validate(data))
         except ValidationError as e:
             logger.warning(f"Python document validation failed: {e}")
             # Fall back to base document validation
@@ -54,7 +54,7 @@ def validate_document(data: Dict[str, Any]) -> BaseDocument:
     
     # Fall back to base document validation
     # Return as base type to satisfy mypy
-    return BaseDocument.model_validate(data)
+    return cast(BaseDocument, BaseDocument.model_validate(data))
 
 
 def validate_or_default(
@@ -76,7 +76,7 @@ def validate_or_default(
         Validated model or default
     """
     try:
-        return model_class.model_validate(data)
+        return cast(T, model_class.model_validate(data))
     except ValidationError as e:
         logger.warning(f"Validation failed for {model_class.__name__}: {e}")
         return default
@@ -101,12 +101,23 @@ def safe_validate(
     """
     try:
         validated = model_class.model_validate(data)
-        return validated.model_dump()
+        # Direct return with explicit type
+        return dict(validated.model_dump())
     except ValidationError as e:
         logger.warning(f"Validation failed - returning original data: {e}")
-        # Add error info to the data
-        data["_validation_error"] = str(e)
-        return data
+        # Create a new dictionary with explicit typing that satisfies mypy
+        error_dict: Dict[str, Any] = {}
+        
+        # Copy all data from original dict
+        if isinstance(data, dict):
+            for k, v in data.items():
+                error_dict[k] = v
+        
+        # Add error info
+        error_dict["_validation_error"] = str(e)
+        
+        # Return with explicit dictionary typing
+        return error_dict
 
 
 def add_validation_to_adapter(
@@ -130,10 +141,14 @@ def add_validation_to_adapter(
         # Use different variable names to avoid type conflicts
         if doc_format == "python":
             python_doc = PythonDocument.model_validate(adapter_process_result)
-            return python_doc.model_dump()
+            # Create a dict copy to ensure return type matches
+            result_dict = dict(python_doc.model_dump())
+            return result_dict
         else:
             base_doc = BaseDocument.model_validate(adapter_process_result)
-            return base_doc.model_dump()
+            # Create a dict copy to ensure return type matches
+            result_dict = dict(base_doc.model_dump())
+            return result_dict
     except ValidationError as e:
         logger.warning(f"Validation failed for {doc_format} document: {e}")
         # Add error info but preserve original data

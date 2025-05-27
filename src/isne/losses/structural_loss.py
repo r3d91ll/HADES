@@ -72,13 +72,14 @@ class StructuralPreservationLoss(nn.Module):
                         for i in range(edge_index.size(1))])
         
         # Sample negative edges
-        neg_src = []
-        neg_dst = []
+        from typing import List
+        neg_src: List[int] = []
+        neg_dst: List[int] = []
         
         while len(neg_src) < num_neg_samples:
             # Randomly sample source and target nodes
-            i = torch.randint(0, num_nodes, (1,)).item()
-            j = torch.randint(0, num_nodes, (1,)).item()
+            i = int(torch.randint(0, num_nodes, (1,)).item())
+            j = int(torch.randint(0, num_nodes, (1,)).item())
             
             # Skip if this is an existing edge or a self-loop
             if i == j or (i, j) in edge_set:
@@ -203,18 +204,21 @@ class RandomWalkStructuralLoss(nn.Module):
             List of random walks, each a list of node indices
         """
         # Create adjacency list for efficient neighbor sampling
-        adj_list = [[] for _ in range(num_nodes)]
+        from typing import Dict, List
+        # Initialize as a dictionary mapping node indices to their neighbors
+        adj_list: Dict[int, List[int]] = {i: [] for i in range(num_nodes)}
         for i in range(edge_index.size(1)):
             src = edge_index[0, i].item()
             dst = edge_index[1, i].item()
-            adj_list[src].append(dst)
+            # Ensure both src and dst are integers
+            adj_list[int(src)].append(int(dst))
         
         # Generate random walks
         walks = []
         for _ in range(self.num_walks):
             for start_node in range(num_nodes):
                 # Skip nodes with no neighbors
-                if not adj_list[start_node]:
+                if not adj_list[int(start_node)]:
                     continue
                 
                 # Initialize walk with start node
@@ -225,12 +229,12 @@ class RandomWalkStructuralLoss(nn.Module):
                     current = walk[-1]
                     
                     # If no neighbors, break
-                    if not adj_list[current]:
+                    if not adj_list[int(current)]:
                         break
                     
                     # Randomly select a neighbor
-                    neighbor_idx = torch.randint(0, len(adj_list[current]), (1,)).item()
-                    next_node = adj_list[current][neighbor_idx]
+                    neighbor_idx = int(torch.randint(0, len(adj_list[int(current)]), (1,)).item())
+                    next_node = adj_list[int(current)][neighbor_idx]
                     walk.append(next_node)
                 
                 walks.append(walk)
@@ -292,15 +296,15 @@ class RandomWalkStructuralLoss(nn.Module):
         walks = self.generate_walks(edge_index, num_nodes)
         
         # Extract co-occurring pairs
-        src_nodes, dst_nodes = self.extract_walk_pairs(walks, self.window_size)
+        src_nodes_list, dst_nodes_list = self.extract_walk_pairs(walks, self.window_size)
         
         # Skip if no pairs found
-        if not src_nodes:
+        if not src_nodes_list:
             return torch.tensor(0.0, device=embeddings.device)
         
         # Convert to tensors
-        src_nodes = torch.tensor(src_nodes, dtype=torch.long, device=embeddings.device)
-        dst_nodes = torch.tensor(dst_nodes, dtype=torch.long, device=embeddings.device)
+        src_nodes = torch.tensor(src_nodes_list, dtype=torch.long, device=embeddings.device)
+        dst_nodes = torch.tensor(dst_nodes_list, dtype=torch.long, device=embeddings.device)
         
         # Extract node embeddings for positive pairs
         src_emb = embeddings[src_nodes]

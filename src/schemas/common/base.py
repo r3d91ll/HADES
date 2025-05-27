@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union, ClassVar, Type, Annotated
+from typing import Any, Dict, List, Optional, Union, ClassVar, Type, Annotated, Set, cast
 import uuid
 
 import numpy as np
@@ -31,7 +31,7 @@ class BaseSchema(BaseModel):
         populate_by_name=True,        # Allow population by field name as well as alias
     )
     
-    def model_dump_safe(self, exclude_none: bool = True, **kwargs) -> Dict[str, Any]:
+    def model_dump_safe(self, exclude_none: bool = True, **kwargs: Any) -> Dict[str, Any]:
         """Safely dump model to dict with special handling for numpy arrays.
         
         Args:
@@ -53,4 +53,5 @@ class BaseSchema(BaseModel):
         if hasattr(self, 'vector') and 'vector' not in data and not exclude_none:
             data['vector'] = None
             
-        return data
+        # Use explicit cast to resolve mypy error
+        return cast(Dict[str, Any], data)

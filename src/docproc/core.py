@@ -209,7 +209,9 @@ def process_document(file_path: Union[str, Path], options: Optional[Dict[str, An
     # Validate the processed document using Pydantic
     try:
         validated_doc = validate_document(processed_doc)
-        return validated_doc.model_dump()
+        # Explicitly type the return value to avoid returning Any
+        result: Dict[str, Any] = validated_doc.model_dump()
+        return result
     except ValidationError as e:
         logger.warning(f"Document validation failed: {e}")
         # Add validation error to the document
@@ -343,7 +345,9 @@ def process_text(text: str, format_type: str = "text", format_or_options: Option
     # Validate the processed document using Pydantic
     try:
         validated_doc = validate_document(processed_doc)
-        return validated_doc.model_dump()
+        # Explicitly type the return value to avoid returning Any
+        result: Dict[str, Any] = validated_doc.model_dump()
+        return result
     except ValidationError as e:
         logger.warning(f"Document validation failed: {e}")
         # Add validation error to the document
@@ -374,30 +378,8 @@ def get_format_for_document(file_path: Union[str, Path]) -> str:
     return detect_format_from_path(path_obj)
 
 
-def get_format_for_document(file_path: Union[str, Path]) -> str:
-    """
-    Get the format for a document file.
-    
-    Args:
-        file_path: Path to the document file
-    
-    Returns:
-        Detected format as a string
-    
-    Raises:
-        FileNotFoundError: If the file does not exist
-    """
-    path_obj = Path(file_path) if isinstance(file_path, str) else file_path
-    
-    # Check if file exists
-    if not path_obj.exists():
-        raise FileNotFoundError(f"File not found: {path_obj}")
-    
-    # Detect format
-    return detect_format_from_path(path_obj)
-
-
-def detect_format(file_path: Union[str, Path]) -> str:
+# Renamed to avoid conflict with imported function
+def detect_file_format(file_path: Union[str, Path]) -> str:
     """
     Detect the format of a document file.
     

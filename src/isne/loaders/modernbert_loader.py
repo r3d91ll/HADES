@@ -69,7 +69,19 @@ class ModernBERTLoader(BaseLoader):
         self.extract_sequential_relations = extract_sequential_relations
         self.extract_similarity_relations = extract_similarity_relations
     
-    def load(self, source: Union[str, Path]) -> LoaderResult:
+    def load(self) -> LoaderResult:
+        """Load documents and relations from ModernBERT pipeline output.
+        
+        Uses the config.input_file as the source file.
+        
+        Returns:
+            LoaderResult containing loaded documents, chunks, and relationships
+        """
+        # Get source from config
+        source = self.config.input_file
+        if source is None:
+            raise ValueError("No input file specified in config")
+        
         """
         Load documents and chunks from a ModernBERT pipeline output file.
         
@@ -90,7 +102,11 @@ class ModernBERTLoader(BaseLoader):
         logger.info(f"Loading ModernBERT output from: {source_path}")
         
         # Load JSON data
-        with open(source_path, 'r', encoding=self.config.encoding) as f:
+        encoding = "utf-8"  # Default encoding
+        if hasattr(self.config, "encoding") and self.config.encoding is not None:
+            encoding = self.config.encoding
+            
+        with open(source_path, 'r', encoding=encoding) as f:
             try:
                 data = json.load(f)
             except json.JSONDecodeError as e:
@@ -136,7 +152,7 @@ class ModernBERTLoader(BaseLoader):
                     if isinstance(embedding_data, list):
                         embedding = cast(EmbeddingVector, embedding_data)
                 
-                # Create chunk document
+                # Create chunk document with only valid parameters
                 chunk_doc = IngestDocument(
                     id=chunk_id,
                     content=chunk_content,
@@ -151,6 +167,18 @@ class ModernBERTLoader(BaseLoader):
                     }
                 )
                 
+                # Add additional metadata that would have been params
+                if "title" in chunk:
+                    chunk_doc.metadata["title"] = chunk["title"]
+                if "author" in chunk:
+                    chunk_doc.metadata["author"] = chunk["author"]
+                if "created_at" in chunk:
+                    chunk_doc.metadata["created_at"] = chunk["created_at"]
+                if "updated_at" in chunk:
+                    chunk_doc.metadata["updated_at"] = chunk["updated_at"]
+                if "embedding_model" not in chunk_doc.metadata:
+                    chunk_doc.metadata["embedding_model"] = "modernbert"
+                
                 # Add overlap context if present
                 if "overlap_context" in chunk:
                     chunk_doc.metadata["overlap_context"] = chunk["overlap_context"]
@@ -163,17 +191,21 @@ class ModernBERTLoader(BaseLoader):
                 content=data.get("content", ""),  # Get content if available
                 source=source_path_str,
                 document_type=data.get("format", "document"),
-                title=data.get("title"),
-                author=data.get("author"),
-                created_at=datetime.now(),
-                updated_at=datetime.now(),
-                metadata=metadata,
-                # Use average of chunk embeddings as parent embedding if no embedding provided
                 embedding=data.get("embedding", self._calculate_average_embedding(chunks) if chunks else None),
-                embedding_model=data.get("embedding_model", "modernbert_aggregated") if chunks else None,
-                # Store original chunk data for reference
-                chunks=chunks if chunks else []
+                metadata=metadata
             )
+            
+            # Add additional metadata that would have been params
+            if "title" in metadata:
+                parent_doc.metadata["title"] = metadata["title"]
+            if "author" in metadata:
+                parent_doc.metadata["author"] = metadata["author"]
+            if "created_at" in metadata:
+                parent_doc.metadata["created_at"] = metadata["created_at"]
+            if "updated_at" in metadata:
+                parent_doc.metadata["updated_at"] = metadata["updated_at"]
+            if "embedding_model" not in parent_doc.metadata:
+                parent_doc.metadata["embedding_model"] = "modernbert_aggregated" if chunks else "modernbert"
             
             # Add parent document
             documents.append(parent_doc)
@@ -229,28 +261,23 @@ class ModernBERTLoader(BaseLoader):
                 "type": type(e).__name__
             })
         
-        # Create dataset
-        dataset_name = f"modernbert_{source_path.stem}"
-        dataset = self.create_dataset(
-            name=dataset_name,
-            documents=documents,
-            relations=relations,
-            description=f"ModernBERT output from {source_path}",
-            metadata={
-                "source_path": str(source_path),
-                "document_count": len(documents),
-                "chunk_count": len(documents) - 1 if documents else 0,  # Subtract parent doc
-                "relation_count": len(relations),
-                "error_count": len(errors)
-            }
-        )
+        # Prepare metadata
+        dataset_metadata = {
+            "source_path": str(source_path),
+            "document_count": len(documents),
+            "chunk_count": len(documents) - 1 if documents else 0,  # Subtract parent doc
+            "relation_count": len(relations),
+            "error_count": len(errors),
+            "name": f"modernbert_{source_path.stem}",
+            "description": f"ModernBERT output from {source_path}"
+        }
         
-        return LoaderResult(
-            documents=documents,
-            relations=relations,
-            dataset=dataset,
-            errors=errors
-        )
+        # Create result with correct parameters
+        result = LoaderResult()
+        result.documents = documents
+        result.relations = relations
+        result.metadata = dataset_metadata
+        return result
     
     def _calculate_average_embedding(self, chunks: List[Dict[str, Any]]) -> Optional[EmbeddingVector]:
         """
@@ -285,8 +312,11 @@ class ModernBERTLoader(BaseLoader):
         # Calculate average
         if numpy_embeddings:
             avg_embedding = np.mean(numpy_embeddings, axis=0)
-            return avg_embedding.tolist()
+            # Cast to the expected return type
+            from typing import cast, List, Union
+            return cast(Union[List[float], np.ndarray], avg_embedding.tolist())
         
+        # Explicitly return None with type annotation
         return None
     
     def _create_similarity_relations(self, chunks: List[IngestDocument]) -> List[DocumentRelation]:
@@ -356,26 +386,31 @@ class ModernBERTLoader(BaseLoader):
         """
         results: List[LoaderResult] = []
         
+        # Store original input_file
+        original_input_file = self.config.input_file
+        
         for source in sources:
             try:
-                result = self.load(source)
+                # Set the source as the input file
+                self.config.input_file = Path(source)
+                result = self.load()
                 results.append(result)
             except Exception as e:
                 logger.error(f"Error loading {source}: {e}")
                 # Create empty result with error
-                error_result = LoaderResult(
-                    documents=[],
-                    relations=[],
-                    errors=[{
+                error_result = LoaderResult()
+                error_result.documents = []
+                error_result.relations = []
+                error_result.metadata = {
+                    "errors": [{
                         "source": str(source),
                         "error": str(e),
                         "type": type(e).__name__
-                    }],
-                    metadata={
-                        "source_path": str(source),
-                        "error": str(e)
-                    }
-                )
+                    }]
+                }
                 results.append(error_result)
+        
+        # Restore original input_file
+        self.config.input_file = original_input_file
         
         return results

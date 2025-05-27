@@ -29,6 +29,8 @@ from tqdm import tqdm
 from src.isne.models.isne_model import ISNEModel
 from src.isne.training.trainer import ISNETrainer
 
+from typing import cast, List, Any, Union, Dict, TypedDict, Optional
+
 # Import centralized type definitions
 from src.types.isne import (
     ISNEConfig,
@@ -69,7 +71,7 @@ class ISNETrainingOrchestrator:
         input_dir: Directory containing processed documents from the pipeline
         output_dir: Directory for saving training artifacts
         model_output_dir: Directory for saving trained models
-        config: Configuration settings for training
+        self.config: Configuration settings for training
         device: Device to use for training (CPU or GPU)
     """
     
@@ -92,11 +94,11 @@ class ISNETrainingOrchestrator:
             input_dir: Directory containing processed documents (from pipeline_multiprocess_test).
                        Used only if documents parameter is None.
             output_dir: Directory for storing training artifacts and results.
-                         If None, uses the directory from config.
+                         If None, uses the directory from self.config.
             model_output_dir: Directory for saving trained models.
-                              If None, uses the directory from config.
+                              If None, uses the directory from self.config.
             config_override: Optional dictionary to override default configuration settings
-            device: Training device (e.g., "cpu", "cuda:0"); if None, uses config setting
+            device: Training device (e.g., "cpu", "cuda:0"); if None, uses self.config setting
             sampler_config: Optional configuration for the sampler class to use during training.
                           Format: {"sampler_class": Class, "sampler_params": Dict[str, Any]}
         """
@@ -105,30 +107,30 @@ class ISNETrainingOrchestrator:
         # Store custom sampler configuration if provided
         self.sampler_config = sampler_config
         # Load configuration first so we can use directory defaults
-        self.config = self._load_config()
+        self.config = cast(ISNEConfig, self._load_config())
         
         # Apply configuration overrides if provided
         if config_override:
             self._apply_config_override(config_override)
             
         # Get directory configuration
-        dir_config = self.config.get("isne", {}).get("directories", {})
+        dir_config = getattr(self.config, "isne", {}).get("directories", {}) if hasattr(self.config, "isne") else {}
         
         # Set directory paths, using config values as defaults
         if input_dir is None:
-            default_input = dir_config.get("input_dir", "./test-output/pipeline-mp-test")
+            default_input = getattr(dir_config, "input_dir", "./test-output/pipeline-mp-test") if hasattr(dir_config, "input_dir") else "./test-output/pipeline-mp-test"
             self.input_dir = Path(default_input)
         else:
             self.input_dir = Path(input_dir) if isinstance(input_dir, str) else input_dir
         
         if output_dir is None:
-            default_output = dir_config.get("output_dir", "./test-output/isne-training")
+            default_output = getattr(dir_config, "output_dir", "./test-output/isne-training") if hasattr(dir_config, "output_dir") else "./test-output/isne-training"
             self.output_dir = Path(default_output)
         else:
             self.output_dir = Path(output_dir) if isinstance(output_dir, str) else output_dir
         
         if model_output_dir is None:
-            default_model_dir = dir_config.get("model_dir", "./models/isne")
+            default_model_dir = getattr(dir_config, "model_dir", "./models/isne") if hasattr(dir_config, "model_dir") else "./models/isne"
             self.model_output_dir = Path(default_model_dir)
         else:
             self.model_output_dir = Path(model_output_dir) if isinstance(model_output_dir, str) else model_output_dir
@@ -138,18 +140,26 @@ class ISNETrainingOrchestrator:
             self.device = device
         else:
             # Check global CPU/GPU execution settings first
-            if "gpu_execution" in self.config and self.config["gpu_execution"].get("enabled", False):
+            if "gpu_execution" in self.config and getattr(self.config, "gpu_execution", {}).get("enabled", False):
                 # Use GPU settings
-                self.device = self.config["gpu_execution"].get("isne", {}).get("device", "cuda:0")
+                self.device = getattr(self.config, "gpu_execution", {}).get("device", "cuda:0")
                 logger.info(f"Using GPU execution mode with device: {self.device}")
-            elif "cpu_execution" in self.config and self.config["cpu_execution"].get("enabled", False):
+            elif "cpu_execution" in self.config and getattr(self.config, "cpu_execution", {}).get("enabled", False):
                 # Use CPU settings
                 self.device = "cpu"
                 logger.info("Using CPU execution mode")
             else:
                 # Fall back to ISNE-specific device setting
-                device_config = self.config.get("isne", {}).get("training", {}).get("device", "cpu")
-                self.device = device_config
+                # Fix the nested dictionary access with proper type checking
+                if hasattr(self.config, "isne"):
+                    isne_config = getattr(self.config, "isne", {})
+                    training_config = isne_config.get("training", {}) if isinstance(isne_config, dict) else {}
+                    device_config = training_config.get("device", "cpu") if isinstance(training_config, dict) else "cpu"
+                else:
+                    device_config = "cpu"
+                
+                # Ensure device_config is a string
+                self.device = str(device_config)
                 logger.info(f"Using ISNE-specific device setting: {self.device}")
         
         # Create directories if they don't exist
@@ -181,30 +191,118 @@ class ISNETrainingOrchestrator:
     
     def _load_config(self) -> ISNEConfig:
         """
-        Load configuration settings for ISNE training from the training pipeline config.
+        Load configuration settings for ISNE training from the training pipeline self.config.
         
         Returns:
             Configuration dictionary containing ISNE settings
         """
+        # Initialize with empty config of the correct type
+        isne_config: ISNEConfig = {
+            "model": {},
+            "training": {},
+            "graph": {},
+            "directories": {}
+        }
+        
         # Try to use config_loader if available
         if CONFIG_LOADER_AVAILABLE:
             try:
                 # Load the unified training pipeline configuration
-                config = load_pipeline_config(pipeline_type="training")
+                pipeline_config = load_pipeline_config(pipeline_type="training")
                 logger.info("Loaded configuration using config_loader")
                 
-                # Check if ISNE configuration exists in the loaded config
-                if "isne" not in config:
-                    logger.warning("ISNE configuration not found in pipeline config, using defaults")
-                    config["isne"] = {}
-                    
-                # Ensure all required sections exist
-                for section in ["model", "training", "graph", "directories"]:
-                    if section not in config["isne"]:
-                        config["isne"][section] = {}
+                # Store the pipeline config but cast it as Any to avoid type errors
+                # We'll properly type our isne_config which will be returned
+                self.config = cast(Any, pipeline_config)
                 
-                # Set default values for model configuration if not present
-                model_config = config["isne"]["model"]
+                # Check if ISNE configuration exists in the loaded config
+                if hasattr(pipeline_config, "isne") and isinstance(pipeline_config.isne, dict):
+                    # Extract ISNE-specific configuration
+                    pipeline_isne_config = pipeline_config.isne
+                    
+                    # Update our typed config dictionary with values from pipeline config
+                    # Only use keys that are valid for ISNEConfig TypedDict
+                    # Handle each section individually with proper typing for each field
+                    if "model" in pipeline_isne_config and isinstance(pipeline_isne_config["model"], dict):
+                        model_dict = pipeline_isne_config["model"]
+                        # Explicitly check and assign each key with a string literal
+                        if "embedding_dim" in model_dict:
+                            isne_config["model"]["embedding_dim"] = model_dict["embedding_dim"]
+                        if "hidden_dim" in model_dict:
+                            isne_config["model"]["hidden_dim"] = model_dict["hidden_dim"]
+                        if "output_dim" in model_dict:
+                            isne_config["model"]["output_dim"] = model_dict["output_dim"]
+                        if "num_layers" in model_dict:
+                            isne_config["model"]["num_layers"] = model_dict["num_layers"]
+                        if "num_heads" in model_dict:
+                            isne_config["model"]["num_heads"] = model_dict["num_heads"]
+                        if "dropout" in model_dict:
+                            isne_config["model"]["dropout"] = model_dict["dropout"]
+                        if "activation" in model_dict:
+                            isne_config["model"]["activation"] = model_dict["activation"]
+                        if "add_self_loops" in model_dict:
+                            isne_config["model"]["add_self_loops"] = model_dict["add_self_loops"]
+                    
+                    if "training" in pipeline_isne_config and isinstance(pipeline_isne_config["training"], dict):
+                        train_dict = pipeline_isne_config["training"]
+                        # Explicitly check and assign each key with a string literal
+                        if "learning_rate" in train_dict:
+                            isne_config["training"]["learning_rate"] = train_dict["learning_rate"]
+                        if "weight_decay" in train_dict:
+                            isne_config["training"]["weight_decay"] = train_dict["weight_decay"]
+                        if "batch_size" in train_dict:
+                            isne_config["training"]["batch_size"] = train_dict["batch_size"]
+                        if "epochs" in train_dict:
+                            isne_config["training"]["epochs"] = train_dict["epochs"]
+                        if "num_hops" in train_dict:
+                            isne_config["training"]["num_hops"] = train_dict["num_hops"]
+                        if "neighbor_size" in train_dict:
+                            isne_config["training"]["neighbor_size"] = train_dict["neighbor_size"]
+                        if "eval_interval" in train_dict:
+                            isne_config["training"]["eval_interval"] = train_dict["eval_interval"]
+                        if "early_stopping_patience" in train_dict:
+                            isne_config["training"]["early_stopping_patience"] = train_dict["early_stopping_patience"]
+                        if "checkpoint_interval" in train_dict:
+                            isne_config["training"]["checkpoint_interval"] = train_dict["checkpoint_interval"]
+                        if "device" in train_dict:
+                            isne_config["training"]["device"] = train_dict["device"]
+                        if "lambda_feat" in train_dict:
+                            isne_config["training"]["lambda_feat"] = train_dict["lambda_feat"]
+                        if "lambda_struct" in train_dict:
+                            isne_config["training"]["lambda_struct"] = train_dict["lambda_struct"]
+                        if "lambda_contrast" in train_dict:
+                            isne_config["training"]["lambda_contrast"] = train_dict["lambda_contrast"]
+                    
+                    if "graph" in pipeline_isne_config and isinstance(pipeline_isne_config["graph"], dict):
+                        graph_dict = pipeline_isne_config["graph"]
+                        # Explicitly check and assign each key with a string literal
+                        if "similarity_threshold" in graph_dict:
+                            isne_config["graph"]["similarity_threshold"] = graph_dict["similarity_threshold"]
+                        if "max_neighbors" in graph_dict:
+                            isne_config["graph"]["max_neighbors"] = graph_dict["max_neighbors"]
+                        if "sequential_weight" in graph_dict:
+                            isne_config["graph"]["sequential_weight"] = graph_dict["sequential_weight"]
+                        if "similarity_weight" in graph_dict:
+                            isne_config["graph"]["similarity_weight"] = graph_dict["similarity_weight"]
+                        if "window_size" in graph_dict:
+                            isne_config["graph"]["window_size"] = graph_dict["window_size"]
+                    
+                    if "directories" in pipeline_isne_config and isinstance(pipeline_isne_config["directories"], dict):
+                        dir_dict = pipeline_isne_config["directories"]
+                        # Explicitly check and assign each key with a string literal
+                        if "data_dir" in dir_dict:
+                            isne_config["directories"]["data_dir"] = dir_dict["data_dir"]
+                        if "input_dir" in dir_dict:
+                            isne_config["directories"]["input_dir"] = dir_dict["input_dir"]
+                        if "output_dir" in dir_dict:
+                            isne_config["directories"]["output_dir"] = dir_dict["output_dir"]
+                        if "model_dir" in dir_dict:
+                            isne_config["directories"]["model_dir"] = dir_dict["model_dir"]
+                
+                # Set default values for model configuration
+                if "model" not in isne_config:
+                    isne_config["model"] = {}
+                model_config = isne_config["model"]
                 model_config.setdefault("embedding_dim", 768)
                 model_config.setdefault("hidden_dim", 256)
                 model_config.setdefault("output_dim", 768)
@@ -214,8 +312,10 @@ class ISNETrainingOrchestrator:
                 model_config.setdefault("activation", "elu")
                 model_config.setdefault("add_self_loops", True)
                 
-                # Set default values for training configuration if not present
-                training_config = config["isne"]["training"]
+                # Set default values for training configuration
+                if "training" not in isne_config:
+                    isne_config["training"] = {}
+                training_config = isne_config["training"]
                 training_config.setdefault("learning_rate", 0.001)
                 training_config.setdefault("weight_decay", 1e-5)
                 training_config.setdefault("epochs", 50)
@@ -230,68 +330,71 @@ class ISNETrainingOrchestrator:
                 training_config.setdefault("lambda_struct", 1.0)
                 training_config.setdefault("lambda_contrast", 0.5)
                 
-                # Set default values for graph construction if not present
-                graph_config = config["isne"]["graph"]
+                # Set default values for graph construction
+                if "graph" not in isne_config:
+                    isne_config["graph"] = {}
+                graph_config = isne_config["graph"]
                 graph_config.setdefault("similarity_threshold", 0.7)
                 graph_config.setdefault("max_neighbors", 5)
                 graph_config.setdefault("sequential_weight", 0.9)
                 graph_config.setdefault("similarity_weight", 0.7)
                 graph_config.setdefault("window_size", 3)
                 
-                # Set default values for directories if not present
-                dir_config = config["isne"]["directories"]
+                # Set default values for directories
+                if "directories" not in isne_config:
+                    isne_config["directories"] = {}
+                dir_config = isne_config["directories"]
                 dir_config.setdefault("data_dir", "./data/isne")
                 dir_config.setdefault("input_dir", "./test-output/pipeline-mp-test")
                 dir_config.setdefault("output_dir", "./test-output/isne-training")
                 dir_config.setdefault("model_dir", "./models/isne")
                 
-                return config
+                return isne_config
             except Exception as e:
                 logger.warning(f"Error loading configuration with config_loader: {e}")
                 logger.warning("Falling back to default configuration")
         
         # Fall back to default configuration
         logger.info("Using default ISNE training configuration")
+        # Return a properly typed ISNEConfig object
         return {
-            "isne": {
-                "model": {
-                    "embedding_dim": 768,
-                    "hidden_dim": 256,
-                    "output_dim": 768,
-                    "num_layers": 2,
-                    "num_heads": 8,
-                    "dropout": 0.1,
-                    "activation": "elu",
-                    "add_self_loops": True
-                },
-                "training": {
-                    "learning_rate": 0.001,
-                    "weight_decay": 1e-5,
-                    "epochs": 50,
-                    "batch_size": 32,
-                    "num_hops": 1,
-                    "neighbor_size": 10,
-                    "eval_interval": 5,
-                    "early_stopping_patience": 10,
-                    "checkpoint_interval": 5,
-                    "device": "cpu",
-                    "lambda_feat": 1.0,
-                    "lambda_struct": 1.0,
-                    "lambda_contrast": 0.5
-                },
-                "graph": {
-                    "similarity_threshold": 0.7,
-                    "max_neighbors": 5,
-                    "sequential_weight": 0.9,
-                    "similarity_weight": 0.7,
-                    "window_size": 3
-                },
-                "directories": {
-                    "data_dir": "./data/isne",
-                    "input_dir": "./test-output/pipeline-mp-test",
-                    "output_dir": "./test-output/isne-training",
-                    "model_dir": "./models/isne"
-                }
+            "model": {
+                "embedding_dim": 768,
+                "hidden_dim": 256,
+                "output_dim": 768,
+                "num_layers": 2,
+                "num_heads": 8,
+                "dropout": 0.1,
+                "activation": "elu",
+                "add_self_loops": True
+            },
+            "training": {
+                "learning_rate": 0.001,
+                "weight_decay": 1e-5,
+                "epochs": 50,
+                "batch_size": 32,
+                "num_hops": 1,
+                "neighbor_size": 10,
+                "eval_interval": 5,
+                "early_stopping_patience": 10,
+                "checkpoint_interval": 5,
+                "device": "cpu",
+                "lambda_feat": 1.0,
+                "lambda_struct": 1.0,
+                "lambda_contrast": 0.5
+            },
+            "graph": {
+                "similarity_threshold": 0.7,
+                "max_neighbors": 5,
+                "sequential_weight": 0.9,
+                "similarity_weight": 0.7,
+                "window_size": 3
+            },
+            "directories": {
+                "data_dir": "./data/isne",
+                "input_dir": "./test-output/pipeline-mp-test",
+                "output_dir": "./test-output/isne-training",
+                "model_dir": "./models/isne"
             }
         }
     
@@ -307,12 +410,12 @@ class ISNETrainingOrchestrator:
             isne_override = override["isne"]
             for section_name, section_values in isne_override.items():
                 # Create section if it doesn't exist
-                if section_name not in self.config["isne"]:
-                    self.config["isne"][section_name] = {}
+                if section_name not in getattr(self.config, "isne", {}):
+                    getattr(self.config, "isne", {})[section_name] = {}
                     
                 # Apply section overrides
                 for key, value in section_values.items():
-                    self.config["isne"][section_name][key] = value
+                    getattr(self.config, "isne", {})[section_name][key] = value
                     
             logger.info(f"Applied nested configuration overrides to sections: {list(isne_override.keys())}")
         
@@ -321,19 +424,19 @@ class ISNETrainingOrchestrator:
             for section_name in ["model", "training", "graph", "directories"]:
                 if section_name in override:
                     # Create section if it doesn't exist
-                    if section_name not in self.config["isne"]:
-                        self.config["isne"][section_name] = {}
+                    if section_name not in getattr(self.config, "isne", {}):
+                        getattr(self.config, "isne", {})[section_name] = {}
                         
                     # Apply overrides to this section
                     for key, value in override[section_name].items():
-                        self.config["isne"][section_name][key] = value
+                        getattr(self.config, "isne", {})[section_name][key] = value
                         
             logger.info("Applied section-level configuration overrides")
         
         # Handle flat overrides (parameter) - these go to isne.training.parameter for backward compatibility
         else:
             for key, value in override.items():
-                self.config["isne"]["training"][key] = value
+                getattr(self.config, "isne", {})["training"][key] = value
             
             logger.info("Applied flat configuration overrides to training section")
         
@@ -373,7 +476,7 @@ class ISNETrainingOrchestrator:
         with open(isne_input_path, "r") as f:
             processed_documents = json.load(f)
         
-        # Load pipeline stats if available, or create empty stats object
+        # Load pipeline stats if available, or create empty stats dict
         if not stats_path.exists():
             logger.warning(f"Pipeline stats file not found, using empty stats: {stats_path}")
             pipeline_stats = {
@@ -397,17 +500,52 @@ class ISNETrainingOrchestrator:
             documents: List of processed documents with chunks and embeddings
             
         Returns:
-            PyTorch Geometric Data object representing the document graph
+            PyTorch Geometric Data dict representing the document graph
         """
         logger.info("Constructing document graph for ISNE training...")
         
         # Get graph construction parameters from typed config
-        graph_config: ISNEGraphConfig = self.config.get("isne", {}).get("graph", {})
-        similarity_threshold = graph_config.get("similarity_threshold", 0.7)
-        max_neighbors = graph_config.get("max_neighbors", 5)
-        sequential_weight = graph_config.get("sequential_weight", 0.9)
-        similarity_weight = graph_config.get("similarity_weight", 0.7)
-        window_size = graph_config.get("window_size", 3)
+        # Access config in a type-safe way, avoiding dict.get() method with empty dict as default
+        if hasattr(self.config, "isne") and isinstance(getattr(self.config, "isne"), dict):
+            isne_config = getattr(self.config, "isne")
+            # Use a conditional to check for the key instead of the get() method
+            if isinstance(isne_config, dict) and "graph" in isne_config:
+                graph_config_dict = isne_config["graph"]
+            else:
+                graph_config_dict = {}
+        else:
+            graph_config_dict = {}
+            
+        # Create a properly typed ISNEGraphConfig with default values
+        graph_config: ISNEGraphConfig = {
+            "similarity_threshold": 0.7,
+            "max_neighbors": 5,
+            "sequential_weight": 0.9,
+            "similarity_weight": 0.7,
+            "window_size": 3
+        }
+        
+        # Update the typed config with values from the loaded config
+        # Use string literals for the keys to satisfy mypy's TypedDict requirements
+        if isinstance(graph_config_dict, dict):
+            if "similarity_threshold" in graph_config_dict:
+                graph_config["similarity_threshold"] = graph_config_dict["similarity_threshold"]
+            if "max_neighbors" in graph_config_dict:
+                graph_config["max_neighbors"] = graph_config_dict["max_neighbors"]
+            if "sequential_weight" in graph_config_dict:
+                graph_config["sequential_weight"] = graph_config_dict["sequential_weight"]
+            if "similarity_weight" in graph_config_dict:
+                graph_config["similarity_weight"] = graph_config_dict["similarity_weight"]
+            if "window_size" in graph_config_dict:
+                graph_config["window_size"] = graph_config_dict["window_size"]
+        
+        # Access values directly from the properly typed dictionary using string literals
+        # Since we've properly initialized graph_config with defaults, we can access fields directly
+        similarity_threshold = graph_config["similarity_threshold"]
+        max_neighbors = graph_config["max_neighbors"]
+        sequential_weight = graph_config["sequential_weight"]
+        similarity_weight = graph_config["similarity_weight"]
+        window_size = graph_config["window_size"]
         
         # Collect chunk embeddings and IDs
         node_features = []
@@ -416,16 +554,28 @@ class ISNETrainingOrchestrator:
         
         # Create nodes for each chunk with embeddings
         for doc in documents:
-            for chunk in doc.get("chunks", []):
+            for chunk in getattr(doc, "chunks", []) if hasattr(doc, "chunks") else []:
                 # Handle chunks without embeddings
                 if not chunk.get("embedding"):
                     # For testing purposes: generate random embeddings when none are found
-                    if self.config.get("isne", {}).get("model", {}).get("embedding_dim"):
-                        embedding_dim = self.config["isne"]["model"]["embedding_dim"]
+                    # Use a safer approach to check if embedding_dim is available
+                    embedding_dim = None
+                    if hasattr(self.config, "isne"):
+                        isne_config = getattr(self.config, "isne")
+                        if isinstance(isne_config, dict) and "model" in isne_config:
+                            model_config = isne_config["model"]
+                            if isinstance(model_config, dict) and "embedding_dim" in model_config:
+                                embedding_dim = model_config["embedding_dim"]
+                    
+                    # Only proceed if we found a valid embedding_dim
+                    if embedding_dim is not None:
                         # Use deterministic seed based on chunk id for reproducibility
+                        # Ensure embedding_dim is an integer before using it with np.random.normal
                         seed = int(hash(chunk["id"]) % 10000000)
                         np.random.seed(seed)
-                        random_embedding = np.random.normal(0, 0.1, embedding_dim).tolist()
+                        # Cast embedding_dim to int to avoid potential type errors
+                        embedding_dim_int = int(embedding_dim)
+                        random_embedding = np.random.normal(0, 0.1, embedding_dim_int).tolist()
                         chunk["embedding"] = random_embedding
                         logger.info(f"Generated random embedding for chunk {chunk['id']} (test mode)")
                     else:
@@ -486,7 +636,7 @@ class ISNETrainingOrchestrator:
             logger.info(f"Filtered to {len(node_features)} nodes with consistent dimension {most_common_dim}")
         
         # Stack node features into a single tensor
-        node_features = torch.stack(node_features)
+        node_features_tensor = torch.stack(node_features)
         
         # Create edges based on document structure, directory hierarchy, and semantic similarity
         edge_list = []
@@ -552,13 +702,13 @@ class ISNETrainingOrchestrator:
         
         # Add sequential edges within documents
         for doc in documents:
-            chunks = doc.get("chunks", [])
+            chunks = getattr(doc, "chunks", []) if hasattr(doc, "chunks") else []
             for i in range(len(chunks) - 1):
                 # Sequential connection with weight from config
                 add_edge(chunks[i]["id"], chunks[i+1]["id"], weight=sequential_weight)
         
         # Add directory-based relationships if directory structure is available
-        directory_relationship_weight = graph_config.get("directory_relationship_weight", 0.5)
+        directory_relationship_weight = getattr(graph_config, "directory_relationship_weight", 0.5) if hasattr(graph_config, "directory_relationship_weight") else 0.5
         
         # Group documents by directory
         docs_by_directory: Dict[str, List[str]] = {}
@@ -578,9 +728,12 @@ class ISNETrainingOrchestrator:
                     # Create mapping of document ID to chunks
                     doc_to_chunks = {}
                     for doc in documents:
-                        doc_id = doc.get("file_id", doc.get("id", ""))
+                        doc_id = getattr(doc, "file_id", getattr(doc, "id", "")) if hasattr(doc, "get") else getattr(doc, "id", None)
                         if doc_id in doc_ids:
-                            doc_to_chunks[doc_id] = [chunk["id"] for chunk in doc.get("chunks", [])]
+                            if hasattr(doc, "chunks"):
+                                doc_to_chunks[doc_id] = [chunk["id"] for chunk in getattr(doc, "chunks", [])]
+                            else:
+                                doc_to_chunks[doc_id] = []
                     
                     # Connect first chunks of documents in the same directory
                     for i, doc1_id in enumerate(doc_ids):
@@ -599,7 +752,7 @@ class ISNETrainingOrchestrator:
         
         # Add edges for semantically similar chunks based on overlap context
         for doc in documents:
-            chunks = doc.get("chunks", [])
+            chunks = getattr(doc, "chunks", []) if hasattr(doc, "chunks") else []
             for i, chunk in enumerate(chunks):
                 if "overlap_context" in chunk:
                     # If there are previous/next chunks indicated in overlap context, connect them
@@ -682,7 +835,7 @@ class ISNETrainingOrchestrator:
         
         # Create graph using PyTorch Geometric Data
         data = Data(
-            x=node_features,  # Node features
+            x=node_features_tensor,  # Node features tensor (stacked)
             edge_index=edge_index,  # Graph structure
             edge_attr=edge_attr  # Edge weights
         )
@@ -716,8 +869,8 @@ class ISNETrainingOrchestrator:
             Initialized ISNETrainer instance
         """
         # Get model and training parameters from typed config
-        model_config: ISNEModelConfig = self.config["isne"]["model"]
-        train_config: ISNETrainingConfig = self.config["isne"]["training"]
+        model_config: ISNEModelConfig = getattr(self.config, "isne", {})["model"]
+        train_config: ISNETrainingConfig = getattr(self.config, "isne", {})["training"]
         
         # Prepare arguments for the trainer
         trainer_args = {
@@ -729,9 +882,9 @@ class ISNETrainingOrchestrator:
             "dropout": float(model_config["dropout"]),
             "learning_rate": float(train_config["learning_rate"]),
             "weight_decay": float(train_config["weight_decay"]),
-            "lambda_feat": float(train_config.get("lambda_feat", 1.0)),
-            "lambda_struct": float(train_config.get("lambda_struct", 1.0)),
-            "lambda_contrast": float(train_config.get("lambda_contrast", 0.5)),
+            "lambda_feat": float(getattr(train_config, "lambda_feat", 1.0) if hasattr(train_config, "lambda_feat") else 1.0),
+            "lambda_struct": float(getattr(train_config, "lambda_struct", 1.0) if hasattr(train_config, "lambda_struct") else 1.0),
+            "lambda_contrast": float(getattr(train_config, "lambda_contrast", 0.5) if hasattr(train_config, "lambda_contrast") else 0.5),
             "device": self.device
         }
         
@@ -802,8 +955,56 @@ class ISNETrainingOrchestrator:
         # Prepare trainer
         self._prepare_trainer()
         
-        # Get training parameters from typed config
-        train_config: ISNETrainingConfig = self.config["isne"]["training"]
+        # Get training parameters from typed config using a safer approach
+        # Create a default training config in case it's not available
+        train_config: ISNETrainingConfig = {
+            "learning_rate": 0.001,
+            "weight_decay": 1e-5,
+            "epochs": 50,
+            "batch_size": 32,
+            "num_hops": 1,
+            "neighbor_size": 10,
+            "eval_interval": 5,
+            "early_stopping_patience": 10,
+            "checkpoint_interval": 5,
+            "device": "cpu",
+            "lambda_feat": 1.0,
+            "lambda_struct": 1.0,
+            "lambda_contrast": 0.5
+        }
+        
+        # Update with values from self.config if available
+        if hasattr(self.config, "isne") and isinstance(getattr(self.config, "isne"), dict):
+            isne_config = getattr(self.config, "isne")
+            if isinstance(isne_config, dict) and "training" in isne_config and isinstance(isne_config["training"], dict):
+                config_train = isne_config["training"]
+                # Update with available values using explicit assignments with string literals
+                if "learning_rate" in config_train:
+                    train_config["learning_rate"] = config_train["learning_rate"]
+                if "weight_decay" in config_train:
+                    train_config["weight_decay"] = config_train["weight_decay"]
+                if "epochs" in config_train:
+                    train_config["epochs"] = config_train["epochs"]
+                if "batch_size" in config_train:
+                    train_config["batch_size"] = config_train["batch_size"]
+                if "num_hops" in config_train:
+                    train_config["num_hops"] = config_train["num_hops"]
+                if "neighbor_size" in config_train:
+                    train_config["neighbor_size"] = config_train["neighbor_size"]
+                if "eval_interval" in config_train:
+                    train_config["eval_interval"] = config_train["eval_interval"]
+                if "early_stopping_patience" in config_train:
+                    train_config["early_stopping_patience"] = config_train["early_stopping_patience"]
+                if "checkpoint_interval" in config_train:
+                    train_config["checkpoint_interval"] = config_train["checkpoint_interval"]
+                if "device" in config_train:
+                    train_config["device"] = config_train["device"]
+                if "lambda_feat" in config_train:
+                    train_config["lambda_feat"] = config_train["lambda_feat"]
+                if "lambda_struct" in config_train:
+                    train_config["lambda_struct"] = config_train["lambda_struct"]
+                if "lambda_contrast" in config_train:
+                    train_config["lambda_contrast"] = config_train["lambda_contrast"]
         
         logger.info(f"Training ISNE model with {train_config['epochs']} epochs on {self.device}...")
         
@@ -834,13 +1035,26 @@ class ISNETrainingOrchestrator:
         else:
             self.training_metrics["epochs"] = 0
             
-        # Initialize losses dictionary
-        self.training_metrics["losses"] = {
-            "total_loss": train_stats["total_loss"],
-            "feature_loss": train_stats["feature_loss"],
-            "structural_loss": train_stats["structural_loss"],
-            "contrastive_loss": train_stats["contrastive_loss"]
+        # Initialize losses dictionary with safe access
+        losses_dict = {
+            "total_loss": 0.0,
+            "feature_loss": 0.0,
+            "structural_loss": 0.0,
+            "contrastive_loss": 0.0
         }
+        
+        # Safely update with values from train_stats if they exist
+        if isinstance(train_stats, dict):
+            if "total_loss" in train_stats:
+                losses_dict["total_loss"] = train_stats["total_loss"]
+            if "feature_loss" in train_stats:
+                losses_dict["feature_loss"] = train_stats["feature_loss"]
+            if "structural_loss" in train_stats:
+                losses_dict["structural_loss"] = train_stats["structural_loss"]
+            if "contrastive_loss" in train_stats:
+                losses_dict["contrastive_loss"] = train_stats["contrastive_loss"]
+                
+        self.training_metrics["losses"] = losses_dict
         
         # Compute summary statistics to quickly gauge training quality
         loss_summary: Dict[str, Dict[str, float]] = {}
@@ -853,12 +1067,28 @@ class ISNETrainingOrchestrator:
                 }
         self.training_metrics["loss_summary"] = loss_summary
         
-        # Get model naming configuration
-        model_config = self.config.get("isne", {}).get("model", {})
-        name_prefix = model_config.get("name_prefix", "isne_model")
-        version = model_config.get("version", "v1")
-        use_timestamp = model_config.get("use_timestamp", True)
-        keep_previous = model_config.get("keep_previous_versions", True)
+        # Get model naming configuration with safer dictionary access
+        # Default values
+        name_prefix = "isne_model"
+        version = "v1"
+        use_timestamp = True
+        keep_previous = True
+        
+        # Try to get values from configuration if available
+        if hasattr(self.config, "isne"):
+            isne_config = getattr(self.config, "isne")
+            if isinstance(isne_config, dict) and "model" in isne_config:
+                model_config = isne_config["model"]
+                if isinstance(model_config, dict):
+                    # Update with configuration values if they exist
+                    if "name_prefix" in model_config:
+                        name_prefix = model_config["name_prefix"]
+                    if "version" in model_config:
+                        version = model_config["version"]
+                    if "use_timestamp" in model_config:
+                        use_timestamp = model_config["use_timestamp"]
+                    if "keep_previous_versions" in model_config:
+                        keep_previous = model_config["keep_previous_versions"]
         
         # Create model filename
         if use_timestamp:
@@ -896,7 +1126,7 @@ class ISNETrainingOrchestrator:
         with open(results_path, "w") as f:
             json.dump({
                 "training_metrics": self.training_metrics,
-                "config": self.config["isne"]["training"],
+                "config": getattr(self.config, "isne", {})["training"],
                 "model_path": str(model_save_path),
                 "pipeline_stats": pipeline_stats,
                 "loss_summary": self.training_metrics["loss_summary"]
@@ -981,11 +1211,11 @@ class ISNETrainingOrchestrator:
         # Collect chunk statistics
         chunk_stats = {}
         for doc in documents:
-            for chunk in doc.get("chunks", []):
+            for chunk in getattr(doc, "chunks", []) if hasattr(doc, "chunks") else []:
                 chunk_id = chunk["id"]
                 chunk_stats[chunk_id] = {
                     "embedding_dim": len(chunk["embedding"]),
-                    "text": chunk.get("text", "")
+                    "text": getattr(chunk, "text", "") if hasattr(chunk, "text") else ""
                 }
         
         stats["chunk_stats"] = chunk_stats
@@ -994,9 +1224,10 @@ class ISNETrainingOrchestrator:
         doc_stats = {}
         for doc in documents:
             doc_id = doc["file_id"]
+            chunks = getattr(doc, "chunks", []) if hasattr(doc, "chunks") else []
             doc_stats[doc_id] = {
-                "num_chunks": len(doc.get("chunks", [])),
-                "chunk_ids": [chunk["id"] for chunk in doc.get("chunks", [])]
+                "num_chunks": len(chunks),
+                "chunk_ids": [chunk["id"] for chunk in chunks]
             }
         
         stats["doc_stats"] = doc_stats
@@ -1084,7 +1315,7 @@ class ISNETrainingOrchestrator:
         return None
 
     @classmethod
-    def load_model(cls, model_path: Optional[str] = None) -> ISNEModel:
+    def load_model(cls, model_path: Optional[str] = None) -> Union[ISNEModel, nn.Module]:
         """
         Load a trained ISNEModel from the specified path.
         
@@ -1092,7 +1323,7 @@ class ISNETrainingOrchestrator:
             model_path: Path to the model file to load. If None, uses the latest model.
         
         Returns:
-            Loaded ISNEModel instance or a compatible proxy model
+            Loaded ISNEModel instance or a compatible proxy model that implements the nn.Module interface
         """
         if model_path is None:
             model_dir = Path("./models/isne")

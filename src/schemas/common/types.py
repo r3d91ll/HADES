@@ -6,7 +6,7 @@ components of the system for consistent type checking.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Union, TypeAlias
+from typing import Dict, Any, Optional, List, Union, Literal, cast, Callable, Generator, TypeAlias
 import numpy as np
 from pydantic import Field, GetJsonSchemaHandler
 from pydantic.json_schema import JsonSchemaValue
@@ -17,11 +17,11 @@ EmbeddingVector: TypeAlias = Union[List[float], np.ndarray]
 
 
 # Custom type for UUID strings with validation
-class UUIDStr(str):
+class UUIDString(str):
     """String type that must conform to UUID format."""
     
     # This is required for string validation to work in Pydantic v2
-    def __new__(cls, content):
+    def __new__(cls, content: str) -> 'UUIDString':
         # Validate UUID format first
         from uuid import UUID
         try:
@@ -32,11 +32,18 @@ class UUIDStr(str):
         return super().__new__(cls, content)
     
     @classmethod
-    def __get_validators__(cls):
+    def __get_validators__(cls) -> Generator[Callable[[str], str], None, None]:
+        # Correct return type for validator functions
+        from typing import Generator
+        """Return a list of validator functions.
+        
+        Returns:
+            A list of validator functions
+        """
         # This is for Pydantic v1 compatibility
         from uuid import UUID
         
-        def validate(v):
+        def validate(v: str) -> str:
             if not isinstance(v, str):
                 raise TypeError("UUID string required")
             # Validate UUID format

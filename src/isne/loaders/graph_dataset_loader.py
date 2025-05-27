@@ -354,31 +354,37 @@ class GraphDatasetLoader:
         if not documents:
             return torch.zeros((0, self.embedding_dim), dtype=torch.float)
         
+        # Default to a tensor of zeros with appropriate dimensions
+        # This handles the case where the unreachable code is not executed
+        node_features = torch.zeros((len(documents), self.embedding_dim), dtype=torch.float)
+        
         features_list = []
         
         for doc in documents:
             # Use enhanced embedding if available, otherwise use original
             # Need to handle numpy arrays carefully
-            if doc.enhanced_embedding is not None:
-                embedding = doc.enhanced_embedding
-            else:
-                embedding = doc.embedding
+            doc_embedding = None  # Initialize with None
             
-            if embedding is None:
-                # Default to zero vector if no embedding is available
-                embedding = np.zeros(self.embedding_dim, dtype=np.float32)
+            if doc.enhanced_embedding is not None:
+                doc_embedding = doc.enhanced_embedding
+            elif doc.embedding is not None:
+                doc_embedding = doc.embedding
+            
+            # Default to zero vector if no embedding is available
+            if doc_embedding is None:
+                doc_embedding = np.zeros(self.embedding_dim, dtype=np.float32)
                 self.missing_embedding_count += 1  # Increment missing count
             
             # Convert to numpy array if not already
-            if isinstance(embedding, list):
-                embedding = np.array(embedding, dtype=np.float32)
+            if isinstance(doc_embedding, list):
+                doc_embedding = np.array(doc_embedding, dtype=np.float32)
             
             # Ensure correct shape
-            if len(embedding.shape) == 1:
-                features_list.append(embedding)
+            if len(doc_embedding.shape) == 1:
+                features_list.append(doc_embedding)
             else:
                 # Take the first embedding if multiple exist
-                features_list.append(embedding[0])
+                features_list.append(doc_embedding[0])
         
         # Convert to tensor
         node_features = torch.tensor(np.stack(features_list), dtype=torch.float)
@@ -389,6 +395,31 @@ class GraphDatasetLoader:
             node_features = torch.cat([node_features, type_encodings], dim=1)
         
         return node_features
+    
+    def _get_document_type(self, doc_type: Any) -> DocumentType:
+        """
+        Helper method to convert various input types to DocumentType enum.
+        This avoids complex if-elif-else control flow that mypy struggles with.
+        
+        Args:
+            doc_type: Input document type (can be string, enum, or other)
+            
+        Returns:
+            Properly typed DocumentType enum
+        """
+        # Already a DocumentType
+        if isinstance(doc_type, DocumentType):
+            return doc_type
+            
+        # Try to convert string to enum
+        if isinstance(doc_type, str):
+            try:
+                return DocumentType[doc_type.upper()]
+            except (KeyError, AttributeError):
+                pass
+                
+        # Default case for any other type
+        return DocumentType.UNKNOWN
     
     def _encode_document_types(self, documents: List[IngestDocument]) -> Tensor:
         """
@@ -408,7 +439,14 @@ class GraphDatasetLoader:
         encodings = np.zeros((len(documents), len(all_types)), dtype=np.float32)
         
         for i, doc in enumerate(documents):
-            type_idx = type_to_idx.get(doc.document_type, type_to_idx[DocumentType.UNKNOWN])
+            # Handle the document_type properly - ensure it's a proper DocumentType enum
+            doc_type = doc.document_type
+            
+            # Determine the document type using a function that avoids if-else control flow issues
+            enum_doc_type = self._get_document_type(doc_type)
+                
+            # Now safely get the index
+            type_idx = type_to_idx.get(enum_doc_type, type_to_idx[DocumentType.UNKNOWN])
             encodings[i, type_idx] = 1.0
         
         return torch.tensor(encodings, dtype=torch.float)
@@ -432,6 +470,11 @@ class GraphDatasetLoader:
         # This ensures we maintain the expected shape (2, N) even when N=0
         if not relations:
             return torch.zeros((2, 0), dtype=torch.long), None
+            
+        # Default edge_indices and edge_attrs for the reachable code path
+        # Create a minimal valid edge index tensor (2, 0) and None for attributes
+        edge_indices = torch.zeros((2, 0), dtype=torch.long)
+        edge_attrs = None
         
         edge_list = []
         edge_attrs_list = []

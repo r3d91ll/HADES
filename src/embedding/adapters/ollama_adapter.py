@@ -19,7 +19,7 @@ from src.types.common import EmbeddingVector
 logger = logging.getLogger(__name__)
 
 
-class OllamaEmbeddingAdapter:
+class OllamaEmbeddingAdapter(EmbeddingAdapter):
     """Adapter for generating embeddings using Ollama."""
     
     def __init__(
@@ -27,7 +27,7 @@ class OllamaEmbeddingAdapter:
         model_name: str = "llama3",
         base_url: str = "http://localhost:11434",
         timeout: float = 60.0,
-        **kwargs
+        **kwargs: Any
     ):
         """Initialize the Ollama embedding adapter.
         
@@ -42,7 +42,7 @@ class OllamaEmbeddingAdapter:
         self.timeout = timeout
         self.additional_params = kwargs
     
-    async def embed(self, texts: List[str], **kwargs) -> List[EmbeddingVector]:
+    async def embed(self, texts: List[str], **kwargs: Any) -> List[EmbeddingVector]:
         """Generate embeddings for a list of texts using Ollama.
         
         Args:
@@ -75,7 +75,7 @@ class OllamaEmbeddingAdapter:
             
             try:
                 results = await asyncio.gather(*tasks)
-                return cast(List[EmbeddingVector], results)
+                return results
             except Exception as e:
                 raise RuntimeError(f"Ollama embedding API request failed: {e}") from e
     
@@ -116,14 +116,14 @@ class OllamaEmbeddingAdapter:
                 if "embedding" not in result:
                     raise RuntimeError(f"Ollama API response missing 'embedding' field: {result}")
                 
-                return cast(EmbeddingVector, result["embedding"])
+                return cast(Union[List[float], np.ndarray], result["embedding"])
         
         except asyncio.TimeoutError:
             raise RuntimeError(f"Ollama API request timed out after {self.timeout} seconds")
         except Exception as e:
             raise RuntimeError(f"Ollama API request failed: {e}") from e
     
-    async def embed_single(self, text: str, **kwargs) -> EmbeddingVector:
+    async def embed_single(self, text: str, **kwargs: Any) -> EmbeddingVector:
         """Generate an embedding for a single text using Ollama.
         
         Args:

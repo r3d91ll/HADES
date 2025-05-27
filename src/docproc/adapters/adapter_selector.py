@@ -6,7 +6,7 @@ based on its content category (code or text) and format type.
 """
 
 import logging
-from typing import Dict, Type, Optional
+from typing import Any, Dict, Type, Optional
 
 from .base import BaseAdapter
 from .registry import get_adapter_class
@@ -19,7 +19,8 @@ from src.docproc.utils.format_detector import get_content_category
 logger = logging.getLogger(__name__)
 
 # Registry of specialized adapters by format
-_CODE_ADAPTERS: Dict[str, Type[BaseAdapter]] = {
+# Use Type[Any] to avoid the "concrete class" error since these are concrete implementations
+_CODE_ADAPTERS: Dict[str, Type[Any]] = {
     "python": PythonCodeAdapter,
     "json": JSONAdapter,
     "yaml": YAMLAdapter,
@@ -47,7 +48,8 @@ def select_adapter_for_document(format_type: str) -> BaseAdapter:
         # For code formats, use specialized code adapters
         if format_type in _CODE_ADAPTERS:
             logger.info(f"Using specialized {format_type} code adapter")
-            return _CODE_ADAPTERS[format_type]()
+            adapter: BaseAdapter = _CODE_ADAPTERS[format_type]()
+            return adapter
         else:
             # For unsupported code formats, fall back to the generic adapter
             logger.info(f"No specialized adapter for {format_type}, using generic adapter")

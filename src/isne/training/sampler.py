@@ -133,8 +133,9 @@ class NeighborSampler:
         
         # Fill adjacency list from edge index
         for i in range(edge_index_cpu.size(1)):
-            src = edge_index_cpu[0, i].item()
-            dst = edge_index_cpu[1, i].item()
+            # Cast to int explicitly to avoid int|float type issues
+            src = int(edge_index_cpu[0, i].item())
+            dst = int(edge_index_cpu[1, i].item())
             
             # Add edge to adjacency list
             self.adj_list[src].append(dst)
@@ -197,8 +198,9 @@ class NeighborSampler:
         # Create pairs from sampled edges
         edge_pairs: List[List[int]] = []
         for idx in edge_indices:
-            src = self.edge_index[0, idx].item()
-            dst = self.edge_index[1, idx].item()
+            # Cast to int explicitly to ensure consistent types
+            src = int(self.edge_index[0, idx].item())
+            dst = int(self.edge_index[1, idx].item())
             edge_pairs.append([src, dst])
         
         # Convert to tensor
@@ -281,29 +283,30 @@ class NeighborSampler:
             return subset_nodes, subset_edge_index
         else:
             # Fallback implementation for when PyTorch Geometric is not available
-            subset_nodes = nodes.tolist()
+            # Start with nodes as a list (not a Tensor) to handle list operations properly
+            subset_nodes_list: List[int] = nodes.tolist()
             node_map: Dict[int, int] = {}
             
             # Expand to multi-hop neighborhood
             for _ in range(self.num_hops):
                 neighbor_nodes: List[int] = []
-                for node in subset_nodes:
+                for node in subset_nodes_list:
                     if node < 0 or node >= self.num_nodes:
                         continue
                     neighbor_nodes.extend(self.adj_list[node])
                 
-                # Add neighbors to subset_nodes
-                subset_nodes.extend(neighbor_nodes)
+                # Add neighbors to subset_nodes_list
+                subset_nodes_list.extend(neighbor_nodes)
                 # Remove duplicates
-                subset_nodes = list(set(subset_nodes))
+                subset_nodes_list = list(set(subset_nodes_list))
             
             # Create mapping from original node IDs to subgraph node IDs
-            for i, node in enumerate(subset_nodes):
+            for i, node in enumerate(subset_nodes_list):
                 node_map[node] = i
             
             # Create edge_index for the subgraph
             subset_edges: List[List[int]] = []
-            for src_idx, src in enumerate(subset_nodes):
+            for src_idx, src in enumerate(subset_nodes_list):
                 for dst in self.adj_list[src]:
                     if dst in node_map:  # Only add edges where both endpoints are in the subgraph
                         dst_idx = node_map[dst]
@@ -311,14 +314,14 @@ class NeighborSampler:
             
             if not subset_edges:
                 return (
-                    torch.tensor(subset_nodes, dtype=torch.long, device=nodes.device),
+                    torch.tensor(subset_nodes_list, dtype=torch.long, device=nodes.device),
                     torch.zeros((2, 0), dtype=torch.long, device=nodes.device)
                 )
             
             subset_edge_tensor = torch.tensor(subset_edges, dtype=torch.long, device=nodes.device).t()
             
             return (
-                torch.tensor(subset_nodes, dtype=torch.long, device=nodes.device),
+                torch.tensor(subset_nodes_list, dtype=torch.long, device=nodes.device),
                 subset_edge_tensor
             )
     
@@ -454,8 +457,9 @@ class NeighborSampler:
         positive_set: Set[Tuple[int, int]] = set()
         if positive_pairs is not None:
             for i in range(positive_pairs.size(0)):
-                src = positive_pairs[i, 0].item()
-                dst = positive_pairs[i, 1].item()
+                # Cast tensor items to int to ensure tuple elements are integers
+                src = int(positive_pairs[i, 0].item())
+                dst = int(positive_pairs[i, 1].item())
                 positive_set.add((src, dst))
                 if not self.directed:
                     positive_set.add((dst, src))
@@ -651,19 +655,30 @@ class RandomWalkSampler:
         
         # Create adjacency list for other sampling methods
         self.adj_list: List[List[int]] = [[] for _ in range(self.num_nodes)]
-        for i in range(edge_index_cpu.size(1)):
-            src = edge_index_cpu[0, i].item()
-            dst = edge_index_cpu[1, i].item()
-            
-            # Add edge to adjacency list
-            self.adj_list[src].append(dst)
-            
-            # If undirected, add the reverse edge as well
-            if not self.directed:
-                self.adj_list[dst].append(src)
+        # Initialize the set of nodes with neighbors
+        self.nodes_with_neighbors: Set[int] = set()
         
-        # Create set of nodes that have neighbors (for efficient sampling)
- # The nodes_with_neighbors set has already been populated during edge iteration
+        for i in range(edge_index_cpu.size(1)):
+            try:
+                # Cast tensor items to integers explicitly to avoid type errors
+                src_tensor = edge_index_cpu[0, i]
+                dst_tensor = edge_index_cpu[1, i]
+                # Use explicit int casting to satisfy type checker
+                src_int: int = int(src_tensor.item())
+                dst_int: int = int(dst_tensor.item())
+                
+                # Add edge to adjacency list - using explicit int types
+                self.adj_list[src_int].append(dst_int)
+                # Add to set of nodes with neighbors - using explicit int types
+                self.nodes_with_neighbors.add(src_int)
+                
+                # If undirected, add the reverse edge as well
+                if not self.directed:
+                    self.adj_list[dst_int].append(src_int)
+                    self.nodes_with_neighbors.add(dst_int)
+            except Exception as e:
+                logger.error(f"Error processing edge {i}: {e}")
+                # Skip this edge if there's an error
         
         # Store effective number of nodes and edges
         self.effective_num_nodes = self.num_nodes
@@ -700,7 +715,7 @@ class RandomWalkSampler:
         
         return sampled_nodes
         
-    def sample_neighbors(self, nodes: Tensor) -> Tuple[List[List[int]], List[List[int]]]:
+    def sample_neighbors(self, nodes: Tensor) -> Tuple[List[Tensor], List[Tensor]]:
         """Sample multi-hop neighborhoods for a batch of nodes.
         
         Args:
@@ -819,8 +834,9 @@ class RandomWalkSampler:
             node_samples, _ = self.sample_neighbors(nodes)
             
             # Combine all sampled nodes
-            all_nodes: List[Tensor] = []
+            all_nodes = []
             for nodes_tensor in node_samples:
+                # Check that the tensor is valid before adding
                 if isinstance(nodes_tensor, torch.Tensor) and nodes_tensor.numel() > 0:
                     all_nodes.append(nodes_tensor)
             
@@ -1008,9 +1024,9 @@ class RandomWalkSampler:
         # Create a simplified adjacency list from the CSR representation
         adj_list: Dict[int, List[int]] = {}
         for i in range(self.effective_num_nodes):
-            # Get neighbors for node i
-            start_ptr = self.rowptr[i].item()
-            end_ptr = self.rowptr[i+1].item()
+            # Get neighbors for node i - ensure all indices are proper integers
+            start_ptr = int(self.rowptr[i].item())
+            end_ptr = int(self.rowptr[i+1].item())  # i+1 is already an int, no need to cast
             if start_ptr < end_ptr:  # Only include nodes with at least one neighbor
                 neighbors = self.col[start_ptr:end_ptr].tolist()
                 if neighbors:  # Double-check we have neighbors

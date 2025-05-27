@@ -5,21 +5,35 @@ This module provides a production-ready ISNE pipeline implementation with
 built-in validation to ensure embedding consistency and quality.
 """
 
-import json
-import logging
 import os
-import time
-from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple, Union, cast, Type
-
+import json
 import torch
 import numpy as np
+import logging
+from pathlib import Path
+from typing import Dict, List, Any, Optional, Union, cast, Tuple, Type
+from datetime import datetime
+from torch import Tensor
+import torch.nn as nn
 
+# Fix the import paths for model classes
 from src.isne.models.isne_model import ISNEModel
 from src.isne.models.simplified_isne_model import SimplifiedISNEModel
+from typing import Protocol
 
-# Define a union type for ISNE models
-ISNEModelTypes = Union[ISNEModel, SimplifiedISNEModel]
+# Define a Protocol for models to ensure correct type checking
+class ISNEModelProtocol(Protocol):
+    """Protocol defining the interface for ISNE model types."""
+    def forward(self, x: Tensor, edge_index: Optional[Tensor] = None) -> Tensor: ...
+    def load_state_dict(self, state_dict: Dict[str, Any], strict: bool = True) -> Any: ...
+    def to(self, device: Union[str, torch.device]) -> Any: ...
+    def eval(self) -> Any: ...
+    def __call__(self, x: Tensor, edge_index: Optional[Tensor] = None) -> Tensor: ...
+
+# Set up logging
+logger = logging.getLogger(__name__)
+
+# Import validation utilities
 from src.validation.embedding_validator import (
     validate_embeddings_before_isne,
     validate_embeddings_after_isne,
@@ -29,8 +43,6 @@ from src.validation.embedding_validator import (
 from src.isne.utils.geometric_utils import create_graph_from_documents
 from src.alerts import AlertManager, AlertLevel
 
-# Configure logging
-logger = logging.getLogger(__name__)
 
 class ISNEPipeline:
     """
@@ -41,14 +53,14 @@ class ISNEPipeline:
     """
     
     def __init__(
-        self, 
-        model_path: Optional[str] = None,
-        validate: bool = True,
-        alert_threshold: str = "high",
-        device: Optional[str] = None,
-        alert_dir: str = "./alerts",
-        alert_manager: Optional[AlertManager] = None
-    ):
+            self, 
+            model_path: Optional[str] = None,
+            validate: bool = True,
+            alert_threshold: str = "high",
+            device: Optional[str] = None,
+            alert_dir: str = "./alerts",
+            alert_manager: Optional[AlertManager] = None
+        ):
         """
         Initialize the ISNE pipeline.
         
@@ -64,7 +76,8 @@ class ISNEPipeline:
         self.validate = validate
         self.alert_threshold = alert_threshold
         self.device = device or self._determine_device()
-        self.model: Optional[Union[ISNEModel, SimplifiedISNEModel]] = None
+        # Initialize model variable with a specific type
+        self.model: Optional[nn.Module] = None
         
         # Alert configuration
         self.alert_levels = {
@@ -105,8 +118,9 @@ class ISNEPipeline:
             Device string ("cpu" or "cuda:X")
         """
         if torch.cuda.is_available():
-            return f"cuda:{torch.cuda.current_device()}"
-        return "cpu"
+            return "cuda:0"
+        else:
+            return "cpu"
     
     def load_model(self, model_path: str) -> None:
         """
@@ -115,77 +129,62 @@ class ISNEPipeline:
         Args:
             model_path: Path to the trained model
         """
-        logger.info(f"Loading ISNE model from {model_path}")
-        
         try:
-            # Check if model file exists
-            model_file = Path(model_path)
-            if not model_file.exists():
-                raise FileNotFoundError(f"ISNE model file not found: {model_path}")
-            
-            # Load model data
+            # Load model checkpoint
             model_data = torch.load(model_path, map_location=self.device)
-            logger.info(f"Successfully loaded model with keys: {list(model_data.keys())}")
             
-            # Get model configuration
-            model_config = model_data.get("config", {})
-            if not model_config:
-                logger.warning("Model config not found in saved model, using defaults")
-            
-            # Extract model parameters
-            embedding_dim = model_config.get("embedding_dim", 768)  # Default ModernBERT dimension
+            # Extract model configuration
+            model_config = model_data.get("model_config", {})
+            model_type = model_config.get("type", "standard")
+            embedding_dim = model_config.get("embedding_dim", 768)
             hidden_dim = model_config.get("hidden_dim", 256)
-            output_dim = model_config.get("output_dim", 768)
+            output_dim = model_config.get("output_dim", 128)
             num_layers = model_config.get("num_layers", 2)
             
-            logger.info(f"Model dimensions: {embedding_dim} → {hidden_dim} → {output_dim}")
-            
-            # Determine model type (full or simplified)
-            model_type = model_config.get("model_type", "full")
-            
-            # Create the appropriate model
+            # Initialize model based on type - use nn.Module to ensure compatibility
             if model_type == "simplified":
                 logger.info("Using SimplifiedISNEModel")
-                model = SimplifiedISNEModel(
+                # Create a specific type instance that is a subclass of nn.Module
+                simplified_model: nn.Module = SimplifiedISNEModel(
                     in_features=embedding_dim,
-                    hidden_features=hidden_dim,  # Required parameter even though not used internally
+                    hidden_features=hidden_dim,
                     out_features=output_dim
                 )
-                self.model = cast(ISNEModelTypes, model)
+                self.model = simplified_model
             else:
                 logger.info("Using full ISNEModel")
-                model = ISNEModel(
+                # Create a specific type instance that is a subclass of nn.Module
+                full_model: nn.Module = ISNEModel(
                     in_features=embedding_dim,
                     hidden_features=hidden_dim,
                     out_features=output_dim,
                     num_layers=num_layers
                 )
-                self.model = cast(ISNEModelTypes, model)
-            
-            # Load model weights
+                self.model = full_model
+                
+            # Ensure model is not None at this point
             if self.model is not None:
-                # Use explicit type casting to help mypy understand the object is a torch.nn.Module
-                model = cast(torch.nn.Module, self.model)
-                model.load_state_dict(model_data["model_state_dict"])
-                model.to(self.device)
-                model.eval()  # Set to evaluation mode
-                # Update self.model to ensure it keeps the reference
-                self.model = cast(ISNEModelTypes, model)
+                # Load model weights - since self.model is nn.Module, it has load_state_dict
+                self.model.load_state_dict(model_data["model_state_dict"])
+                # Move model to device - self.model.to() returns an nn.Module
+                self.model = self.model.to(self.device)
+                # Set model to evaluation mode
+                _ = self.model.eval()  # This returns self, but we don't need to reassign
             else:
                 raise ValueError("Model initialization failed")
             
             logger.info("ISNE model loaded successfully")
             
         except Exception as e:
-            logger.error(f"Error loading ISNE model: {e}")
+            logger.error(f"Failed to load ISNE model: {str(e)}")
             raise
     
     def process_documents(
-        self, 
-        documents: List[Dict[str, Any]],
-        save_report: bool = True,
-        output_dir: Optional[str] = None
-    ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+            self, 
+            documents: List[Dict[str, Any]],
+            save_report: bool = True,
+            output_dir: Optional[str] = None
+        ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
         """
         Process documents through the ISNE pipeline with validation.
         
@@ -197,127 +196,135 @@ class ISNEPipeline:
         Returns:
             Tuple of (enhanced_documents, processing_stats)
         """
-        start_time = time.time()
+        # Ensure we have documents
+        if not documents:
+            logger.warning("No documents provided for processing")
+            return [], {"status": "error", "message": "No documents provided"}
         
         # Ensure model is loaded
         if self.model is None and self.model_path:
+            logger.info("Model not loaded, attempting to load from path")
             self.load_model(self.model_path)
-        elif self.model is None:
-            raise ValueError("No ISNE model loaded. Either provide a model_path during initialization or call load_model().")
         
-        # Pre-validation
-        pre_validation = {}
+        # Check if we still don't have a model
+        if self.model is None:
+            error_msg = "No ISNE model available for processing"
+            logger.error(error_msg)
+            return [], {"status": "error", "message": error_msg}
+        
+        # Extract embeddings from documents
+        embeddings = []
+        doc_ids: List[str] = []
+        
+        for doc in documents:
+            if "embedding" in doc:
+                embeddings.append(doc["embedding"])
+                doc_ids.append(doc.get("id", f"doc_{len(doc_ids)}"))
+            else:
+                logger.warning(f"Document {doc.get('id', 'unknown')} has no embedding, skipping")
+        
+        if not embeddings:
+            error_msg = "No valid embeddings found in documents"
+            logger.error(error_msg)
+            return [], {"status": "error", "message": error_msg}
+        
+        # Convert to tensor
+        x = torch.tensor(embeddings, dtype=torch.float32)
+        
+        # Validate input embeddings if requested
+        validation_summary: Dict[str, Any] = {}
         if self.validate:
-            logger.info("Running pre-ISNE validation...")
-            pre_validation = validate_embeddings_before_isne(documents)
-            logger.info(f"Pre-validation complete: {len(documents)} documents with {pre_validation.get('total_chunks', 0)} chunks")
-        
-        # Create graph from documents
-        logger.info("Creating document graph for ISNE inference...")
-        graph, node_metadata, node_idx_map = create_graph_from_documents(documents)
-        
-        if graph is None or graph.num_nodes == 0:
-            logger.error("Failed to build valid graph from documents")
-            return documents, {"error": "Failed to build valid graph"}
-        
-        # Apply the ISNE model
-        logger.info(f"Applying ISNE model to enhance {graph.num_nodes} embeddings...")
-        enhanced_embeddings = None
+            logger.info("Validating input embeddings")
+            # Use the correct function signature
+            validation_summary = validate_embeddings_before_isne(documents)
         
         try:
-            with torch.no_grad():
-                # Move graph to appropriate device
-                graph = graph.to(self.device)
-                
-                # Make sure all tensors are properly shaped and on the correct device
-                x = graph.x.to(self.device)
-                edge_index = graph.edge_index.to(self.device)
-                
-                # Handle edge attributes
-                edge_attr = None
-                if hasattr(graph, 'edge_attr') and graph.edge_attr is not None:
-                    edge_attr = graph.edge_attr
-                    # Convert to float tensor if needed
-                    if not isinstance(edge_attr, torch.Tensor) or edge_attr.dtype != torch.float:
-                        edge_attr = edge_attr.float()
-                    
-                    # Reshape if needed
-                    if edge_attr.dim() == 2 and edge_attr.size(1) == 1:
-                        edge_attr = edge_attr.squeeze(1)
-                    
-                    edge_attr = edge_attr.to(self.device)
-                
-                # Get enhanced embeddings
-                if self.model is None:
-                    raise ValueError("No ISNE model loaded. Call load_model() first.")
-                    
-                enhanced_embeddings = self.model(x, edge_index)
-                
-                # Move back to CPU for further processing
-                enhanced_embeddings = enhanced_embeddings.cpu().numpy()
-                
-                logger.info(f"Successfully generated {len(enhanced_embeddings)} enhanced embeddings")
-                
-        except Exception as e:
-            logger.error(f"Error during ISNE inference: {e}")
+            # Generate enhanced embeddings with ISNE
+            logger.info(f"Generating enhanced embeddings for {len(embeddings)} documents")
+            
+            # Move data to the appropriate device
+            x = x.to(self.device)
+            
+            # Create graph if needed (some models require it, others don't)
+            edge_index = None
+            
+            # Get enhanced embeddings - model is guaranteed to be not None at this point
+            assert isinstance(self.model, nn.Module), "Model must be an instance of nn.Module"
+            
+            # Call the model to get enhanced embeddings
+            enhanced_embeddings = self.model(x, edge_index)
+            
+            # Move back to CPU for further processing
+            enhanced_embeddings_np = enhanced_embeddings.cpu().numpy()
+            
+            logger.info(f"Successfully generated {len(enhanced_embeddings_np)} enhanced embeddings")
+            
+            # Validate enhanced embeddings if requested
             if self.validate:
-                self._trigger_alert(f"ISNE inference failed: {e}", "high")
-            return documents, {"error": f"ISNE inference failed: {e}"}
-        
-        # Update documents with enhanced embeddings
-        logger.info("Updating documents with enhanced embeddings...")
-        
-        # Create deep copy to avoid modifying originals
-        import copy
-        enhanced_documents = copy.deepcopy(documents)
-        
-        # Update embeddings in the document structure
-        for doc_idx, doc in enumerate(enhanced_documents):
-            if "chunks" not in doc or not doc["chunks"]:
-                continue
+                logger.info("Validating enhanced embeddings")
+                # Use the correct function signature
+                post_validation = validate_embeddings_after_isne(documents, validation_summary)
+                # Update validation summary
+                validation_summary = create_validation_summary(validation_summary, post_validation)
                 
-            for chunk_idx, chunk in enumerate(doc["chunks"]):
-                chunk_id = f"{doc['file_id']}_{chunk_idx}"
-                
-                if chunk_id in node_idx_map:
-                    node_idx = node_idx_map[chunk_id]
-                    # Add the enhanced embedding to the chunk
-                    chunk["isne_embedding"] = enhanced_embeddings[node_idx].tolist()
-        
-        logger.info("Document enhancement with ISNE embeddings completed")
-        
-        # Post-validation
-        validation_summary = None
-        if self.validate and pre_validation:
-            logger.info("Running post-ISNE validation...")
-            post_validation = validate_embeddings_after_isne(enhanced_documents, pre_validation)
-            logger.info(f"Post-validation complete: found {post_validation.get('chunks_with_isne', 0)} chunks with ISNE embeddings")
+                # Check for discrepancies and trigger alerts if needed
+                self._check_validation_discrepancies(validation_summary)
             
-            # Create validation summary
-            validation_summary = create_validation_summary(pre_validation, post_validation)
+            # Update documents with enhanced embeddings
+            enhanced_documents = []
+            for i, doc in enumerate(documents):
+                if i < len(enhanced_embeddings_np):
+                    # Create a copy of the document to avoid modifying the original
+                    enhanced_doc = doc.copy()
+                    
+                    # Store both embeddings
+                    enhanced_doc["original_embedding"] = doc.get("embedding")
+                    enhanced_doc["enhanced_embedding"] = enhanced_embeddings_np[i].tolist()
+                    
+                    # Set the main embedding to the enhanced one
+                    enhanced_doc["embedding"] = enhanced_embeddings_np[i].tolist()
+                    
+                    # Add validation info to the document if available
+                    if self.validate:
+                        enhanced_doc["validation_info"] = {
+                            "timestamp": datetime.now().isoformat(),
+                            "quality_score": validation_summary.get("quality_score", 0)
+                        }
+                    
+                    enhanced_documents.append(enhanced_doc)
+                else:
+                    logger.warning(f"Document at index {i} has no corresponding enhanced embedding")
+                    enhanced_documents.append(doc)
             
-            # Check for discrepancies and trigger alerts if needed
-            self._check_validation_discrepancies(validation_summary)
-            
-            # Attach validation summary to documents
-            enhanced_documents = attach_validation_summary(enhanced_documents, validation_summary)
+            # Properly attach validation summary to the enhanced documents list
+            if self.validate:
+                enhanced_documents = attach_validation_summary(enhanced_documents, validation_summary)
             
             # Save validation report if requested
-            if save_report and output_dir:
+            if save_report and self.validate and output_dir:
                 self._save_validation_report(validation_summary, output_dir)
-        
-        # Calculate processing time
-        processing_time = time.time() - start_time
-        
-        # Compile statistics
-        stats = {
-            "total_documents": len(enhanced_documents),
-            "total_chunks": pre_validation.get("total_chunks", 0) if pre_validation else sum(len(doc.get("chunks", [])) for doc in documents),
-            "processing_time": processing_time,
-            "validation_summary": validation_summary
-        }
-        
-        return enhanced_documents, stats
+            
+            # Prepare processing stats
+            processing_stats = {
+                "status": "success",
+                "documents_processed": len(enhanced_documents),
+                "timestamp": datetime.now().isoformat(),
+                "validation_performed": self.validate
+            }
+            
+            # Include validation summary in stats if available
+            if self.validate:
+                processing_stats["validation_summary"] = {
+                    k: v for k, v in validation_summary.items()
+                    if k in ["overall_quality", "anomalies_detected", "consistency_score"]
+                }
+            
+            return enhanced_documents, processing_stats
+            
+        except Exception as e:
+            error_msg = f"Error during ISNE processing: {str(e)}"
+            logger.error(error_msg)
+            return [], {"status": "error", "message": error_msg}
     
     def _check_validation_discrepancies(self, validation_summary: Dict[str, Any]) -> None:
         """
@@ -326,50 +333,30 @@ class ISNEPipeline:
         Args:
             validation_summary: Validation summary dictionary
         """
-        discrepancies = validation_summary.get("discrepancies", {})
+        # Check for anomalies and trigger alerts if needed
+        anomalies = validation_summary.get("anomalies", [])
+        consistency_issues = validation_summary.get("consistency_issues", [])
         
-        # Calculate total discrepancies
-        total_discrepancies = sum(abs(value) for value in discrepancies.values())
+        if len(anomalies) > self.alert_threshold_value:
+            self._trigger_alert(
+                f"ISNE validation detected {len(anomalies)} anomalies in embeddings",
+                "high"
+            )
+        elif len(anomalies) > 0:
+            self._trigger_alert(
+                f"ISNE validation detected {len(anomalies)} anomalies in embeddings",
+                "medium"
+            )
         
-        # Trigger alerts based on discrepancy count
-        if total_discrepancies > 0:
-            # Determine alert level
-            alert_level = AlertLevel.LOW
-            title_prefix = "NOTICE"
-            
-            if total_discrepancies >= self.alert_threshold_value:
-                alert_level = AlertLevel.HIGH
-                title_prefix = "CRITICAL"
-            elif total_discrepancies >= self.alert_threshold_value / 2:
-                alert_level = AlertLevel.MEDIUM
-                title_prefix = "WARNING"
-            
-            # Create detailed alert message
-            message = f"{title_prefix}: Found {total_discrepancies} total embedding discrepancies"
-            
-            details = []
-            for key, value in discrepancies.items():
-                if value != 0:
-                    details.append(f"{key}: {value}")
-            
-            if details:
-                message += f" - {', '.join(details)}"
-            
-            # Create detailed context for the alert
-            context = {
-                "discrepancies": discrepancies,
-                "total_discrepancies": total_discrepancies,
-                "threshold": self.alert_threshold_value,
-                "expected_counts": validation_summary.get("expected_counts", {}),
-                "actual_counts": validation_summary.get("actual_counts", {})
-            }
-            
-            # Trigger the alert using the alert manager
-            self.alert_manager.alert(
-                message=message,
-                level=alert_level,
-                source="isne_pipeline",
-                context=context
+        if len(consistency_issues) > self.alert_threshold_value:
+            self._trigger_alert(
+                f"ISNE validation detected {len(consistency_issues)} consistency issues",
+                "high"
+            )
+        elif len(consistency_issues) > 0:
+            self._trigger_alert(
+                f"ISNE validation detected {len(consistency_issues)} consistency issues",
+                "medium"
             )
     
     def _trigger_alert(self, message: str, level: str = "medium") -> None:
@@ -380,21 +367,22 @@ class ISNEPipeline:
             message: Alert message
             level: Alert level ("low", "medium", "high")
         """
-        # Convert string level to AlertLevel enum
         alert_level = AlertLevel.MEDIUM  # Default
+        
         if level == "low":
             alert_level = AlertLevel.LOW
-        elif level == "medium":
-            alert_level = AlertLevel.MEDIUM
         elif level == "high":
             alert_level = AlertLevel.HIGH
         
-        # Create the alert
-        self.alert_manager.alert(
-            message=message,
-            level=alert_level,
-            source="isne_pipeline"
-        )
+        # Log the alert message
+        logger.warning(f"ISNE Alert ({level}): {message}")
+        
+        # Send alert through alert manager with proper parameters
+        context = {
+            "timestamp": datetime.now().isoformat(),
+            "model_path": self.model_path
+        }
+        self.alert_manager.alert(message, alert_level, "ISNEPipeline", context)
     
     def configure_alert_email(self, config: Dict[str, Any]) -> None:
         """
@@ -405,7 +393,17 @@ class ISNEPipeline:
                    smtp_server, smtp_port, username, password,
                    from_addr, to_addrs
         """
+        # Validate configuration
+        required_keys = ["smtp_server", "smtp_port", "username", "password", "from_addr", "to_addrs"]
+        missing_keys = [key for key in required_keys if key not in config]
+        
+        if missing_keys:
+            raise ValueError(f"Missing required email configuration keys: {', '.join(missing_keys)}")
+        
+        # Configure email alerts in alert manager by passing the config dictionary
         self.alert_manager.configure_email(config)
+        
+        logger.info("Email alerts configured for ISNE pipeline")
     
     def _save_validation_report(self, validation_summary: Dict[str, Any], output_dir: str) -> None:
         """
@@ -415,20 +413,20 @@ class ISNEPipeline:
             validation_summary: Validation summary dictionary
             output_dir: Directory to save report
         """
-        try:
-            output_path = Path(output_dir)
-            output_path.mkdir(parents=True, exist_ok=True)
-            
-            report_path = output_path / "isne_validation_report.json"
-            
-            with open(report_path, "w") as f:
-                json.dump(validation_summary, f, indent=2)
-                
-            logger.info(f"Saved validation report to {report_path}")
-        except Exception as e:
-            logger.error(f"Error saving validation report: {e}")
+        # Create output directory if it doesn't exist
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+        
+        # Generate timestamp for filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        report_path = os.path.join(output_dir, f"isne_validation_{timestamp}.json")
+        
+        # Save report to file
+        with open(report_path, 'w') as f:
+            json.dump(validation_summary, f, indent=2)
+        
+        logger.info(f"Validation report saved to {report_path}")
     
-    def save_enhanced_documents(self, documents: List[Dict[str, Any]], output_dir: str) -> Dict[str, str]:
+    def save_enhanced_documents(self, documents: List[Dict[str, Any]], output_dir: str) -> Dict[str, Any]:
         """
         Save enhanced documents to disk.
         
@@ -439,28 +437,27 @@ class ISNEPipeline:
         Returns:
             Dictionary with output file paths
         """
-        try:
-            output_path = Path(output_dir)
-            output_path.mkdir(parents=True, exist_ok=True)
-            
-            # Save all documents
-            full_path = output_path / "isne_enhanced_documents.json"
-            with open(full_path, "w") as f:
-                json.dump(documents, f, indent=2)
-            
-            # Save a small sample for quick review
-            sample_size = min(2, len(documents))
-            sample_path = output_path / "isne_enhanced_sample.json"
-            with open(sample_path, "w") as f:
-                json.dump(documents[:sample_size], f, indent=2)
-                
-            logger.info(f"Saved all enhanced documents to {full_path}")
-            logger.info(f"Saved sample of {sample_size} documents to {sample_path}")
-            
-            return {
-                "full_path": str(full_path),
-                "sample_path": str(sample_path)
-            }
-        except Exception as e:
-            logger.error(f"Error saving enhanced documents: {e}")
-            return {"error": str(e)}
+        # Create output directory if it doesn't exist
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+        
+        # Generate timestamp for filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        # Save enhanced documents
+        docs_path = os.path.join(output_dir, f"isne_enhanced_docs_{timestamp}.json")
+        with open(docs_path, 'w') as f:
+            json.dump(documents, f, indent=2)
+        
+        logger.info(f"Enhanced documents saved to {docs_path}")
+        
+        # Save embeddings separately for easier loading
+        embeddings = [doc.get("embedding", []) for doc in documents]
+        embeddings_path = os.path.join(output_dir, f"isne_embeddings_{timestamp}.npy")
+        np.save(embeddings_path, np.array(embeddings))
+        
+        logger.info(f"Enhanced embeddings saved to {embeddings_path}")
+        
+        return {
+            "documents": docs_path,
+            "embeddings": embeddings_path
+        }

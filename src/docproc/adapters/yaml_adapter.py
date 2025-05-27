@@ -111,7 +111,7 @@ class YAMLAdapter(BaseAdapter):
             file_hash = hashlib.md5(text.encode()).hexdigest()[:8]
             result["id"] = f"yaml_{file_hash}_{path_obj.stem}"
             
-        return cast(Dict[str, Any], result)
+        return result  # Return type is already Dict[str, Any]
     
     def extract_metadata(self, content: Union[str, Dict[str, Any]], options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         document = content if isinstance(content, dict) else {}
@@ -182,11 +182,11 @@ class YAMLAdapter(BaseAdapter):
             yaml_data = yaml.safe_load(text)
             
             # Create basic result structure
-            result = {
+            result: Dict[str, Any] = {
                 "content_type": "yaml",
                 "content_hash": hashlib.md5(text.encode()).hexdigest(),
                 "symbol_table": {},
-                "relationships": [],
+                "relationships": [],  # List[Dict[str, Any]]
                 "metadata": {
                     "line_count": len(text.split("\n")),
                     "char_count": len(text),
@@ -206,17 +206,31 @@ class YAMLAdapter(BaseAdapter):
                     line_positions, 
                     text
                 )
-                # Fix Collection[str] type issue
-                elements_dict: Dict[str, Dict[str, Any]] = elements
-                # Ensure elements has the right type for symbol_table
-                elements = cast(Dict[str, Any], elements)
+                # Convert elements to the correct type to avoid incompatibility
+                # elements is originally Dict[str, YAMLNodeInfo] but we need Dict[str, Dict[str, Any]]
+                elements_dict: Dict[str, Dict[str, Any]] = {}
+                for k, v in elements.items():
+                    elements_dict[k] = dict(v)  # Convert YAMLNodeInfo to plain dict
                 
                 result["symbol_table"] = elements_dict
-                result["relationships"] = relationships
+                result["relationships"] = cast(Any, relationships)
                 
-                # Add structure statistics
-                result["metadata"]["element_count"] = len(elements_dict)
-                result["metadata"]["relationship_count"] = len(relationships)
+                # Add structure statistics - safely with proper types
+                if "metadata" not in result:
+                    result["metadata"] = {}
+                    
+                # Create a fully typed metadata dictionary to avoid Collection issues
+                metadata_dict: Dict[str, Any] = {}
+                if isinstance(result["metadata"], dict):
+                    for k, v in result["metadata"].items():
+                        metadata_dict[k] = v
+                
+                # Set values on our properly typed dictionary
+                metadata_dict["element_count"] = len(elements_dict)
+                metadata_dict["relationship_count"] = len(relationships)
+                
+                # Update result with the properly typed metadata
+                result["metadata"] = metadata_dict
                 
             return result
             
@@ -281,7 +295,8 @@ class YAMLAdapter(BaseAdapter):
                 line_end = 1
                 
                 # Create element info
-                element_info = {
+                # Create a properly typed YAMLNodeInfo with all required fields
+                element_info: Dict[str, Any] = {
                     "key": key,
                     "path": current_path,
                     "line_start": line_start,
@@ -292,7 +307,8 @@ class YAMLAdapter(BaseAdapter):
                     "parent": parent_id
                 }
                 
-                node_map[element_id] = element_info
+                # Cast to YAMLNodeInfo before assignment to match expected type
+                node_map[element_id] = cast(YAMLNodeInfo, element_info)
                 
                 # Create relationship to parent if exists
                 if parent_id:
@@ -329,7 +345,8 @@ class YAMLAdapter(BaseAdapter):
                 line_end = 1
                 
                 # Create element info
-                element_info = {
+                # Create a properly typed YAMLNodeInfo with all required fields
+                list_element_info: Dict[str, Any] = {
                     "key": f"[{i}]",
                     "path": current_path,
                     "line_start": line_start,
@@ -340,7 +357,8 @@ class YAMLAdapter(BaseAdapter):
                     "parent": parent_id
                 }
                 
-                node_map[element_id] = element_info
+                # Cast to YAMLNodeInfo before assignment to match expected type
+                node_map[element_id] = cast(YAMLNodeInfo, list_element_info)
                 
                 # Create relationship to parent if exists
                 if parent_id:

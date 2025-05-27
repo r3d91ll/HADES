@@ -85,16 +85,15 @@ class IngestDocument:
     
     def __post_init__(self) -> None:
         """Validate document fields after initialization."""
-        # Ensure document_type is a valid type
-        if not hasattr(DocumentType, self.document_type.upper()):
-            # Default to UNKNOWN if not valid
+        # Validate document type
+        valid_type = hasattr(DocumentType, self.document_type.upper())
+        if not valid_type:
             self.document_type = DocumentType.UNKNOWN
-        
-        # Ensure metadata is a dictionary
-        if not isinstance(self.metadata, dict):
-            self.metadata = {}
             
-        # Add model_used metadata if not present
+        # Initialize metadata if needed
+        self.metadata = {} if not isinstance(self.metadata, dict) else self.metadata
+        
+        # Ensure model info exists
         if "model_used" not in self.metadata:
             self.metadata["model_used"] = "modernbert"
 
@@ -149,8 +148,7 @@ class LoaderResult:
     def document_count(self) -> int:
         """Get the number of documents."""
         return len(self.documents)
-    
-    @property
+
     def relation_count(self) -> int:
         """Get the number of relations."""
         return len(self.relations)

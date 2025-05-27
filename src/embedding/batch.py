@@ -24,7 +24,7 @@ async def batch_embed(
     batch_size: int = 32,
     max_concurrency: int = 8,
     show_progress: bool = False,
-    **kwargs
+    **kwargs: Any
 ) -> List[EmbeddingVector]:
     """Embed a large batch of texts efficiently with concurrency limits.
     

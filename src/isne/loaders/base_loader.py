@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Union, Any, Tuple, Set
 from pathlib import Path
+import numpy as np
 
 from ..types.models import (
     DocumentType,
@@ -114,8 +115,8 @@ class BaseLoader:
                     "source": doc.source,
                     "document_type": doc.document_type,
                     "metadata": doc.metadata,
-                    "embedding": doc.embedding.tolist() if doc.embedding is not None else None,
-                    "enhanced_embedding": doc.enhanced_embedding.tolist() if doc.enhanced_embedding is not None else None,
+                    "embedding": np.array(doc.embedding).tolist() if hasattr(doc.embedding, 'tolist') else doc.embedding if doc.embedding is not None else None,
+                    "enhanced_embedding": np.array(doc.enhanced_embedding).tolist() if hasattr(doc.enhanced_embedding, 'tolist') else doc.enhanced_embedding if doc.enhanced_embedding is not None else None,
                     "chunks": doc.chunks
                 } for doc in result.documents
             ],

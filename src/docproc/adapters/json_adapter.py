@@ -70,11 +70,11 @@ class JSONAdapter(BaseAdapter):
             json_data = json.loads(text)
             
             # Create basic result structure
-            result = {
+            result: Dict[str, Any] = {
                 "content_type": "json",
                 "content_hash": hashlib.md5(text.encode()).hexdigest(),
                 "symbol_table": {},
-                "relationships": [],
+                "relationships": [],  # List[Dict[str, Any]]
                 "metadata": {
                     "line_count": len(text.split("\n")),
                     "char_count": len(text),
@@ -94,18 +94,32 @@ class JSONAdapter(BaseAdapter):
                     line_positions, 
                     text
                 )
-                # Fix Collection[str] type issue
-                elements_dict: Dict[str, Dict[str, Any]] = elements
-                # Ensure elements has the right type for symbol_table
-                elements = cast(Dict[str, Any], elements)
+                # Convert elements to the correct type to avoid incompatibility
+                # elements is originally Dict[str, JSONNodeInfo] but we need Dict[str, Dict[str, Any]]
+                elements_dict: Dict[str, Dict[str, Any]] = {}
+                for k, v in elements.items():
+                    elements_dict[k] = dict(v)  # Convert JSONNodeInfo to plain dict
                 
                 result["symbol_table"] = elements_dict
-                result["relationships"] = relationships
-                
-                # Add structure statistics
-                result["metadata"]["element_count"] = len(elements_dict)
-                result["metadata"]["relationship_count"] = len(relationships)
-                
+                result["relationships"] = cast(Any, relationships)
+
+                # Add structure statistics - safely with proper types
+                if "metadata" not in result:
+                    result["metadata"] = {}
+
+                # Create a fully typed metadata dictionary to avoid Collection issues
+                metadata_dict: Dict[str, Any] = {}
+                if isinstance(result["metadata"], dict):
+                    for key, value in result["metadata"].items():
+                        metadata_dict[key] = value
+
+                # Now safely set counts
+                metadata_dict["element_count"] = len(elements_dict)
+                metadata_dict["relationship_count"] = len(relationships)
+
+                # Update the result with the properly typed metadata
+                result["metadata"] = metadata_dict
+
             return result
             
         except json.JSONDecodeError as e:

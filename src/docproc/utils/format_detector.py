@@ -112,10 +112,15 @@ def get_format_to_category_map() -> Dict[str, str]:
         format_category_map: Dict[str, str] = {}
         
         # Process each category and its formats
+        if not isinstance(categories, dict):
+            logger.warning(f"Expected dict for content_categories, got {type(categories)}")
+            categories = {}
+            
         for category, formats in categories.items():
-            for format_type in formats:
-                format_category_map[format_type] = category
-                logger.debug(f"Mapped format '{format_type}' to category '{category}'")
+            if isinstance(formats, (list, tuple)):
+                for format_type in formats:
+                    format_category_map[format_type] = category
+                    logger.debug(f"Mapped format '{format_type}' to category '{category}'")
         
         logger.info(f"Created format-to-category map with {len(format_category_map)} entries")
         

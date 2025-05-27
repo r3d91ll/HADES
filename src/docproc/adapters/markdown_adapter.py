@@ -307,14 +307,20 @@ class MarkdownAdapter:
             "metadata": metadata
         }
         
-        # Ensure metadata has doc_type field for test compatibility
-        # Ensure metadata is properly typed
-        result["metadata"] = cast(Dict[str, Any], result["metadata"])
-        # Ensure we can index into metadata
-        if not isinstance(result["metadata"], dict):
-            result["metadata"] = {}
-        if "doc_type" not in result["metadata"]:
-            result["metadata"]["doc_type"] = "markdown"
+        # Create a fully typed metadata dictionary to avoid Collection issues
+        current_metadata: Dict[str, Any] = {}
+        
+        # Safely copy existing metadata if it's a dictionary
+        if isinstance(result["metadata"], dict):
+            for key, value in result["metadata"].items():
+                current_metadata[key] = value
+        
+        # Add doc_type if not present
+        if "doc_type" not in current_metadata:
+            current_metadata["doc_type"] = "markdown"
+            
+        # Replace the metadata with our properly typed version
+        result["metadata"] = current_metadata
         
         return result
     

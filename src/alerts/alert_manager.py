@@ -5,20 +5,19 @@ This module provides a central alert management system for detecting and
 handling various types of alerts throughout the HADES-PathRAG system.
 """
 
+import time
 import json
 import logging
-import os
-import time
+import smtplib
 from enum import Enum, auto
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Union, Set, Callable
-import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import traceback
+from typing import Dict, List, Optional, Any, Callable, Union, cast
 
-# Configure logging
+# Set up logging
 logger = logging.getLogger(__name__)
+
 
 class AlertLevel(Enum):
     """Alert severity levels."""
@@ -26,6 +25,7 @@ class AlertLevel(Enum):
     MEDIUM = auto()
     HIGH = auto()
     CRITICAL = auto()
+
 
 class Alert:
     """
@@ -36,13 +36,13 @@ class Alert:
     """
     
     def __init__(
-        self,
-        message: str,
-        level: AlertLevel,
-        source: str,
-        context: Optional[Dict[str, Any]] = None,
-        timestamp: Optional[float] = None
-    ):
+            self,
+            message: str,
+            level: AlertLevel,
+            source: str,
+            context: Optional[Dict[str, Any]] = None,
+            timestamp: Optional[float] = None
+        ):
         """
         Initialize an alert.
         
@@ -59,12 +59,13 @@ class Alert:
         self.context = context or {}
         self.timestamp = timestamp or time.time()
         self.id = f"{int(self.timestamp)}_{hash(message) % 10000:04d}"
-        
+    
     def __str__(self) -> str:
         """Return string representation of the alert."""
-        level_name = self.level.name
-        time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.timestamp))
-        return f"[{time_str}] {level_name}: {self.message} (Source: {self.source})"
+        return (
+            f"Alert[{self.level.name}] {self.source}: {self.message} "
+            f"({time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(self.timestamp))})"
+        )
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert alert to dictionary for serialization."""
@@ -73,11 +74,10 @@ class Alert:
             "message": self.message,
             "level": self.level.name,
             "source": self.source,
-            "timestamp": self.timestamp,
-            "timestamp_formatted": time.strftime("%Y-%m-%d %H:%M:%S", 
-                                               time.localtime(self.timestamp)),
-            "context": self.context
+            "context": self.context,
+            "timestamp": self.timestamp
         }
+
 
 class AlertManager:
     """
@@ -88,12 +88,12 @@ class AlertManager:
     """
     
     def __init__(
-        self,
-        alert_dir: str = "./alerts",
-        min_level: AlertLevel = AlertLevel.LOW,
-        handlers: Optional[Dict[str, Callable]] = None,
-        email_config: Optional[Dict[str, Any]] = None
-    ):
+            self,
+            alert_dir: str = "./alerts",
+            min_level: AlertLevel = AlertLevel.LOW,
+            handlers: Optional[Dict[str, Callable]] = None,
+            email_config: Optional[Dict[str, Any]] = None
+        ):
         """
         Initialize the alert manager.
         
@@ -126,12 +126,12 @@ class AlertManager:
             self.handlers["email"] = self._email_alert
     
     def alert(
-        self,
-        message: str,
-        level: Union[AlertLevel, str],
-        source: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> Alert:
+            self,
+            message: str,
+            level: Union[AlertLevel, str],
+            source: str,
+            context: Optional[Dict[str, Any]] = None
+        ) -> Alert:
         """
         Create and process an alert.
         
@@ -145,29 +145,33 @@ class AlertManager:
             The created Alert object
         """
         # Convert string level to enum if needed
+        alert_level: AlertLevel
         if isinstance(level, str):
             try:
-                level = AlertLevel[level.upper()]
-            except KeyError:
-                logger.warning(f"Invalid alert level: {level}, defaulting to MEDIUM")
-                level = AlertLevel.MEDIUM
+                alert_level = getattr(AlertLevel, level.upper())
+            except AttributeError:
+                logger.warning(f"Invalid alert level: {level}, using MEDIUM")
+                alert_level = AlertLevel.MEDIUM
+        else:
+            alert_level = level
         
-        # Create alert
-        alert = Alert(message, level, source, context)
+        # Create alert object
+        alert = Alert(message, alert_level, source, context)
         
-        # Only process if alert level meets minimum threshold
-        if alert.level.value >= self.min_level.value:
-            # Add to internal list
-            self.alerts.append(alert)
-            self.alert_counts[alert.level] += 1
-            
-            # Process through handlers
-            for handler_name, handler_func in self.handlers.items():
-                try:
-                    handler_func(alert)
-                except Exception as e:
-                    logger.error(f"Error in alert handler '{handler_name}': {e}")
-                    logger.debug(traceback.format_exc())
+        # Skip processing if below minimum level
+        if alert.level.value < self.min_level.value:
+            return alert
+        
+        # Store alert
+        self.alerts.append(alert)
+        self.alert_counts[alert.level] += 1
+        
+        # Process through handlers
+        for handler_name, handler_fn in self.handlers.items():
+            try:
+                handler_fn(alert)
+            except Exception as e:
+                logger.exception(f"Error in alert handler '{handler_name}': {e}")
         
         return alert
     
@@ -178,14 +182,15 @@ class AlertManager:
         Args:
             alert: Alert to log
         """
-        log_message = f"{alert.source}: {alert.message}"
+        log_levels = {
+            AlertLevel.LOW: logging.INFO,
+            AlertLevel.MEDIUM: logging.WARNING,
+            AlertLevel.HIGH: logging.ERROR,
+            AlertLevel.CRITICAL: logging.CRITICAL
+        }
         
-        if alert.level in (AlertLevel.CRITICAL, AlertLevel.HIGH):
-            logger.error(f"🚨 {log_message}")
-        elif alert.level == AlertLevel.MEDIUM:
-            logger.warning(f"⚠️ {log_message}")
-        else:
-            logger.info(f"ℹ️ {log_message}")
+        log_level = log_levels.get(alert.level, logging.WARNING)
+        logger.log(log_level, str(alert))
     
     def _file_alert(self, alert: Alert) -> None:
         """
@@ -194,41 +199,14 @@ class AlertManager:
         Args:
             alert: Alert to log
         """
-        # Determine log file based on alert level
-        if alert.level in (AlertLevel.CRITICAL, AlertLevel.HIGH):
-            log_file = self.alert_dir / "critical_alerts.log"
-        else:
-            log_file = self.alert_dir / "alerts.log"
+        # Create level-specific directory
+        level_dir = self.alert_dir / alert.level.name.lower()
+        level_dir.mkdir(exist_ok=True)
         
-        # Write to log file
-        try:
-            with open(log_file, "a") as f:
-                f.write(f"{str(alert)}\n")
-        except Exception as e:
-            logger.error(f"Error writing to alert log file: {e}")
-            
-        # Also write to JSON for structured access
-        try:
-            json_file = self.alert_dir / "alerts.json"
-            alerts_data = []
-            
-            # Read existing data if file exists
-            if json_file.exists():
-                try:
-                    with open(json_file, "r") as f:
-                        alerts_data = json.load(f)
-                except json.JSONDecodeError:
-                    # If file is corrupted, start fresh
-                    alerts_data = []
-            
-            # Add new alert
-            alerts_data.append(alert.to_dict())
-            
-            # Write back (limit to most recent 1000 alerts)
-            with open(json_file, "w") as f:
-                json.dump(alerts_data[-1000:], f, indent=2)
-        except Exception as e:
-            logger.error(f"Error writing to JSON alert log: {e}")
+        # Write alert to JSON file
+        alert_file = level_dir / f"{alert.id}.json"
+        with open(alert_file, "w") as f:
+            json.dump(alert.to_dict(), f, indent=2)
     
     def _email_alert(self, alert: Alert) -> None:
         """
@@ -237,16 +215,11 @@ class AlertManager:
         Args:
             alert: Alert to send
         """
-        # Only send emails for high/critical alerts by default
-        if alert.level not in (AlertLevel.HIGH, AlertLevel.CRITICAL):
+        # Only send email for higher severity alerts
+        if alert.level.value < AlertLevel.HIGH.value:
             return
-            
-        # Check if email config is available
-        if not self.email_config:
-            logger.warning("Email alert handler called but no email configuration provided")
-            return
-            
-        # Extract email config
+        
+        # Extract email configuration
         smtp_server = self.email_config.get("smtp_server")
         smtp_port = self.email_config.get("smtp_port", 587)
         username = self.email_config.get("username")
@@ -254,15 +227,23 @@ class AlertManager:
         from_addr = self.email_config.get("from_addr")
         to_addrs = self.email_config.get("to_addrs", [])
         
+        # Ensure all required configuration is present and properly typed
         if not all([smtp_server, username, password, from_addr, to_addrs]):
             logger.warning("Incomplete email configuration, cannot send alert email")
             return
             
+        # Ensure we have proper string types for SMTP connection
+        smtp_server_str = cast(str, smtp_server)
+        username_str = cast(str, username)
+        password_str = cast(str, password)
+        from_addr_str = cast(str, from_addr)
+        to_addrs_list = cast(List[str], to_addrs)
+        
         try:
             # Create message
             msg = MIMEMultipart()
-            msg["From"] = from_addr
-            msg["To"] = ", ".join(to_addrs)
+            msg["From"] = from_addr_str
+            msg["To"] = ", ".join(to_addrs_list)
             msg["Subject"] = f"HADES-PathRAG Alert: {alert.level.name} - {alert.source}"
             
             # Create email body
@@ -283,39 +264,42 @@ class AlertManager:
             msg.attach(MIMEText(body, "html"))
             
             # Send email
-            with smtplib.SMTP(smtp_server, smtp_port) as server:
+            with smtplib.SMTP(smtp_server_str, smtp_port) as server:
                 server.starttls()
-                server.login(username, password)
+                server.login(username_str, password_str)
                 server.send_message(msg)
                 
             logger.info(f"Alert email sent for {alert.level.name} alert")
+            
         except Exception as e:
-            logger.error(f"Error sending alert email: {e}")
+            logger.exception(f"Failed to send alert email: {e}")
     
     def _format_context_for_email(self, context: Dict[str, Any]) -> str:
         """Format context data for email display."""
         if not context:
             return ""
             
-        html = "<h3>Additional Context:</h3><ul>"
+        html = "<h3>Additional Context</h3><table border='1' cellpadding='5'>"
         for key, value in context.items():
+            # Format value based on type
             if isinstance(value, dict):
-                html += f"<li><strong>{key}:</strong><ul>"
-                for sub_key, sub_value in value.items():
-                    html += f"<li><strong>{sub_key}:</strong> {sub_value}</li>"
-                html += "</ul></li>"
+                formatted_value = "<pre>" + json.dumps(value, indent=2) + "</pre>"
+            elif isinstance(value, (list, tuple)):
+                formatted_value = "<ul>" + "".join(f"<li>{item}</li>" for item in value) + "</ul>"
             else:
-                html += f"<li><strong>{key}:</strong> {value}</li>"
-        html += "</ul>"
-        
+                formatted_value = str(value)
+                
+            html += f"<tr><td><strong>{key}</strong></td><td>{formatted_value}</td></tr>"
+            
+        html += "</table>"
         return html
     
     def get_alerts(
-        self,
-        min_level: Optional[AlertLevel] = None,
-        source: Optional[str] = None,
-        limit: int = 100
-    ) -> List[Alert]:
+            self,
+            min_level: Optional[AlertLevel] = None,
+            source: Optional[str] = None,
+            limit: int = 100
+        ) -> List[Alert]:
         """
         Get filtered alerts.
         
@@ -327,6 +311,7 @@ class AlertManager:
         Returns:
             Filtered list of alerts
         """
+        # Apply filters
         filtered = self.alerts
         
         if min_level:
@@ -335,7 +320,7 @@ class AlertManager:
         if source:
             filtered = [a for a in filtered if a.source == source]
             
-        # Return most recent alerts first
+        # Return latest alerts first, up to limit
         return sorted(filtered, key=lambda a: a.timestamp, reverse=True)[:limit]
     
     def get_alert_stats(self) -> Dict[str, int]:
@@ -364,17 +349,10 @@ class AlertManager:
         
         Args:
             config: Email configuration dictionary with keys:
-                   smtp_server, smtp_port, username, password,
-                   from_addr, to_addrs
+                  smtp_server, smtp_port, username, password,
+                  from_addr, to_addrs
         """
-        required_keys = ["smtp_server", "username", "password", "from_addr", "to_addrs"]
-        missing = [k for k in required_keys if k not in config]
-        
-        if missing:
-            logger.error(f"Missing required email config keys: {', '.join(missing)}")
-            return
-            
-        self.email_config = config
+        self.email_config.update(config)
         
         # Register email handler if not already registered
         if "email" not in self.handlers:

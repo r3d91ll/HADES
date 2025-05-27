@@ -49,7 +49,7 @@ class PythonCodeAdapter(BaseAdapter):
         
         logger.info("PythonCodeAdapter initialized")
     
-    def process(self, file_path: Union[str, Path], options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def process(self, file_path: Union[str, Path], options: Optional[Union[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
         """Process a Python code file.
         
         Args:
@@ -233,9 +233,9 @@ class PythonCodeAdapter(BaseAdapter):
             metadata["line_count"] = module_info.get("line_count", 0)
         
         # Count code entities
-        metadata["function_count"] = len(code_analysis.get("functions", {}))
-        metadata["class_count"] = len(code_analysis.get("classes", {}))
-        metadata["import_count"] = len(module_info.get("imports", []))
+        metadata["function_count"] = str(len(code_analysis.get("functions", {})))
+        metadata["class_count"] = str(len(code_analysis.get("classes", {})))
+        metadata["import_count"] = str(len(module_info.get("imports", [])))
         
         return metadata
 

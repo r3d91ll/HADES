@@ -65,8 +65,9 @@ class FeaturePreservationLoss(nn.Module):
         loss = F.mse_loss(norm_embeddings, norm_features, reduction=self.reduction)
         
         # Apply weight factor
-        weighted_loss = self.lambda_feat * loss
+        weighted_loss: Tensor = self.lambda_feat * loss
         
+        # Return the weighted loss directly
         return weighted_loss
 
 
@@ -123,6 +124,7 @@ class CosineFeatureLoss(nn.Module):
             loss = loss.sum()
         
         # Apply weight factor
-        weighted_loss = self.lambda_feat * loss
+        weighted_loss: Tensor = self.lambda_feat * loss
         
+        # Return the weighted loss directly
         return weighted_loss

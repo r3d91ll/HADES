@@ -186,4 +186,5 @@ def load_config(config_path: Optional[Union[str, Path]] = None) -> PreProcessorC
         'options': options,
     }
     
-    return result
+    # Cast the result to the expected return type
+    return cast(PreProcessorConfig, result)

@@ -64,9 +64,10 @@ async def add_embeddings_to_document(
     
     # Create a copy to avoid modifying the original
     if is_pydantic_model:
-        document_with_embeddings = document.model_copy(deep=True)
+        document_with_embeddings = cast(DocumentSchema, document).model_copy(deep=True)
     else:
-        document_with_embeddings = document.copy()
+        # Handle dictionary case
+        document_with_embeddings = cast(Dict[str, Any], document.copy())
     
     # Get chunks from the document (handle both dict and Pydantic models)
     if is_pydantic_model:
@@ -78,7 +79,13 @@ async def add_embeddings_to_document(
         
     if not chunks:
         logger.warning(f"Document {doc_id} has no chunks to embed")
-        return document_with_embeddings
+        if is_pydantic_model:
+
+            return cast(DocumentSchema, document_with_embeddings)
+
+        else:
+
+            return cast(Dict[str, Any], document_with_embeddings)
     
     # Get adapter with options
     adapter_options = adapter_options or {}
@@ -102,7 +109,10 @@ async def add_embeddings_to_document(
     
     if not valid_contents:
         logger.warning(f"No valid chunk content found in document {doc_id}")
-        return document_with_embeddings
+        if is_pydantic_model:
+            return cast(DocumentSchema, document_with_embeddings)
+        else:
+            return cast(Dict[str, Any], document_with_embeddings)
     
     # Generate embeddings for all chunks
     try:
@@ -152,7 +162,16 @@ async def add_embeddings_to_document(
         else:
             document_with_embeddings["_embedding_error"] = str(e)
     
-    return document_with_embeddings
+    if is_pydantic_model:
+
+    
+        return cast(DocumentSchema, document_with_embeddings)
+
+    
+    else:
+
+    
+        return cast(Dict[str, Any], document_with_embeddings)
 
 
 async def process_chunked_document_file(
@@ -243,7 +262,7 @@ async def process_chunked_documents_batch(
     results = []
     semaphore = asyncio.Semaphore(max_concurrent)
     
-    async def process_batch(batch):
+    async def process_batch(batch: List[Union[str, Path]]) -> List[Dict[str, Any]]:
         batch_results = []
         for file_path in batch:
             try:

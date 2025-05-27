@@ -8,8 +8,26 @@ data validation across different document types.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union, Set, cast, Callable, TypeVar
 from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
+
+# Type variables for validator functions
+T = TypeVar('T')
+ValidatorFunc = Callable[[Any, T], T]
+
+# Create a typed wrapper for field validators
+def typed_field_validator(field_name: str) -> Callable[[Callable[[Any, T], T]], Callable[[Any, T], T]]:
+    """Typed wrapper for field_validator to make mypy happy."""
+    def decorator(func: Callable[[Any, T], T]) -> Callable[[Any, T], T]:
+        return cast(Callable[[Any, T], T], field_validator(field_name)(func))
+    return decorator
+
+# Create a typed wrapper for model validators
+def typed_model_validator(mode: str = 'after') -> Callable[[Callable[[Any], Any]], Callable[[Any], Any]]:
+    """Typed wrapper for model_validator to make mypy happy."""
+    def decorator(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
+        return cast(Callable[[Any], Any], model_validator(mode=mode)(func))
+    return decorator
 
 # Import from the centralized schema structure
 from src.schemas.common.base import BaseSchema
@@ -24,7 +42,7 @@ class BaseEntity(BaseSchema):
     line: Optional[int] = Field(None, description="Line number where entity appears")
     confidence: float = Field(1.0, description="Confidence score (0.0-1.0) for this entity")
     
-    @field_validator("confidence")
+    @typed_field_validator("confidence")
     @classmethod
     def validate_confidence(cls, v: float) -> float:
         """Ensure confidence is between 0 and 1."""
@@ -62,7 +80,7 @@ class BaseDocument(BaseSchema):
     entities: List[BaseEntity] = Field(default_factory=list, description="Entities extracted from the document")
     error: Optional[str] = Field(None, description="Error message if processing failed")
     
-    @model_validator(mode='after')
+    @typed_model_validator(mode='after')
     def validate_error_consistency(self) -> 'BaseDocument':
         """Ensure error state is consistent with metadata."""
         if self.error and not self.metadata.has_errors:

@@ -20,7 +20,7 @@ from src.embedding.base import EmbeddingAdapter, register_adapter
 logger = logging.getLogger(__name__)
 
 
-class VLLMEmbeddingAdapter:
+class VLLMEmbeddingAdapter(EmbeddingAdapter):
     """Adapter for generating embeddings using vLLM."""
     
     def __init__(
@@ -28,7 +28,7 @@ class VLLMEmbeddingAdapter:
         model_alias: str = "default",
         base_url: Optional[str] = None,
         timeout: float = 60.0,
-        **kwargs
+        **kwargs: Any
     ):
         """Initialize the vLLM embedding adapter.
         
@@ -61,7 +61,7 @@ class VLLMEmbeddingAdapter:
         except Exception as e:
             raise RuntimeError(f"Failed to get vLLM base URL: {e}") from e
     
-    async def embed(self, texts: List[str], **kwargs) -> List[EmbeddingVector]:
+    async def embed(self, texts: List[str], **kwargs: Any) -> List[EmbeddingVector]:
         """Generate embeddings for a list of texts using vLLM.
         
         Args:
@@ -108,14 +108,14 @@ class VLLMEmbeddingAdapter:
                     embeddings = [
                         data["embedding"] for data in result["data"]
                     ]
-                    return cast(List[EmbeddingVector], embeddings)
+                    return embeddings
             
             except asyncio.TimeoutError:
                 raise RuntimeError(f"vLLM API request timed out after {self.timeout} seconds")
             except Exception as e:
                 raise RuntimeError(f"vLLM API request failed: {e}") from e
     
-    async def embed_single(self, text: str, **kwargs) -> EmbeddingVector:
+    async def embed_single(self, text: str, **kwargs: Any) -> EmbeddingVector:
         """Generate an embedding for a single text using vLLM.
         
         Args:

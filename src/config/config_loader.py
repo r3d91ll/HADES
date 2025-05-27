@@ -177,9 +177,13 @@ def get_component_device(component_name: str, pipeline_type: str = 'training') -
     
     if device_config['mode'] == 'gpu':
         component_config = device_config['config'].get(component_name, {})
-        return component_config.get('device')
+        device_value = component_config.get('device')
+        # Explicit cast to help mypy understand the return type
+        return str(device_value) if device_value is not None else None
     elif device_config['mode'] == 'cpu':
         component_config = device_config['config'].get(component_name, {})
-        return component_config.get('device')
+        device_value = component_config.get('device')
+        # Explicit cast to help mypy understand the return type
+        return str(device_value) if device_value is not None else None
     
     return None

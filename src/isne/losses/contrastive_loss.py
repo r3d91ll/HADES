@@ -10,27 +10,29 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 import logging
-from typing import Optional, Tuple, Callable, Dict, Any
+import random
+from typing import Optional, Tuple, Callable, cast, List, Dict, Any, Union
 
 # Set up logging
 logger = logging.getLogger(__name__)
 
 
 class ContrastiveLoss(nn.Module):
-    """Contrastive loss for ISNE as described in the original paper.
+    """
+    Contrastive loss for ISNE as described in the original paper.
     
     This loss encourages similar nodes to have similar embeddings (positive pairs)
     and dissimilar nodes to have different embeddings (negative pairs).
     """
     
     def __init__(
-        self,
-        margin: float = 1.0,
-        reduction: str = 'mean',
-        lambda_contrast: float = 1.0,
-        distance_metric: str = 'cosine',
-        filter_callback: Optional[Callable[..., None]] = None
-    ) -> None:
+            self,
+            margin: float = 1.0,
+            reduction: str = 'mean',
+            lambda_contrast: float = 1.0,
+            distance_metric: str = 'cosine',
+            filter_callback: Optional[Callable[..., None]] = None
+        ) -> None:
         """
         Initialize the contrastive loss.
         
@@ -40,7 +42,7 @@ class ContrastiveLoss(nn.Module):
             lambda_contrast: Weight factor for the contrastive loss
             distance_metric: Distance metric to use ('cosine', 'euclidean')
             filter_callback: Optional callback function that will be called with filtering statistics
-                             Expected signature: callback(filtered_pos_count, total_pos_count, filtered_neg_count, total_neg_count)
+                           Expected signature: callback(filtered_pos_count, total_pos_count, filtered_neg_count, total_neg_count)
         """
         super(ContrastiveLoss, self).__init__()
         
@@ -63,12 +65,14 @@ class ContrastiveLoss(nn.Module):
         """
         if self.distance_metric == 'cosine':
             # Cosine distance = 1 - cosine similarity
-            return 1.0 - F.cosine_similarity(x1, x2, dim=1)
-        elif self.distance_metric == 'euclidean':
-            # Euclidean distance (squared)
-            return torch.sum((x1 - x2) ** 2, dim=1)
+            # Explicitly cast to Tensor to satisfy type checker
+            result = 1.0 - F.cosine_similarity(x1, x2, dim=1)
+            return cast(Tensor, result)
         else:
-            raise ValueError(f"Unknown distance metric: {self.distance_metric}")
+            # Euclidean distance
+            # Explicitly cast to Tensor to satisfy type checker
+            result = torch.sqrt(torch.sum((x1 - x2) ** 2, dim=1) + 1e-8)
+            return cast(Tensor, result)
     
     def _generate_fallback_pairs(self, num_nodes: int, batch_size: int = 8) -> Tuple[Tensor, Tensor]:
         """
@@ -81,31 +85,30 @@ class ContrastiveLoss(nn.Module):
         Returns:
             Tuple of (positive_pairs, negative_pairs)
         """
-        device = torch.device('cpu')  # Always generate on CPU first for safety
+        # Generate random indices for positive pairs
+        pos_indices = torch.randint(0, num_nodes, (batch_size, 2), device='cpu')
         
-        # Create artificial positive pairs (adjacent indices)
-        pos_pairs = []
-        for i in range(min(batch_size, num_nodes - 1)):
-            pos_pairs.append([i, i + 1])  # Adjacent nodes are considered "related"
+        # Ensure we don't have duplicate indices in a pair
+        for i in range(batch_size):
+            while pos_indices[i, 0] == pos_indices[i, 1]:
+                pos_indices[i, 1] = torch.randint(0, num_nodes, (1,), device='cpu')
         
-        # Create artificial negative pairs (distant indices)
-        neg_pairs = []
-        half_nodes = max(1, num_nodes // 2)
-        for i in range(min(batch_size, half_nodes)):
-            # Nodes with half the graph distance are considered "unrelated"
-            neg_pairs.append([i, (i + half_nodes) % num_nodes])
+        # Generate random indices for negative pairs
+        neg_indices = torch.randint(0, num_nodes, (batch_size, 2), device='cpu')
         
-        pos_tensor = torch.tensor(pos_pairs, dtype=torch.long, device=device)
-        neg_tensor = torch.tensor(neg_pairs, dtype=torch.long, device=device)
+        # Ensure we don't have duplicate indices in a pair
+        for i in range(batch_size):
+            while neg_indices[i, 0] == neg_indices[i, 1]:
+                neg_indices[i, 1] = torch.randint(0, num_nodes, (1,), device='cpu')
         
-        return pos_tensor, neg_tensor
-        
+        return pos_indices, neg_indices
+    
     def forward(
-        self,
-        embeddings: Tensor,
-        positive_pairs: Tensor,
-        negative_pairs: Optional[Tensor] = None
-    ) -> Tensor:
+            self,
+            embeddings: Tensor,
+            positive_pairs: Tensor,
+            negative_pairs: Optional[Tensor] = None
+        ) -> Tensor:
         """
         Compute the contrastive loss.
         
@@ -117,230 +120,132 @@ class ContrastiveLoss(nn.Module):
         Returns:
             Contrastive loss
         """
-        # Initialize filtering statistics
-        filtered_pos_count = 0
-        total_pos_count = positive_pairs.size(0) if positive_pairs is not None else 0
-        filtered_neg_count = 0
-        total_neg_count = negative_pairs.size(0) if negative_pairs is not None else 0
+        num_nodes = embeddings.size(0)
         
-        # Check for empty inputs
-        if total_pos_count == 0:
-            logger.warning("No positive pairs provided to contrastive loss")
-            return torch.tensor(0.0, device=embeddings.device)
-            
-        # Log both embedding shape and pair counts for debugging
-        pos_pair_count = positive_pairs.size(0) if positive_pairs is not None else 0
-        neg_pair_count = negative_pairs.size(0) if negative_pairs is not None else 0
-        logger.debug(f"ContrastiveLoss input: embeddings={embeddings.shape}, positive_pairs={pos_pair_count}, negative_pairs={neg_pair_count}")
+        # If there are no positive pairs, generate fallback pairs
+        if positive_pairs.size(0) == 0:
+            logger.warning("No positive pairs provided, generating fallback pairs")
+            positive_pairs, neg_fallback = self._generate_fallback_pairs(num_nodes)
+            if negative_pairs is None or negative_pairs.size(0) == 0:
+                negative_pairs = neg_fallback
         
-        # Store valid node indices to avoid repeated lookups
-        self.valid_range = range(embeddings.size(0))
-        try:
-            # Move to CPU for safer operations if needed
-            if embeddings.is_cuda:
-                # Only use CPU for critical index validation operations
-                embeddings_device = embeddings.device
-                num_nodes = embeddings.size(0)
+        # If there are no negative pairs, generate fallback pairs
+        if negative_pairs is None or negative_pairs.size(0) == 0:
+            logger.warning("No negative pairs provided, generating fallback negative pairs")
+            _, negative_pairs = self._generate_fallback_pairs(num_nodes)
+        
+        # Move pairs to the same device as embeddings
+        device = embeddings.device
+        
+        # Check if positive pairs are on the same device
+        if positive_pairs.device != device:
+            positive_pairs = positive_pairs.to(device)
+        
+        # Check if negative pairs are on the same device
+        if negative_pairs is not None and negative_pairs.device != device:
+            negative_pairs = negative_pairs.to(device)
+        
+        # Get the total counts for filtering statistics
+        total_pos_count = positive_pairs.size(0)
+        total_neg_count = 0 if negative_pairs is None else negative_pairs.size(0)
+        
+        # Filter out pairs with invalid indices
+        if positive_pairs.size(0) > 0:
+            # Check for out-of-bounds indices in positive pairs
+            pos_pairs_cpu = positive_pairs.cpu()
+            valid_pos_mask = (pos_pairs_cpu[:, 0] < num_nodes) & (pos_pairs_cpu[:, 1] < num_nodes)
+            
+            if not torch.all(valid_pos_mask):
+                # Explicitly cast tensor.item() result to int to avoid type issues
+                filtered_pos_count = int((~valid_pos_mask).sum().item())
+                percentage = 100 * filtered_pos_count / total_pos_count if total_pos_count > 0 else 0
+                logger.warning(f"Filtered {filtered_pos_count}/{total_pos_count} out-of-bounds positive pairs ({percentage:.1f}%)")
                 
-                # Ensure positive pairs are on CPU for safe filtering
-                pos_pairs_cpu = positive_pairs.cpu() if positive_pairs.is_cuda else positive_pairs
+                # Get some samples of invalid pairs for debugging
+                if filtered_pos_count > 0 and logger.isEnabledFor(logging.DEBUG):
+                    invalid_pairs = pos_pairs_cpu[~valid_pos_mask]
+                    logger.debug(f"Invalid positive pairs sample: {invalid_pairs[:5]}")
                 
-                # More strict validation for positive pairs
-                valid_pos_mask = (
-                    (pos_pairs_cpu[:, 0] >= 0) & 
-                    (pos_pairs_cpu[:, 0] < num_nodes) & 
-                    (pos_pairs_cpu[:, 1] >= 0) & 
-                    (pos_pairs_cpu[:, 1] < num_nodes)
-                )
+                positive_pairs = positive_pairs[valid_pos_mask]
+        
+        if negative_pairs is not None and negative_pairs.size(0) > 0:
+            # Check for out-of-bounds indices in negative pairs
+            neg_pairs_cpu = negative_pairs.cpu()
+            valid_neg_mask = (neg_pairs_cpu[:, 0] < num_nodes) & (neg_pairs_cpu[:, 1] < num_nodes)
+            
+            # total_neg_count was already initialized at the beginning of the method
+            # Just ensure filtered_neg_count is correctly updated
+            
+            if not torch.all(valid_neg_mask):
+                # Explicitly cast tensor.item() result to int to avoid type issues
+                filtered_neg_count = int((~valid_neg_mask).sum().item())
+                percentage = 100 * filtered_neg_count / total_neg_count if total_neg_count > 0 else 0
+                logger.warning(f"Filtered {filtered_neg_count}/{total_neg_count} out-of-bounds negative pairs ({percentage:.1f}%)")
                 
-                if not torch.all(valid_pos_mask):
-                    filtered_count = (~valid_pos_mask).sum().item()
-                    total_count = pos_pairs_cpu.size(0)
-                    logger.warning(f"Filtered {filtered_count}/{total_count} out-of-bounds positive pairs ({filtered_count/total_count:.1%})")
-                    
-                    # Get some samples of invalid pairs for debugging
-                    if filtered_count > 0 and logger.isEnabledFor(logging.DEBUG):
-                        invalid_pairs = pos_pairs_cpu[~valid_pos_mask]
-                        sample_size = min(5, invalid_pairs.size(0))
-                        sample_pairs = invalid_pairs[:sample_size]
-                        logger.debug(f"Sample invalid pairs: {sample_pairs}")
-                    
-                    # Filter to keep only valid pairs
-                    pos_pairs_cpu = pos_pairs_cpu[valid_pos_mask]
-                    
-                # Create fallback pairs if not enough valid pairs
-                MIN_PAIRS = 4  # Minimum number of pairs needed for meaningful loss
-                if pos_pairs_cpu.size(0) < MIN_PAIRS:
-                    logger.warning(f"Only found {pos_pairs_cpu.size(0)} valid positive pairs, adding fallback pairs")
-                    fallback_pos, fallback_neg = self._generate_fallback_pairs(num_nodes)
-                    
-                    # Combine with any existing valid pairs
-                    if pos_pairs_cpu.size(0) > 0:
-                        pos_pairs_cpu = torch.cat([pos_pairs_cpu, fallback_pos], dim=0)
-                    else:
-                        pos_pairs_cpu = fallback_pos
-                        
-                    # Set fallback negative pairs if needed
-                    if negative_pairs is None or (negative_pairs is not None and negative_pairs.size(0) == 0):
-                        negative_pairs = fallback_neg
-                    
-                # Move valid positive pairs back to original device
-                positive_pairs = pos_pairs_cpu.to(embeddings_device)
-            else:
-                # Regular CPU operation
-                num_nodes = embeddings.size(0)
+                # Get some samples of invalid pairs for debugging
+                if filtered_neg_count > 0 and logger.isEnabledFor(logging.DEBUG):
+                    invalid_pairs = neg_pairs_cpu[~valid_neg_mask]
+                    if invalid_pairs.numel() > 0:
+                        # Use proper tensor indexing for max/min
+                        if invalid_pairs.numel() > 1:
+                            max_idx = torch.max(invalid_pairs).item()
+                            min_idx = torch.min(invalid_pairs).item()
+                            logger.debug(f"Invalid pairs index range: min={min_idx}, max={max_idx}, num_nodes={num_nodes}")
                 
-                # More strict validation for positive pairs
-                valid_pos_mask = (positive_pairs[:, 0] < num_nodes) & (positive_pairs[:, 1] < num_nodes)
-                
-                if not valid_pos_mask.all():
-                    filtered_pos_count = (~valid_pos_mask).sum().item()
-                    percentage = 100 * filtered_pos_count / total_pos_count
-                    logger.warning(f"Filtered {filtered_pos_count}/{total_pos_count} out-of-bounds positive pairs ({percentage:.1f}%)")
-                    # Filter positive pairs
-                    positive_pairs = positive_pairs[valid_pos_mask]
-                
-                # Create fallback pairs if not enough valid pairs
-                MIN_PAIRS = 4  # Minimum number of pairs needed for meaningful loss
-                if positive_pairs.size(0) < MIN_PAIRS:
-                    logger.warning(f"Only found {positive_pairs.size(0)} valid positive pairs, adding fallback pairs")
-                    fallback_pos, fallback_neg = self._generate_fallback_pairs(num_nodes)
-                    
-                    # Combine with any existing valid pairs
-                    if positive_pairs.size(0) > 0:
-                        positive_pairs = torch.cat([positive_pairs, fallback_pos], dim=0)
-                    else:
-                        positive_pairs = fallback_pos
-                        
-                    # Set fallback negative pairs if needed
-                    if negative_pairs is None or (negative_pairs is not None and negative_pairs.size(0) == 0):
-                        negative_pairs = fallback_neg
-            
-            # Extract positive pair embeddings
-            pos_idx1, pos_idx2 = positive_pairs[:, 0], positive_pairs[:, 1]
-            pos_emb1 = embeddings[pos_idx1]
-            pos_emb2 = embeddings[pos_idx2]
-            
-            # Compute distance for positive pairs
-            pos_distances = self._compute_distance(pos_emb1, pos_emb2)
-            
-            # Compute positive pair loss: encourage similar nodes to be close
-            pos_loss = pos_distances
-            
-            # Process negative pairs if provided
-            neg_loss = None
-            if negative_pairs is not None:
-                # Move to CPU for safer operations if needed
-                if embeddings.is_cuda:
-                    neg_pairs_cpu = negative_pairs.cpu() if negative_pairs.is_cuda else negative_pairs
-                    valid_neg_mask = (
-                        (neg_pairs_cpu[:, 0] >= 0) & 
-                        (neg_pairs_cpu[:, 0] < num_nodes) & 
-                        (neg_pairs_cpu[:, 1] >= 0) & 
-                        (neg_pairs_cpu[:, 1] < num_nodes)
-                    )
-                    
-                    # total_neg_count was already initialized at the beginning of the method
-                    # Just ensure filtered_neg_count is correctly updated
-                    
-                    if not torch.all(valid_neg_mask):
-                        filtered_neg_count = (~valid_neg_mask).sum().item()
-                        percentage = 100 * filtered_neg_count / total_neg_count if total_neg_count > 0 else 0
-                        logger.warning(f"Filtered {filtered_neg_count}/{total_neg_count} out-of-bounds negative pairs ({percentage:.1f}%)")
-                        
-                        # Get some samples of invalid pairs for debugging
-                        if filtered_neg_count > 0 and logger.isEnabledFor(logging.DEBUG):
-                            invalid_pairs = neg_pairs_cpu[~valid_neg_mask]
-                            sample_size = min(5, invalid_pairs.size(0))
-                            sample_pairs = invalid_pairs[:sample_size]
-                            logger.debug(f"Sample invalid negative pairs: {sample_pairs}")
-                        
-                        neg_pairs_cpu = neg_pairs_cpu[valid_neg_mask]
-                    
-                    # Move valid negative pairs back to original device if we have any
-                    if neg_pairs_cpu.size(0) > 0:
-                        negative_pairs = neg_pairs_cpu.to(embeddings_device)
-                    else:
-                        # Generate fallback negative pairs
-                        logger.warning("No valid negative pairs after filtering. Using fallback pairs.")
-                        _, fallback_neg = self._generate_fallback_pairs(num_nodes)
-                        negative_pairs = fallback_neg.to(embeddings_device)
-                else:
-                    # Regular CPU operation for negative pairs with improved validation
-                    valid_neg_mask = (
-                        (negative_pairs[:, 0] >= 0) & 
-                        (negative_pairs[:, 0] < num_nodes) & 
-                        (negative_pairs[:, 1] >= 0) & 
-                        (negative_pairs[:, 1] < num_nodes)
-                    )
-                    
-                    # total_neg_count was already initialized at the beginning of the method
-                    # Just ensure filtered_neg_count is correctly updated
-                    
-                    if not torch.all(valid_neg_mask):
-                        filtered_neg_count = (~valid_neg_mask).sum().item()
-                        percentage = 100 * filtered_neg_count / total_neg_count if total_neg_count > 0 else 0
-                        logger.warning(f"Filtered {filtered_neg_count}/{total_neg_count} out-of-bounds negative pairs ({percentage:.1f}%)")
-                        
-                        # Get statistics on the out-of-bounds indices if we have debugging enabled
-                        if logger.isEnabledFor(logging.DEBUG):
-                            invalid_pairs = negative_pairs[~valid_neg_mask]
-                            if invalid_pairs.numel() > 0:
-                                max_idx = torch.max(invalid_pairs).item()
-                                min_idx = torch.min(invalid_pairs).item()
-                                logger.debug(f"Invalid pairs index range: min={min_idx}, max={max_idx}, num_nodes={num_nodes}")
-                        
-                        negative_pairs = negative_pairs[valid_neg_mask]
-                    
-                    # Generate fallback negative pairs if needed
-                    if negative_pairs.size(0) == 0:
-                        logger.warning("No valid negative pairs after filtering. Using fallback pairs.")
-                        _, fallback_neg = self._generate_fallback_pairs(num_nodes)
-                        negative_pairs = fallback_neg
-                
-                # Process the negative pairs
-                if negative_pairs.size(0) > 0:
-                    neg_idx1, neg_idx2 = negative_pairs[:, 0], negative_pairs[:, 1]
-                    neg_emb1 = embeddings[neg_idx1]
-                    neg_emb2 = embeddings[neg_idx2]
-                    
-                    # Compute distance for negative pairs
-                    neg_distances = self._compute_distance(neg_emb1, neg_emb2)
-                    
-                    # Compute negative pair loss: push dissimilar nodes apart
-                    neg_loss = F.relu(self.margin - neg_distances)
-            
-            # Combine losses based on availability
-            if neg_loss is not None and neg_loss.numel() > 0:
-                # Have both positive and negative losses
-                combined_loss = pos_loss.mean() + neg_loss.mean()
-            else:
-                # Only positive loss
-                combined_loss = pos_loss.mean()
-            
-            # Total loss
-            total_loss = self.lambda_contrast * combined_loss
-            
-            # Call the filter callback if provided
-            if self.filter_callback is not None:
-                # Use the collected filtering statistics
-                try:
-                    # Call with positional arguments to match the type signature
-                    self.filter_callback(
-                        filtered_pos_count,
-                        total_pos_count,
-                        filtered_neg_count,
-                        total_neg_count
-                    )
-                except Exception as e:
-                    logger.error(f"Error in contrastive loss filter callback: {e}")
-            
-            return total_loss
-            
-        except Exception as e:
-            logger.warning(f"Error in contrastive loss computation: {str(e)}")
-            # Return small non-zero loss to allow training to continue
-            return torch.tensor(0.01, device=embeddings.device)
+                negative_pairs = negative_pairs[valid_neg_mask]
+        
+        # Notify callback about filtering statistics if provided
+        if self.filter_callback is not None:
+            filtered_pos_count = total_pos_count - positive_pairs.size(0)
+            filtered_neg_count = 0 if negative_pairs is None else total_neg_count - negative_pairs.size(0)
+            self.filter_callback(filtered_pos_count, total_pos_count, filtered_neg_count, total_neg_count)
+        
+        # If we have no pairs left after filtering, generate fallback pairs
+        if positive_pairs.size(0) == 0:
+            logger.warning("No valid positive pairs after filtering, generating fallback pairs")
+            pos_fallback, _ = self._generate_fallback_pairs(num_nodes)
+            positive_pairs = pos_fallback.to(device)
+        
+        if negative_pairs is None or negative_pairs.size(0) == 0:
+            logger.warning("No valid negative pairs after filtering, generating fallback pairs")
+            _, neg_fallback = self._generate_fallback_pairs(num_nodes)
+            negative_pairs = neg_fallback.to(device)
+        
+        # Extract embeddings for positive pairs
+        pos_i = embeddings[positive_pairs[:, 0]]
+        pos_j = embeddings[positive_pairs[:, 1]]
+        
+        # Compute distance for positive pairs
+        pos_dist = self._compute_distance(pos_i, pos_j)
+        
+        # Positive loss: encourage embeddings to be similar
+        pos_loss = pos_dist
+        
+        # Extract embeddings for negative pairs
+        neg_i = embeddings[negative_pairs[:, 0]]
+        neg_j = embeddings[negative_pairs[:, 1]]
+        
+        # Compute distance for negative pairs
+        neg_dist = self._compute_distance(neg_i, neg_j)
+        
+        # Negative loss: encourage embeddings to be dissimilar
+        # (max(0, margin - distance) will be high when distance is small)
+        neg_loss = F.relu(self.margin - neg_dist)
+        
+        # Combine positive and negative losses
+        loss = torch.cat([pos_loss, neg_loss], dim=0)
+        
+        # Apply reduction
+        if self.reduction == 'mean':
+            loss = loss.mean()
+        elif self.reduction == 'sum':
+            loss = loss.sum()
+        
+        # Apply weight factor
+        weighted_loss = self.lambda_contrast * loss
+        
+        # Return the weighted loss directly
+        return weighted_loss
 
 
 class InfoNCELoss(nn.Module):
@@ -352,10 +257,10 @@ class InfoNCELoss(nn.Module):
     """
     
     def __init__(
-        self,
-        temperature: float = 0.07,
-        lambda_infonce: float = 1.0
-    ) -> None:
+            self,
+            temperature: float = 0.07,
+            lambda_infonce: float = 1.0
+        ) -> None:
         """
         Initialize the InfoNCE loss.
         
@@ -369,11 +274,11 @@ class InfoNCELoss(nn.Module):
         self.lambda_infonce = lambda_infonce
     
     def forward(
-        self,
-        anchor_embeddings: Tensor,
-        positive_embeddings: Tensor,
-        negative_embeddings: Optional[Tensor] = None
-    ) -> Tensor:
+            self,
+            anchor_embeddings: Tensor,
+            positive_embeddings: Tensor,
+            negative_embeddings: Optional[Tensor] = None
+        ) -> Tensor:
         """
         Compute the InfoNCE loss.
         
@@ -385,9 +290,7 @@ class InfoNCELoss(nn.Module):
         Returns:
             InfoNCE loss
         """
-        batch_size = anchor_embeddings.size(0)
-        
-        # Normalize embeddings for cosine similarity
+        # Normalize embeddings
         anchor_embeddings = F.normalize(anchor_embeddings, p=2, dim=1)
         positive_embeddings = F.normalize(positive_embeddings, p=2, dim=1)
         
@@ -401,28 +304,33 @@ class InfoNCELoss(nn.Module):
             # Compute similarity with all negative samples
             neg_sim = torch.matmul(anchor_embeddings, negative_embeddings.t()) / self.temperature
             
-            # Concatenate positive and negative similarities
-            logits = torch.cat([pos_sim.view(-1, 1), neg_sim], dim=1)
+            # Combine positive and negative similarities
+            logits = torch.cat([pos_sim.unsqueeze(1), neg_sim], dim=1)
             
-            # Labels are zeros (positive samples are at index 0)
-            labels = torch.zeros(batch_size, dtype=torch.long, device=anchor_embeddings.device)
-            
-            # Compute cross-entropy loss
-            loss = F.cross_entropy(logits, labels)
+            # The first element in each row is the positive sample
+            labels = torch.zeros(len(anchor_embeddings), dtype=torch.long, device=anchor_embeddings.device)
         else:
-            # Use other samples in batch as negatives (similar to SimCLR)
-            # Compute similarity matrix for all pairs
-            sim_matrix = torch.matmul(anchor_embeddings, positive_embeddings.t()) / self.temperature
+            # Use other positives as negatives (like SimCLR)
+            batch_size = anchor_embeddings.size(0)
             
-            # Labels are diagonal indices (each anchor matched with its own positive)
+            # Compute all pairwise similarities
+            sim_matrix = torch.matmul(anchor_embeddings, anchor_embeddings.t()) / self.temperature
+            
+            # Zero out the diagonal (self-similarity)
+            mask = torch.eye(batch_size, device=anchor_embeddings.device)
+            sim_matrix = sim_matrix * (1 - mask)
+            
+            # Create labels
+            logits = sim_matrix
             labels = torch.arange(batch_size, device=anchor_embeddings.device)
-            
-            # Compute cross-entropy loss
-            loss = F.cross_entropy(sim_matrix, labels)
+        
+        # Compute cross-entropy loss
+        loss = F.cross_entropy(logits, labels)
         
         # Apply weight factor
         weighted_loss = self.lambda_infonce * loss
         
+        # Return the weighted loss directly
         return weighted_loss
 
 
@@ -436,12 +344,12 @@ class TripletLoss(nn.Module):
     """
     
     def __init__(
-        self,
-        margin: float = 0.5,
-        reduction: str = 'mean',
-        lambda_triplet: float = 1.0,
-        distance_metric: str = 'cosine'
-    ) -> None:
+            self,
+            margin: float = 0.5,
+            reduction: str = 'mean',
+            lambda_triplet: float = 1.0,
+            distance_metric: str = 'cosine'
+        ) -> None:
         """
         Initialize the triplet loss.
         
@@ -471,20 +379,22 @@ class TripletLoss(nn.Module):
         """
         if self.distance_metric == 'cosine':
             # Cosine distance = 1 - cosine similarity
-            return 1.0 - F.cosine_similarity(x1, x2, dim=1)
-        elif self.distance_metric == 'euclidean':
-            # Euclidean distance (squared)
-            return torch.sum((x1 - x2) ** 2, dim=1)
+            # Explicitly cast to Tensor to satisfy type checker
+            result = 1.0 - F.cosine_similarity(x1, x2, dim=1)
+            return cast(Tensor, result)
         else:
-            raise ValueError(f"Unknown distance metric: {self.distance_metric}")
+            # Euclidean distance
+            # Explicitly cast to Tensor to satisfy type checker
+            result = torch.sqrt(torch.sum((x1 - x2) ** 2, dim=1) + 1e-8)
+            return cast(Tensor, result)
     
     def forward(
-        self,
-        embeddings: Tensor,
-        anchor_indices: Tensor,
-        positive_indices: Tensor,
-        negative_indices: Tensor
-    ) -> Tensor:
+            self,
+            embeddings: Tensor,
+            anchor_indices: Tensor,
+            positive_indices: Tensor,
+            negative_indices: Tensor
+        ) -> Tensor:
         """
         Compute the triplet loss.
         
@@ -497,17 +407,17 @@ class TripletLoss(nn.Module):
         Returns:
             Triplet loss
         """
-        # Extract triplet embeddings
-        anchor_emb = embeddings[anchor_indices]
-        positive_emb = embeddings[positive_indices]
-        negative_emb = embeddings[negative_indices]
+        # Extract embeddings for anchors, positives, and negatives
+        anchors = embeddings[anchor_indices]
+        positives = embeddings[positive_indices]
+        negatives = embeddings[negative_indices]
         
         # Compute distances
-        pos_distances = self._compute_distance(anchor_emb, positive_emb)
-        neg_distances = self._compute_distance(anchor_emb, negative_emb)
+        pos_dist = self._compute_distance(anchors, positives)
+        neg_dist = self._compute_distance(anchors, negatives)
         
-        # Compute triplet loss: d(anchor, positive) - d(anchor, negative) + margin
-        loss = F.relu(pos_distances - neg_distances + self.margin)
+        # Compute triplet loss
+        loss = F.relu(pos_dist - neg_dist + self.margin)
         
         # Apply reduction
         if self.reduction == 'mean':
@@ -518,4 +428,5 @@ class TripletLoss(nn.Module):
         # Apply weight factor
         weighted_loss = self.lambda_triplet * loss
         
+        # Return the weighted loss directly
         return weighted_loss

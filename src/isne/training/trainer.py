@@ -28,15 +28,15 @@ from src.isne.training.sampler import NeighborSampler
 # Set up logging
 logger = logging.getLogger(__name__)
 
-# Import the new RandomWalkSampler (optional, as it might be passed dynamically)
+from typing import Optional, Any, cast
+
+# Import the RandomWalkSampler class if available
 try:
     from src.isne.training.random_walk_sampler import RandomWalkSampler
+    HAS_RANDOM_WALK_SAMPLER = True
 except ImportError:
     logger.warning("RandomWalkSampler not available. Will use default sampler unless provided in config.")
-    # Use Optional[Type] for classes that might be None
-    from typing import Type, Optional
-    # Use a different name to avoid conflict with the actual import
-    RandomWalkSamplerType: Optional[Type] = None
+    HAS_RANDOM_WALK_SAMPLER = False
 
 
 class ISNETrainer:
@@ -921,7 +921,7 @@ class ISNETrainer:
             embeddings = self.model(features, edge_index)
             
             # Explicitly cast the result to ensure it's a Tensor
-            return torch.Tensor(embeddings.cpu())
+            return cast(torch.Tensor, embeddings.cpu())
     
     def save_model(self, path: Union[str, Path]) -> None:
         """
@@ -1008,17 +1008,10 @@ class ISNETrainer:
             Low-dimensional representation of embeddings [num_nodes, n_components]
         """
         try:
-            # Convert to numpy array with explicit type annotation
-            embeddings_np: np.ndarray
+            # Convert to numpy with appropriate type
+            embeddings_np = embeddings.cpu().numpy() if isinstance(embeddings, torch.Tensor) else np.array(embeddings)
             
-            # Convert embeddings to numpy array
-            if isinstance(embeddings, torch.Tensor):
-                embeddings_np = embeddings.detach().cpu().numpy()
-            else:
-                # Handle non-tensor case
-                embeddings_np = np.asarray(embeddings, dtype=np.float32)
-            
-            # Apply dimensionality reduction based on selected method
+            # Apply the selected dimensionality reduction method
             if method == 'tsne':
                 from sklearn.manifold import TSNE
                 embeddings_2d = TSNE(n_components=n_components, perplexity=perplexity, random_state=random_state).fit_transform(embeddings_np)
@@ -1039,7 +1032,6 @@ class ISNETrainer:
             # Ensure correct return type for mypy
             result = cast(NDArray[np.float64], np.array(embeddings_2d, dtype=np.float64))
             return result
-            
         except Exception as e:
             logger.error(f"Error visualizing embeddings: {e}")
             return np.array([])
