@@ -3,19 +3,19 @@ Schema standardization module for HADES-PathRAG.
 
 This package provides Pydantic-based schema definitions and validation utilities
 to ensure consistent data structures and validation throughout the pipeline.
+
+IMPORTANT: This module is deprecated. Please use 'src.schemas' instead.
 """
 
-from src.schema.document_schema import (
+# Import from compatibility layer
+from src.schema.compatibility import (
     SchemaVersion,
     RelationType,
     DocumentType,
     ChunkMetadata,
     DocumentRelationSchema,
     DocumentSchema,
-    DatasetSchema
-)
-
-from src.schema.validation import (
+    DatasetSchema,
     ValidationStage,
     ValidationResult,
     validate_document,

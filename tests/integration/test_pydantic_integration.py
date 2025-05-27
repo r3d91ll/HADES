@@ -15,8 +15,8 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
 from src.docproc.schemas.base import BaseDocument
-from src.schema.document_schema import DocumentSchema, ChunkMetadata
-from src.schema.validation import validate_document, ValidationStage
+from src.schemas.documents.base import DocumentSchema, ChunkMetadata
+from src.schemas.common.validation import validate_document, ValidationStage
 
 # Import the updated document processing and chunking modules
 from src.docproc.core_updated import process_document

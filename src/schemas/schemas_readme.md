@@ -4,14 +4,19 @@
 
 This directory houses centralized Pydantic v2 schema models for the HADES-PathRAG system. The schemas provide consistent validation, serialization, and type safety across all modules, replacing the previous mix of TypedDict, Protocol, and Pydantic models.
 
+## Schema Consolidation
+
+In May 2025, the schema system was consolidated from the original `src/schema` directory into this more organized `src/schemas` structure. The old directory has been maintained temporarily with a compatibility layer to ease the transition, but all new code should import directly from the new `src/schemas` directory structure. The compatibility layer in the old directory issues deprecation warnings to alert developers.
+
 ## Directory Structure
 
-```
+```text
 schemas/
 ├── common/              # Common and shared schemas
 │   ├── base.py          # Base schema classes
 │   ├── enums.py         # Shared enumerations
 │   ├── types.py         # Common type definitions
+│   ├── validation.py    # Validation utilities
 │   └── __init__.py
 ├── documents/           # Document-related schemas
 │   ├── base.py          # Core document models

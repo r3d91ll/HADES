@@ -16,10 +16,11 @@ import uuid
 from contextlib import contextmanager
 
 # Import schema validation modules
-from src.schema.document_schema import DocumentSchema, DatasetSchema, ChunkMetadata
-from src.schema.validation import validate_document as schema_validate_document
-from src.schema.validation import validate_dataset as schema_validate_dataset
-from src.schema.validation import ValidationStage, ValidationResult, validate_or_raise
+from src.schemas.documents.base import DocumentSchema, ChunkMetadata
+from src.schemas.documents.dataset import DatasetSchema
+from src.schemas.common.validation import validate_document as schema_validate_document
+from src.schemas.common.validation import validate_dataset as schema_validate_dataset
+from src.schemas.common.validation import ValidationStage, ValidationResult, validate_or_raise
 
 # Import chunking modules
 from src.chunking import chunk_text, chunk_code, chunk_text_batch
