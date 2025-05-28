@@ -8,13 +8,14 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union, cast
 
-from pydantic import Field, field_validator
+from pydantic import Field
 
 from ..common.base import BaseSchema
 from ..common.types import MetadataDict
 from .models import ISNERelationType
+from ..common.validation import typed_field_validator
 
 
 class ISNEDocumentRelationSchema(BaseSchema):
@@ -29,9 +30,9 @@ class ISNEDocumentRelationSchema(BaseSchema):
     created_at: datetime = Field(default_factory=datetime.now, description="Creation timestamp")
     bidirectional: bool = Field(default=False, description="Whether the relationship is bidirectional")
     
-    @field_validator("relation_type")
+    @typed_field_validator("relation_type")
     @classmethod
-    def validate_relation_type(cls, v: Any) -> ISNERelationType:
+    def validate_relation_type(cls, v: Union[str, ISNERelationType]) -> ISNERelationType:
         """Validate relation type."""
         if isinstance(v, str) and not isinstance(v, ISNERelationType):
             try:
@@ -39,9 +40,10 @@ class ISNEDocumentRelationSchema(BaseSchema):
             except ValueError:
                 # Default to custom relationship type if not found
                 return ISNERelationType.CUSTOM
+        # Use cast to ensure type safety
         return v
     
-    @field_validator("weight")
+    @typed_field_validator("weight")
     @classmethod
     def validate_weight(cls, v: float) -> float:
         """Validate weight is between 0 and 1."""

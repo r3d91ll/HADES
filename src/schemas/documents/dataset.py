@@ -10,13 +10,14 @@ from datetime import datetime
 import uuid
 from typing import Any, Dict, List, Optional
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field
 
 from ..common.base import BaseSchema
 from ..common.enums import SchemaVersion
 from ..common.types import MetadataDict
 from .base import DocumentSchema
 from .relations import DocumentRelationSchema
+from ..common.validation import typed_field_validator, typed_model_validator
 
 
 class DatasetSchema(BaseSchema):
@@ -46,7 +47,7 @@ class DatasetSchema(BaseSchema):
         }
     }
     
-    @field_validator("id")
+    @typed_field_validator("id")
     @classmethod
     def validate_id(cls, v: Optional[str]) -> str:
         """Validate ID is not empty."""
@@ -54,13 +55,14 @@ class DatasetSchema(BaseSchema):
             return str(uuid.uuid4())
         return v
         
-    @model_validator(mode="after")
-    def ensure_timestamps(self) -> DatasetSchema:
+    @typed_model_validator(mode='after')    
+    @classmethod
+    def ensure_timestamps(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         """Ensure timestamps are present and valid."""
         # Set update time to creation time if not provided
-        if self.updated_at is None:
-            self.updated_at = self.created_at
-        return self
+        if values.get('updated_at') is None:
+            values['updated_at'] = values.get('created_at')
+        return values
         
     def add_document(self, document: DocumentSchema) -> None:
         """Add a document to the dataset.
@@ -80,6 +82,7 @@ class DatasetSchema(BaseSchema):
         # Verify that both documents exist in the dataset
         if relation.source_id not in self.documents:
             raise ValueError(f"Source document {relation.source_id} not in dataset")
+        
         if relation.target_id not in self.documents:
             raise ValueError(f"Target document {relation.target_id} not in dataset")
             

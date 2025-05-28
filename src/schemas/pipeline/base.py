@@ -10,10 +10,11 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import Field, field_validator
+from pydantic import Field
 
 from ..common.base import BaseSchema
 from ..common.types import MetadataDict
+from ..common.validation import typed_field_validator
 
 
 class PipelineStage(str, Enum):
@@ -52,7 +53,7 @@ class PipelineConfigSchema(BaseSchema):
     retry_count: int = Field(default=3, description="Number of retries for failed operations")
     metadata: MetadataDict = Field(default_factory=dict, description="Additional pipeline metadata")
     
-    @field_validator("max_workers")
+    @typed_field_validator("max_workers")
     @classmethod
     def validate_max_workers(cls, v: int) -> int:
         """Validate max_workers is positive."""
@@ -60,7 +61,7 @@ class PipelineConfigSchema(BaseSchema):
             raise ValueError(f"max_workers must be positive, got {v}")
         return v
     
-    @field_validator("retry_count")
+    @typed_field_validator("retry_count")
     @classmethod
     def validate_retry_count(cls, v: int) -> int:
         """Validate retry_count is non-negative."""
@@ -98,7 +99,16 @@ class PipelineStatsSchema(BaseSchema):
         Args:
             stage: New pipeline stage (can be enum or string)
         """
-        self.current_stage = stage
+        # Convert string to PipelineStage enum if needed
+        if isinstance(stage, str):
+            try:
+                self.current_stage = PipelineStage(stage)
+            except ValueError:
+                # If the string is not a valid enum value, set to None
+                self.current_stage = None
+        else:
+            self.current_stage = stage
+            
         # Get the stage value, handling both enum and string inputs
         stage_value = stage.value if hasattr(stage, 'value') else stage
         if stage_value not in self.stage_stats:

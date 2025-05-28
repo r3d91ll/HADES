@@ -10,10 +10,11 @@ from datetime import datetime
 from enum import Enum, IntEnum
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field
 
 from ..common.base import BaseSchema
 from ..common.types import MetadataDict
+from ..common.validation import typed_field_validator, typed_model_validator
 
 
 class TaskPriority(IntEnum):
@@ -53,19 +54,25 @@ class TaskSchema(BaseSchema):
     depends_on: List[str] = Field(default_factory=list, description="IDs of tasks this task depends on")
     metadata: MetadataDict = Field(default_factory=dict, description="Additional task metadata")
     
-    @model_validator(mode='after')
-    def validate_status_consistency(self) -> TaskSchema:
+    @typed_model_validator(mode='after')    
+    @classmethod
+    def validate_status_consistency(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         """Ensure task status is consistent with timestamps."""
-        if self.completed_at is not None and self.status not in (TaskStatus.COMPLETED, TaskStatus.FAILED):
-            self.status = TaskStatus.COMPLETED
+        completed_at = values.get('completed_at')
+        started_at = values.get('started_at')
+        status = values.get('status')
+        error = values.get('error')
+        
+        if completed_at is not None and status not in (TaskStatus.COMPLETED, TaskStatus.FAILED):
+            values['status'] = TaskStatus.COMPLETED
             
-        if self.started_at is not None and self.status == TaskStatus.PENDING:
-            self.status = TaskStatus.PROCESSING
+        if started_at is not None and status == TaskStatus.PENDING:
+            values['status'] = TaskStatus.PROCESSING
             
-        if self.error is not None and self.status != TaskStatus.FAILED:
-            self.status = TaskStatus.FAILED
+        if error is not None and status != TaskStatus.FAILED:
+            values['status'] = TaskStatus.FAILED
             
-        return self
+        return values
 
 
 class QueueConfigSchema(BaseSchema):
@@ -81,7 +88,7 @@ class QueueConfigSchema(BaseSchema):
     max_retry_delay_seconds: int = Field(default=300, description="Maximum delay for retries")
     metadata: MetadataDict = Field(default_factory=dict, description="Additional queue metadata")
     
-    @field_validator("max_size", "dequeue_batch_size")
+    @typed_field_validator("max_size", "dequeue_batch_size")
     @classmethod
     def validate_positive(cls, v: int) -> int:
         """Validate value is positive."""

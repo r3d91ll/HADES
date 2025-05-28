@@ -7,9 +7,10 @@ pipeline stages and handle validation errors gracefully.
 import json
 import logging
 from enum import Enum
-from typing import Any, Dict, List, Optional, Type, Union, Callable, TypeVar, cast
+from functools import wraps
+from typing import Any, Dict, List, Optional, Type, Union, Callable, TypeVar, cast, overload, ParamSpec, Protocol, Generic
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, field_validator, model_validator
 
 from src.schemas.documents.base import DocumentSchema
 from src.schemas.documents.dataset import DatasetSchema
@@ -22,6 +23,68 @@ logger = logging.getLogger(__name__)
 # Type variables for generic functions
 T = TypeVar('T', bound=BaseModel)
 F = TypeVar('F', bound=Callable)
+P = ParamSpec('P')
+R = TypeVar('R')
+
+# Check if running with Pydantic v1 or v2
+_HAS_PYDANTIC_V2 = hasattr(BaseModel, 'model_config')
+
+# Import validator from pydantic if available (for backwards compatibility)
+try:
+    from pydantic import validator
+except ImportError:
+    validator = None
+
+# Typed wrappers for Pydantic validators to preserve type information
+def typed_field_validator(*fields: str) -> Callable[[Callable[..., R]], Callable[..., R]]:
+    """Type-preserving wrapper for Pydantic's field_validator.
+    
+    Works with both Pydantic v1 and v2 validation decorators.
+    
+    Args:
+        fields: Field names to validate
+        
+    Returns:
+        Decorated validator function with preserved type information
+    """
+    def decorator(f: Callable[..., R]) -> Callable[..., R]:
+        # Use the appropriate validator based on what's available
+        if _HAS_PYDANTIC_V2:
+            validator_func = field_validator(*fields)(f)
+        elif validator is not None:
+            validator_func = validator(*fields)(f)
+        else:
+            # If neither is available, just return the function unchanged
+            validator_func = f
+            
+        return cast(Callable[..., R], validator_func)
+    return decorator
+
+def typed_model_validator(mode: str = 'after') -> Callable[[Callable[..., T]], Callable[..., T]]:
+    """Type-preserving wrapper for Pydantic's model_validator.
+    
+    Works with both Pydantic v1 and v2 validation decorators.
+    
+    Args:
+        mode: Validator mode ('before' or 'after')
+        
+    Returns:
+        Decorated validator function with preserved type information
+    """
+    def decorator(f: Callable[..., T]) -> Callable[..., T]:
+        # Use the appropriate validator based on what's available
+        if _HAS_PYDANTIC_V2:
+            validator_func = model_validator(mode=mode)(f)
+        elif validator is not None:
+            # In v1, root validators were used for model validation
+            from pydantic import root_validator
+            validator_func = root_validator(pre=(mode == 'before'))(f)
+        else:
+            # If neither is available, just return the function unchanged
+            validator_func = f
+            
+        return cast(Callable[..., T], validator_func)
+    return decorator
 
 
 class ValidationStage(str, Enum):
@@ -171,7 +234,9 @@ def validate_or_raise(
         ValueError: If validation fails
     """
     try:
-        return schema_class(**data)
+        # Cast the return value to type T for mypy
+        result = schema_class(**data)
+        return cast(T, result)
     except ValidationError as e:
         msg = error_message or f"Validation failed at {stage} stage"
         error_details = "\n".join(str(err) for err in e.errors())
@@ -216,6 +281,8 @@ class ValidationCheckpoint:
         Returns:
             Callable: Wrapped function with validation
         """
+        # Type annotation to preserve the original function's type
+        # Explicitly state return type to be the same as the input type
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             # Validate input if schema is provided
             if self.input_schema and len(args) > 0:
@@ -280,6 +347,7 @@ class ValidationCheckpoint:
         wrapper.__doc__ = func.__doc__
         wrapper.__module__ = func.__module__
         
+        # Use cast to explicitly tell mypy that the wrapper has the same type as func
         return cast(F, wrapper)
 
 

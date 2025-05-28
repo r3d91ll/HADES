@@ -5,14 +5,15 @@ This module defines schema models for job execution, tracking, and batch process
 within the pipeline system.
 """
 
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Any, Union, Type
 from enum import Enum
 from datetime import datetime
 import uuid
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, validator
 
 from src.schemas.common.base import BaseSchema
+from src.schemas.common.validation import typed_field_validator, typed_model_validator
 
 
 class JobStatus(str, Enum):
@@ -47,8 +48,9 @@ class JobSchema(BaseSchema):
     tags: List[str] = Field(default_factory=list)
     metadata: Dict[str, Any] = Field(default_factory=dict)
     
-    @field_validator('priority', 'max_retries', 'retry_count', 'timeout')
-    def validate_positive_int(cls, v, info):
+    @typed_field_validator('priority', 'max_retries', 'retry_count', 'timeout')
+    @classmethod
+    def validate_positive_int(cls, v: Optional[int], info: Any) -> Optional[int]:
         """Validate positive integer values."""
         if v is not None and info.field_name != 'priority' and v < 0:
             raise ValueError(f"{info.field_name} must be a non-negative integer")
@@ -67,13 +69,13 @@ class JobResultSchema(BaseSchema):
     duration: Optional[float] = None
     metrics: Dict[str, Any] = Field(default_factory=dict)
     
-    @model_validator(mode='before')
+    @typed_model_validator(mode='before')
     @classmethod
-    def validate_result(cls, data: Dict[str, Any]) -> Dict[str, Any]:
+    def validate_job_result(cls, data: Dict[str, Any]) -> Dict[str, Any]:
         """Validate job result based on status. Using 'before' mode to avoid recursion."""
         # Get status, which could be a string or enum
         status = data.get('status')
-        status_value = status.value if hasattr(status, 'value') else status
+        status_value = status.value if status is not None and hasattr(status, 'value') else status
         
         # Verify failed jobs have an error message
         if status_value == "failed" and not data.get('error'):
@@ -102,29 +104,27 @@ class BatchJobSchema(BaseSchema):
     timeout: Optional[int] = None
     retries_enabled: bool = False
     
-    @field_validator('strategy')
-    def validate_strategy(cls, v):
+    @typed_field_validator('strategy')
+    @classmethod
+    def validate_strategy(cls, v: str) -> str:
         """Validate batch execution strategy."""
         valid_strategies = ["parallel", "sequential", "dependency"]
         if v not in valid_strategies:
-            raise ValueError(f"Invalid strategy: {v}. Must be one of {valid_strategies}")
+            raise ValueError(f"Invalid strategy '{v}'. Must be one of {valid_strategies}")
         return v
     
-    @field_validator('max_concurrent')
-    def validate_max_concurrent(cls, v):
+    @typed_field_validator('max_concurrent')
+    @classmethod
+    def validate_max_concurrent(cls, v: int) -> int:
         """Validate max_concurrent value."""
         if v <= 0:
             raise ValueError("max_concurrent must be a positive integer")
         return v
     
-    @model_validator(mode='after')
-    def validate_jobs(self):
+    @typed_field_validator('jobs')
+    @classmethod
+    def validate_jobs(cls, v: List[JobSchema]) -> List[JobSchema]:
         """Validate batch job configuration."""
-        if not self.jobs:
+        if not v:
             raise ValueError("Batch job must contain at least one job")
-            
-        if self.strategy == "dependency":
-            # TODO: Implement dependency validation
-            pass
-            
-        return self
+        return v

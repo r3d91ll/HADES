@@ -9,11 +9,13 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union, ClassVar
 
-from pydantic import Field, field_validator
+import numpy as np
+from pydantic import Field
 
 from ..common.base import BaseSchema
 from ..common.types import EmbeddingVector, MetadataDict
 from .models import EmbeddingConfig, EmbeddingModelType
+from ..common.validation import typed_field_validator
 
 
 class AdapterType(str, Enum):
@@ -35,7 +37,7 @@ class BaseAdapterConfig(BaseSchema):
     batch_size: int = Field(default=32, description="Batch size for embedding generation")
     metadata: MetadataDict = Field(default_factory=dict, description="Additional adapter metadata")
     
-    @field_validator("batch_size")
+    @typed_field_validator("batch_size")
     @classmethod
     def validate_batch_size(cls, v: int) -> int:
         """Validate batch size is positive."""
@@ -100,11 +102,18 @@ class AdapterResult(BaseSchema):
     adapter_type: AdapterType = Field(..., description="Type of adapter used")
     metadata: MetadataDict = Field(default_factory=dict, description="Additional result metadata")
     
-    @field_validator("embeddings")
+    @typed_field_validator("embeddings")
     @classmethod
-    def validate_embeddings(cls, v: List[Union[List[float], np.ndarray]], values: Dict[str, Any]) -> List[Union[List[float], np.ndarray]]:
+    def validate_embeddings(cls, v: List[Union[List[float], np.ndarray]], info: Any) -> List[Union[List[float], np.ndarray]]:
         """Validate embeddings length matches text inputs length."""
-        text_inputs = values.data.get("text_inputs", [])
+        # Access data from validation context properly
+        # In Pydantic v2, use the field validation context
+        if hasattr(info, 'data'):
+            text_inputs = info.data.get("text_inputs", [])
+        else:
+            # Fallback for when values is a dict (older pydantic versions compatibility)
+            text_inputs = []
+            
         if len(v) != len(text_inputs):
             raise ValueError(f"Number of embeddings ({len(v)}) must match number of text inputs ({len(text_inputs)})")
         return v

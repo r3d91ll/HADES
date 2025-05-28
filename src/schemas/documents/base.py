@@ -7,14 +7,16 @@ of document processing in the system.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, cast
 import uuid
+import os
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, model_validator, field_validator, validator
 
 from ..common.base import BaseSchema
 from ..common.enums import DocumentType, SchemaVersion
-from ..common.types import EmbeddingVector, MetadataDict, UUIDStr
+from ..common.types import EmbeddingVector, MetadataDict, UUIDString
+from ..common.validation import typed_field_validator, typed_model_validator
 
 
 class ChunkMetadata(BaseSchema):
@@ -82,18 +84,19 @@ class DocumentSchema(BaseSchema):
         }
     }
     
-    @field_validator("document_type")
+    @typed_field_validator("document_type")
     @classmethod
-    def validate_document_type(cls, v: Any) -> DocumentType:
+    def validate_document_type(cls, v: Union[str, DocumentType]) -> DocumentType:
         """Validate document type."""
-        if isinstance(v, str):
+        if isinstance(v, DocumentType):
+            return v
+        else:
             try:
                 return DocumentType(v)
             except ValueError:
                 raise ValueError(f"Invalid document type: {v}")
-        return v
     
-    @field_validator("id")
+    @typed_field_validator("id")
     @classmethod
     def validate_id(cls, v: Optional[str]) -> str:
         """Validate ID is not empty."""
@@ -101,23 +104,27 @@ class DocumentSchema(BaseSchema):
             return str(uuid.uuid4())
         return v
     
-    @model_validator(mode="after")
-    def ensure_timestamps_and_title(self) -> DocumentSchema:
+    @typed_model_validator(mode='before')
+    @classmethod
+    def ensure_timestamps_and_title(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         """Ensure timestamps are present and derive title from source if not provided."""
         # Set creation time if not provided
-        if self.created_at is None:
-            self.created_at = datetime.now()
+        if values.get('created_at') is None:
+            values['created_at'] = datetime.now()
         
-        # Set update time to creation time if not provided
-        if self.updated_at is None:
-            self.updated_at = self.created_at
-            
-        # Derive title from source if not provided
-        if self.title is None:
-            import os
-            self.title = os.path.basename(self.source)
-            
-        return self
+        # Set updated time if not provided
+        created_at = values.get('created_at')
+        updated_at = values.get('updated_at')
+        if updated_at is None or (created_at is not None and updated_at is not None and updated_at < created_at):
+            values['updated_at'] = created_at
+        
+        # Generate title from source path if not set
+        title = values.get('title')
+        source = values.get('source')
+        if title is None and source is not None and isinstance(source, str):
+            values['title'] = os.path.basename(source)
+        
+        return values
         
     def to_dict(self) -> Dict[str, Any]:
         """Convert document to dictionary.

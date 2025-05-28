@@ -9,11 +9,12 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional, Union
 import uuid
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, validator, field_validator
 
 from ..common.base import BaseSchema
 from ..common.types import EmbeddingVector, MetadataDict
 from .models import ISNEDocumentType
+from ..common.validation import typed_field_validator, typed_model_validator
 
 
 class ISNEChunkSchema(BaseSchema):
@@ -27,7 +28,7 @@ class ISNEChunkSchema(BaseSchema):
     embedding: Optional[EmbeddingVector] = Field(default=None, description="Chunk embedding vector")
     metadata: MetadataDict = Field(default_factory=dict, description="Additional chunk metadata")
     
-    @field_validator("id")
+    @typed_field_validator("id")
     @classmethod
     def validate_id(cls, v: Optional[str]) -> str:
         """Validate ID is not empty."""
@@ -50,7 +51,7 @@ class ISNEDocumentSchema(BaseSchema):
     created_at: Optional[str] = Field(default=None, description="Document creation timestamp")
     processed_at: Optional[str] = Field(default=None, description="Document processing timestamp")
     
-    @field_validator("id")
+    @typed_field_validator("id")
     @classmethod
     def validate_id(cls, v: Optional[str]) -> str:
         """Validate ID is not empty."""
@@ -58,13 +59,18 @@ class ISNEDocumentSchema(BaseSchema):
             return str(uuid.uuid4())
         return v
     
-    @model_validator(mode="after")
-    def validate_chunks(self) -> ISNEDocumentSchema:
+    @typed_field_validator('chunks')    
+    @classmethod
+    def validate_chunks(cls, v: List[ISNEChunkSchema], values: Dict[str, Any]) -> List[ISNEChunkSchema]:
         """Set parent_id for each chunk if not already set."""
-        for chunk in self.chunks:
-            if chunk.parent_id != self.id:
-                chunk.parent_id = self.id
-        return self
+        if 'id' not in values:
+            return v
+            
+        doc_id = values['id']
+        for chunk in v:
+            if chunk.parent_id != doc_id:
+                chunk.parent_id = doc_id
+        return v
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary representation.

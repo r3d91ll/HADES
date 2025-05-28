@@ -10,10 +10,11 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import Field, field_validator
+from pydantic import Field
 
 from ..common.base import BaseSchema
 from ..common.types import MetadataDict
+from ..common.validation import typed_field_validator
 
 
 class WorkerStatus(str, Enum):
@@ -47,7 +48,7 @@ class WorkerConfigSchema(BaseSchema):
     resource_limits: Dict[str, Any] = Field(default_factory=dict, description="Resource limits")
     metadata: MetadataDict = Field(default_factory=dict, description="Additional worker metadata")
     
-    @field_validator("max_batch_size", "max_retries", "timeout_seconds")
+    @typed_field_validator("max_batch_size", "max_retries", "timeout_seconds")
     @classmethod
     def validate_positive(cls, v: int) -> int:
         """Validate value is positive."""
@@ -128,7 +129,7 @@ class WorkerPoolConfigSchema(BaseSchema):
     scaling_cooldown_seconds: int = Field(default=60, description="Cooldown period between scaling events")
     task_queue_size: int = Field(default=100, description="Maximum size of the task queue")
     
-    @field_validator("min_workers", "max_workers")
+    @typed_field_validator("min_workers", "max_workers")
     @classmethod
     def validate_worker_count(cls, v: int) -> int:
         """Validate worker count is positive."""
@@ -136,7 +137,7 @@ class WorkerPoolConfigSchema(BaseSchema):
             raise ValueError(f"Worker count must be positive, got {v}")
         return v
     
-    @field_validator("scaling_cooldown_seconds")
+    @typed_field_validator("scaling_cooldown_seconds")
     @classmethod
     def validate_cooldown(cls, v: int) -> int:
         """Validate cooldown period is non-negative."""

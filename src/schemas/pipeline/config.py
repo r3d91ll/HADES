@@ -5,14 +5,15 @@ This module defines the schema models for configuring processing pipelines
 including stage configurations, input/output specifications, and database connections.
 """
 
-from typing import Dict, List, Optional, Union, Any
+from typing import Dict, List, Optional, Union, Any, Type
 from pathlib import Path
 import re
 from enum import Enum
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, validator, field_validator
 
 from src.schemas.common.base import BaseSchema
+from src.schemas.common.validation import typed_field_validator, typed_model_validator
 
 
 class InputSourceType(str, Enum):
@@ -48,25 +49,31 @@ class InputSourceConfig(BaseSchema):
     query: Optional[Dict[str, Any]] = None
     options: Dict[str, Any] = Field(default_factory=dict)
     
-    @field_validator('type')
-    def validate_type(cls, v):
+    @typed_field_validator('type')
+    @classmethod
+    def validate_type(cls, v: str) -> str:
         """Validate input source type."""
         if v not in [t.value for t in InputSourceType]:
             raise ValueError(f"Invalid input source type: {v}")
         return v
     
-    @model_validator(mode='after')
-    def validate_source_config(self):
+    @typed_model_validator(mode='after')    
+    @classmethod
+    def validate_source_config(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         """Validate configuration based on source type."""
-        if self.type == InputSourceType.FILE or self.type == InputSourceType.DIRECTORY:
-            if not self.path:
-                raise ValueError(f"Path is required for source type {self.type}")
+        source_type = values.get('type')
+        path = values.get('path')
+        connection = values.get('connection')
         
-        if self.type == InputSourceType.DATABASE:
-            if not self.connection:
+        if source_type in [InputSourceType.FILE, InputSourceType.DIRECTORY]:
+            if not path:
+                raise ValueError(f"Path is required for source type {source_type}")
+        
+        if source_type == InputSourceType.DATABASE:
+            if not connection:
                 raise ValueError("Connection string is required for database source")
         
-        return self
+        return values
 
 
 class OutputDestinationConfig(BaseSchema):
@@ -82,29 +89,35 @@ class OutputDestinationConfig(BaseSchema):
     options: Dict[str, Any] = Field(default_factory=dict)
     stage: Optional[str] = None
     
-    @field_validator('type')
-    def validate_type(cls, v):
+    @typed_field_validator('type')
+    @classmethod
+    def validate_type(cls, v: str) -> str:
         """Validate output destination type."""
         if v not in [t.value for t in OutputDestinationType]:
             raise ValueError(f"Invalid output destination type: {v}")
         return v
     
-    @model_validator(mode='after')
-    def validate_destination_config(self):
+    @typed_model_validator(mode='after')    
+    @classmethod
+    def validate_destination_config(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         """Validate configuration based on destination type."""
-        if self.type in [OutputDestinationType.FILE, OutputDestinationType.DIRECTORY]:
-            if not self.path and self.type != OutputDestinationType.PIPELINE:
-                raise ValueError(f"Path is required for destination type {self.type}")
+        dest_type = values.get('type')
+        path = values.get('path')
+        connection = values.get('connection')
         
-        if self.type == OutputDestinationType.DATABASE:
-            if not self.connection:
+        if dest_type in [OutputDestinationType.FILE, OutputDestinationType.DIRECTORY]:
+            if not path and dest_type != OutputDestinationType.PIPELINE:
+                raise ValueError(f"Path is required for destination type {dest_type}")
+        
+        if dest_type == OutputDestinationType.DATABASE:
+            if not connection:
                 raise ValueError("Connection string is required for database destination")
         
-        if self.type == OutputDestinationType.PIPELINE:
-            if not self.stage:
+        if values.get('type') == OutputDestinationType.PIPELINE:
+            if not values.get('stage'):
                 raise ValueError("Stage name is required for pipeline destination")
         
-        return self
+        return values
 
 
 class DatabaseType(str, Enum):
@@ -134,8 +147,9 @@ class DatabaseConfig(BaseSchema):
     connection_timeout: Optional[int] = None
     connection_retries: Optional[int] = None
     
-    @field_validator('type')
-    def validate_type(cls, v):
+    @typed_field_validator('type')
+    @classmethod
+    def validate_type(cls, v: str) -> str:
         """Validate database type."""
         if v not in [t.value for t in DatabaseType]:
             raise ValueError(f"Invalid database type: {v}")
@@ -158,18 +172,20 @@ class ProcessingStageConfig(BaseSchema):
     dependencies: List[str] = Field(default_factory=list)
     metadata: Dict[str, Any] = Field(default_factory=dict)
     
-    @field_validator('name')
-    def validate_name(cls, v):
+    @typed_field_validator('name')
+    @classmethod
+    def validate_name(cls, v: str) -> str:
         """Validate stage name."""
         if not re.match(r'^[a-zA-Z0-9_-]+$', v):
             raise ValueError("Stage name must contain only alphanumeric characters, hyphens, and underscores")
         return v
     
-    @field_validator('timeout', 'retry_attempts')
-    def validate_positive_int(cls, v, info):
+    @typed_field_validator('timeout', 'retry_attempts')
+    @classmethod
+    def validate_positive_int(cls, v: Optional[int], values: Dict[str, Any], **kwargs: Any) -> Optional[int]:
         """Validate positive integer values."""
         if v is not None and v <= 0:
-            raise ValueError(f"{info.field_name} must be a positive integer")
+            raise ValueError(f"{kwargs['field'].name} must be a positive integer")
         return v
 
 
@@ -188,21 +204,25 @@ class PipelineConfigSchema(BaseSchema):
     retry_attempts: Optional[int] = None
     metadata: Dict[str, Any] = Field(default_factory=dict)
     
-    @model_validator(mode='after')
-    def validate_stage_dependencies(self):
+    @typed_model_validator(mode='after')    
+    @classmethod
+    def validate_stage_dependencies(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         """Validate that stage dependencies exist in the pipeline."""
-        stage_names = set(stage.name for stage in self.stages)
+        stages = values.get('stages', [])
+        stage_names = set(stage.name for stage in stages)
         
-        for stage in self.stages:
+        for stage in stages:
             # Check dependencies
             for dep in stage.dependencies:
                 if dep not in stage_names:
                     raise ValueError(f"Stage '{stage.name}' depends on non-existent stage '{dep}'")
             
             # Check pipeline input references
-            if hasattr(stage.input, 'type') and (stage.input.type == 'pipeline' or stage.input.type == InputSourceType.PIPELINE):
-                source_stage = stage.input.stage
-                if source_stage and source_stage not in stage_names:
-                    raise ValueError(f"Stage '{stage.name}' depends on output from non-existent stage '{source_stage}'")
+            if hasattr(stage, 'input') and hasattr(stage.input, 'type'):
+                input_type = stage.input.type
+                if input_type == 'pipeline' or input_type == InputSourceType.PIPELINE:
+                    source_stage = getattr(stage.input, 'stage', None)
+                    if source_stage and source_stage not in stage_names:
+                        raise ValueError(f"Stage '{stage.name}' depends on output from non-existent stage '{source_stage}'")
         
-        return self
+        return values

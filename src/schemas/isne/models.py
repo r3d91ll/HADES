@@ -10,10 +10,11 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field
 
 from ..common.base import BaseSchema
 from ..common.types import EmbeddingVector, MetadataDict
+from ..common.validation import typed_field_validator, typed_model_validator
 
 
 class ISNEDocumentType(str, Enum):
@@ -47,7 +48,7 @@ class ISNEModelConfigSchema(BaseSchema):
     normalization: bool = Field(default=True, description="Whether to use layer normalization")
     attention_type: str = Field(default="dot_product", description="Type of attention mechanism")
     
-    @field_validator("hidden_dim", "output_dim", "num_layers", "num_heads")
+    @typed_field_validator("hidden_dim", "output_dim", "num_layers", "num_heads")
     @classmethod
     def validate_positive_int(cls, v: int) -> int:
         """Validate integer values are positive."""
@@ -55,7 +56,7 @@ class ISNEModelConfigSchema(BaseSchema):
             raise ValueError(f"Value must be positive, got {v}")
         return v
     
-    @field_validator("dropout")
+    @typed_field_validator("dropout")
     @classmethod
     def validate_dropout(cls, v: float) -> float:
         """Validate dropout is between 0 and 1."""
@@ -80,7 +81,7 @@ class ISNETrainingConfigSchema(BaseSchema):
     checkpoint_dir: Optional[str] = Field(default=None, description="Directory for saving checkpoints")
     checkpoint_interval: int = Field(default=10, description="Save checkpoint every N epochs")
     
-    @field_validator("learning_rate", "weight_decay")
+    @typed_field_validator("learning_rate", "weight_decay", "max_grad_norm")
     @classmethod
     def validate_positive_float(cls, v: float) -> float:
         """Validate float values are positive."""
@@ -88,7 +89,7 @@ class ISNETrainingConfigSchema(BaseSchema):
             raise ValueError(f"Value must be non-negative, got {v}")
         return v
     
-    @field_validator("batch_size", "epochs", "early_stopping_patience")
+    @typed_field_validator("batch_size", "epochs", "early_stopping_patience", "checkpoint_interval")
     @classmethod
     def validate_positive_int(cls, v: int) -> int:
         """Validate integer values are positive."""
@@ -96,7 +97,7 @@ class ISNETrainingConfigSchema(BaseSchema):
             raise ValueError(f"Value must be positive, got {v}")
         return v
     
-    @field_validator("validation_fraction")
+    @typed_field_validator("validation_fraction")
     @classmethod
     def validate_fraction(cls, v: float) -> float:
         """Validate fraction is between 0 and 1."""
@@ -116,7 +117,7 @@ class ISNEConfigSchema(BaseSchema):
     edge_threshold: float = Field(default=0.7, description="Threshold for edge creation based on similarity")
     max_edges_per_node: int = Field(default=10, description="Maximum number of edges per node")
     
-    @field_validator("edge_threshold")
+    @typed_field_validator("edge_threshold")
     @classmethod
     def validate_edge_threshold(cls, v: float) -> float:
         """Validate edge threshold is between 0 and 1."""
@@ -124,7 +125,7 @@ class ISNEConfigSchema(BaseSchema):
             raise ValueError(f"Edge threshold must be between 0 and 1, got {v}")
         return v
     
-    @field_validator("max_edges_per_node")
+    @typed_field_validator("max_edges_per_node")
     @classmethod
     def validate_max_edges(cls, v: int) -> int:
         """Validate max edges is positive."""

@@ -9,12 +9,13 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field
 
 from ..common.base import BaseSchema
 from ..common.enums import DocumentType, SchemaVersion, ProcessingStage
 from ..common.types import MetadataDict
 from .base import PipelineConfigSchema, PipelineStage
+from ..common.validation import typed_field_validator, typed_model_validator
 
 
 class ChunkingStrategy(str, Enum):
@@ -84,7 +85,7 @@ class TextPipelineConfigSchema(PipelineConfigSchema):
     create_new_collections: bool = Field(default=False, 
                                         description="Whether to create new collections/graph")
     
-    @field_validator("chunk_size", "chunk_overlap", "batch_size")
+    @typed_field_validator("chunk_size", "chunk_overlap", "batch_size")
     @classmethod
     def validate_positive_int(cls, v: int) -> int:
         """Validate integer values are positive."""
@@ -106,9 +107,14 @@ class TextPipelineResultSchema(BaseSchema):
     chunks: List[Dict[str, Any]] = Field(default_factory=list, description="Processed chunks")
     metadata: MetadataDict = Field(default_factory=dict, description="Processing metadata")
     
-    @model_validator(mode='after')
-    def validate_error_consistency(self) -> TextPipelineResultSchema:
+    @typed_model_validator(mode='after')    
+    @classmethod
+    def validate_error_consistency(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         """Ensure error state is consistent."""
-        if self.error and self.success:
-            self.success = False
-        return self
+        error = values.get('error')
+        success = values.get('success')
+        
+        if error and success:
+            values['success'] = False
+            
+        return values

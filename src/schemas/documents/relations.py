@@ -8,13 +8,14 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union, cast
 
-from pydantic import Field, field_validator
+from pydantic import Field
 
 from ..common.base import BaseSchema
 from ..common.enums import RelationType
 from ..common.types import MetadataDict
+from ..common.validation import typed_field_validator
 
 
 class DocumentRelationSchema(BaseSchema):
@@ -43,15 +44,18 @@ class DocumentRelationSchema(BaseSchema):
         }
     }
     
-    @field_validator("relation_type")
+    @typed_field_validator("relation_type")
     @classmethod
-    def validate_relation_type(cls, v: Any) -> RelationType:
+    def validate_relation_type(cls, v: Union[str, RelationType]) -> RelationType:
         """Validate relation type."""
         if isinstance(v, str):
             try:
                 return RelationType(v)
             except ValueError:
                 # Custom relation type if not in enum
-                if v not in [r.value for r in RelationType]:
-                    return RelationType.CUSTOM
+                return RelationType.CUSTOM
+        
+        # If v is already a RelationType, just return it
+        if not isinstance(v, RelationType):
+            raise ValueError(f"Expected RelationType, got {type(v)}")
         return v
