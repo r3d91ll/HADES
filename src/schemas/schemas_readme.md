@@ -113,6 +113,45 @@ When migrating existing code to use these schemas:
 4. Add validation at module boundaries
 5. Use model_dump_safe() for serialization
 
+## Validator Type Safety
+
+As of May 2025, all schema validators have been updated to maintain proper type safety:
+
+1. Use `typed_field_validator` and `typed_model_validator` from `src.schemas.common.validation` instead of Pydantic's built-in decorators to ensure proper type preservation.
+
+```python
+from src.schemas.common.validation import typed_field_validator
+
+class MySchema(BaseSchema):
+    field: str
+    
+    @typed_field_validator('field')
+    @classmethod
+    def validate_field(cls, v: str) -> str:
+        # This validator properly preserves type information
+        return v.strip()
+```
+
+1. When using `typed_model_validator`, always specify the `mode` parameter:
+
+```python
+from src.schemas.common.validation import typed_model_validator
+
+class MySchema(BaseSchema):
+    field1: str
+    field2: int
+    
+    @typed_model_validator(mode='after')  # Use 'after' or 'before'
+    @classmethod
+    def validate_fields(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+        # Process the values dictionary
+        return values
+```
+
+1. Always use `@classmethod` with validators and make sure parameter types match the expected usage pattern:
+   - For field validators: `cls, v: TYPE, info: Any) -> TYPE`
+   - For model validators: `cls, values: Dict[str, Any]) -> Dict[str, Any]`
+
 ## Testing
 
 All schemas include validation rules and should be covered by unit tests. Ensure that edge cases and validation errors are properly tested.
