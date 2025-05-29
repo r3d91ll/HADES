@@ -35,7 +35,7 @@ except ImportError:
 class EntityExtractor:
     """Base interface for entity extraction from content."""
     
-    def __init__(self) -> None:
+    def __init__(self) :
         self.entities: List[Dict[str, Any]] = []
         self.current_heading_level: int = 0
         self.heading_stack: List[Dict[str, Any]] = []
@@ -66,13 +66,13 @@ class FallbackMarkdownExtractor(EntityExtractor):
 
 # Class when mistune is available - full featured implementation
 if HAS_MISTUNE:
-    class MistuneMarkdownExtractor(EntityExtractor):
+    class MistuneMarkdownExtractor(EntityExtractor) :
         """Mistune-based renderer that extracts entities from markdown content."""
         
         def __init__(self) -> None:
             super().__init__()
             # Initialize with mistune's renderer
-            if hasattr(mistune, 'BaseRenderer'):
+            if hasattr(mistune, 'BaseRenderer') :
                 self.renderer = mistune.BaseRenderer()
             
         def process_markdown(self, content: str) -> str:
@@ -83,10 +83,10 @@ if HAS_MISTUNE:
             # Ensure we always return a string
             return result if isinstance(result, str) else ""
             
-        def _create_renderer(self) -> Any:
+        def _create_renderer(self) :
             """Create and return a custom mistune renderer."""
             # Create a renderer implementation class dynamically
-            class Renderer(mistune.BaseRenderer):
+            class Renderer(mistune.BaseRenderer) :
                 def __init__(self, extractor: MistuneMarkdownExtractor) -> None:
                     super().__init__()
                     self.extractor = extractor
@@ -156,7 +156,7 @@ if HAS_MISTUNE:
 
 
 # Define an accessor function that provides the right implementation
-def get_markdown_extractor() -> EntityExtractor:
+def get_markdown_extractor() :
     """Get the appropriate markdown extractor based on available dependencies."""
     if HAS_MISTUNE:
         return MistuneMarkdownExtractor()
@@ -165,14 +165,14 @@ def get_markdown_extractor() -> EntityExtractor:
 
 
 # For backwards compatibility with existing tests
-class MarkdownEntityExtractor(EntityExtractor):
+class MarkdownEntityExtractor(EntityExtractor) :
     """Legacy class for backwards compatibility with existing tests.
     
     This class exists to maintain compatibility with tests that import it directly.
     New code should use the get_markdown_extractor() function instead.
     """
     
-    def __init__(self) -> None:
+    def __init__(self) :
         super().__init__()
         self._impl = get_markdown_extractor()
     
@@ -188,7 +188,7 @@ class MarkdownEntityExtractor(EntityExtractor):
 class MarkdownAdapter:
     """Adapter for processing markdown documents."""
     
-    def __init__(self) -> None:
+    def __init__(self) :
         if not HAS_MISTUNE:
             logger.warning("MarkdownAdapter initialized without mistune support")
             
@@ -219,7 +219,7 @@ class MarkdownAdapter:
         # Find if we're in a test function
         in_test = False
         while frame:
-            if frame.f_code.co_name.startswith('test_'):
+            if frame.f_code.co_name.startswith('test_') :
                 in_test = True
                 break
             frame = frame.f_back
@@ -338,7 +338,7 @@ class MarkdownAdapter:
         if frontmatter_match:
             try:
                 frontmatter_data = yaml.safe_load(frontmatter_match.group(1))
-                if isinstance(frontmatter_data, dict):
+                if isinstance(frontmatter_data, dict) :
                     frontmatter_data["_frontmatter_was_extracted"] = True
                     frontmatter_data["_content"] = content[frontmatter_match.end():].lstrip()
                     return frontmatter_data
@@ -373,12 +373,12 @@ class MarkdownAdapter:
         
         # Look for author information (common patterns in markdown docs)
         author_patterns = [
-            r'(?:Author|Authors):\s*(.+?)(?:\n|$)',  # Author: Name
+            r'(?:Author|Authors) -> None:\s*(.+?)(?:\n|$)',  # Author: Name
             r'By\s+(.+?)(?:\n|$)',                    # By Name
             r'\*\s*(.+?)\s*\*\s*$'                   # *Name* (italics at end of line)
         ]
         
-        authors = []
+        authors: List[Any] = []
         for pattern in author_patterns:
             author_match = re.search(pattern, content, re.MULTILINE | re.IGNORECASE)
             if author_match:

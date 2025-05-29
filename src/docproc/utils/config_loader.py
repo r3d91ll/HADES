@@ -43,13 +43,13 @@ def get_config(reload: bool = False) -> PreProcessorConfig:
             # Create a minimal default configuration
             _cached_config = PreProcessorConfig(
                 input_dir=Path("."),
-                output_dir=Path("./.symbol_table"),
-                exclude_patterns=["__pycache__", ".git"],
-                recursive=True,
-                max_workers=4,
                 file_type_map={},
                 preprocessor_config={},
                 options={},
+                output_dir=Path("./.symbol_table"),
+                exclude_patterns=["__pycache__", ".git"],
+                recursive=True,
+                max_workers=4
             )
             logger.warning("Using minimal default configuration due to loading error")
             

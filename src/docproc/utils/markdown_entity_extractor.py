@@ -8,6 +8,8 @@ such as headings, code blocks, tables, and links.
 import re
 from typing import Dict, Any, List
 
+from pathlib import Path
+
 # Regex patterns for markdown elements
 HEADING_PATTERN = re.compile(r'^(#{1,6})\s+(.*?)(?:\s+#+)?$', re.MULTILINE)
 CODE_BLOCK_PATTERN = re.compile(r'```([a-z]*)\n(.*?)\n```', re.DOTALL)
@@ -25,7 +27,7 @@ def extract_markdown_entities(content: str) -> List[Dict[str, Any]]:
     Returns:
         List of extracted entities with their metadata
     """
-    entities = []
+    entities: List[Any] = []
     
     # Extract headings
     for match in HEADING_PATTERN.finditer(content):
@@ -112,7 +114,7 @@ def extract_markdown_metadata(content: str, file_path: str) -> Dict[str, Any]:
     
     # Look for author information
     author_patterns = [
-        r'(?:Author|Authors):\s*(.+?)(?:\n|$)',  # Author: Name
+        r'(?:Author|Authors) -> Any:\s*(.+?)(?:\n|$)',  # Author: Name
         r'By\s+(.+?)(?:\n|$)',                    # By Name
         r'\*\s*(.+?)\s*\*\s*$'                   # *Name* (italics at end of line)
     ]

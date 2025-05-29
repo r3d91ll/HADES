@@ -8,9 +8,13 @@ and a unified Docling adapter for various document types.
 from .registry import register_adapter, get_adapter_for_format, get_adapter_class, get_supported_formats
 from .base import BaseAdapter
 
+from typing import Dict, List, Any, Optional, Union, Tuple, Set, cast, Callable, TypeVar
+
 # Import all adapters to ensure they are registered
 from .python_adapter import PythonAdapter
 from .docling_adapter import DoclingAdapter
+
+from typing import Dict, List, Any, Optional, Union, Tuple, Set, cast, Callable, TypeVar
 
 # Add more adapters as they are implemented
 

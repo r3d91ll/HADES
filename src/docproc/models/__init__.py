@@ -4,6 +4,8 @@ Data models for document processing.
 This package contains data models and type definitions for the document processing pipeline.
 """
 
+from typing import Dict, List, Any, Optional, Union, Tuple, Set, cast, Callable, TypeVar
+
 from src.docproc.models.python_code import (
     AccessLevel,
     Annotation,

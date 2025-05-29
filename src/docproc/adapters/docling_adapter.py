@@ -230,7 +230,7 @@ class DoclingAdapter(BaseAdapter):
         
         # Initialize the DocumentConverter - this will fail if Docling is not available
         # which is the desired behavior
-        converter_kwargs = {}
+        converter_kwargs: Dict[str, Any] = {}
         # Pass device directly if supported by DocumentConverter
         if device is not None:
             converter_kwargs['device'] = device

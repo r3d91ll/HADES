@@ -17,7 +17,7 @@ Adapters should use the centralized configuration system to determine processing
 Example:
     # Creating a format-specific adapter
     class MarkdownAdapter(BaseAdapter):
-        def process(self, file_path, content=None):
+        def process(self, file_path: Union[str, Path], content: str = None) -> Dict[str, Any]:
             # Implementation for markdown processing
             return {"id": "...", "content": "..."}
 
@@ -76,7 +76,7 @@ class BaseAdapter(ABC):
             print(f"Title: {metadata.get('title')}")
     """
     
-    def __init__(self, format_type: Optional[str] = None):
+    def __init__(self, format_type: Optional[str] = None) -> None:
         """
         Initialize the adapter with optional format-specific configuration.
         

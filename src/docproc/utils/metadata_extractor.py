@@ -89,7 +89,7 @@ def extract_academic_pdf_metadata(content: str, source_path: str) -> Dict[str, A
     
     if title_index >= 0 and abstract_index > title_index:
         author_section = non_empty_lines[title_index+1:abstract_index]
-        potential_authors = []
+        potential_authors: List[Any] = []
         for line in author_section:
             # Common patterns in author sections: affiliations, emails, commas between names
             line_lower = line.lower()

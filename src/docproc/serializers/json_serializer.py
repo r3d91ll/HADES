@@ -58,7 +58,7 @@ def serialize_to_json(
     """
     # Create the result dictionary with carefully ordered keys
     # Start with core identifying fields
-    result = {}
+    result: Dict[str, Any] = {}
     
     # First add ID, source, and format (critical metadata fields)
     if "id" in processing_result:
@@ -85,11 +85,11 @@ def serialize_to_json(
     
     # Include document metadata if requested - BEFORE content
     if include_metadata:
-        metadata = {}
+        metadata: Dict[str, Any] = {}
         
         # Copy existing metadata if present
         original_metadata = processing_result.get("metadata", {})
-        if isinstance(original_metadata, dict):
+        if isinstance(original_metadata, dict) :
             metadata.update(_make_json_serializable(original_metadata))
         
         # Add processing statistics if present
@@ -147,7 +147,7 @@ def save_to_json_file(
         The absolute path to the saved JSON file
     """
     # Convert path to Path object if it's a string
-    if isinstance(output_path, str):
+    if isinstance(output_path, str) :
         output_path = Path(output_path)
         
     # Create parent directories if they don't exist

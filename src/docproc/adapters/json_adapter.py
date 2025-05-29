@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 """
 JSON adapter for the document processing system.
 
@@ -13,7 +15,11 @@ import hashlib
 from typing import Dict, Any, List, Optional, Union, Tuple, Set, TypedDict, cast, Collection, MutableMapping
 from collections import defaultdict
 
+from pathlib import Path
+
 from .base import BaseAdapter
+
+from pathlib import Path
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -40,7 +46,7 @@ class JSONAdapter(BaseAdapter):
     creates relationships between JSON elements.
     """
     
-    def __init__(self, create_symbol_table: bool = True, options: Optional[Dict[str, Any]] = None):
+    def __init__(self, create_symbol_table: bool = True, options: Optional[Dict[str, Any]] = None) -> None:
         """
         Initialize the JSON adapter.
         
@@ -141,7 +147,7 @@ class JSONAdapter(BaseAdapter):
             Extracted metadata
         """
         document = content if isinstance(content, dict) else {}
-        metadata = {}
+        metadata: Dict[str, Any] = {}
         
         # Extract basic metadata
         if "metadata" in document:
@@ -165,7 +171,7 @@ class JSONAdapter(BaseAdapter):
         
         # Extract top-level keys as entities
         if "symbol_table" in document:
-            for symbol_id, symbol_info in document["symbol_table"].items():
+            for symbol_id, symbol_info in document["symbol_table"].items() :
                 if symbol_info.get("path", "").count("/") <= 1:  # Only top-level or direct children
                     entity = {
                         "id": symbol_id,
@@ -188,9 +194,9 @@ class JSONAdapter(BaseAdapter):
         Returns:
             Dictionary mapping line numbers to character positions
         """
-        positions = {}
+        positions: Dict[str, Any] = {}
         pos = 0
-        for i, line in enumerate(text.split("\n")):
+        for i, line in enumerate(text.split("\n")) :
             positions[i+1] = pos
             pos += len(line) + 1  # +1 for the newline
         return positions
@@ -217,10 +223,10 @@ class JSONAdapter(BaseAdapter):
             Tuple of (elements, relationships)
         """
         elements: Dict[str, Any] = {}
-        relationships = []
+        relationships: List[Any] = []
         
         # Process based on data type
-        if isinstance(data, dict):
+        if isinstance(data, dict) :
             for key, value in data.items():
                 # Create path for this element
                 current_path = f"{parent_path}.{key}" if parent_path else key
@@ -335,7 +341,7 @@ class JSONAdapter(BaseAdapter):
         """Get the type name of a value."""
         if value is None:
             return "null"
-        elif isinstance(value, dict):
+        elif isinstance(value, dict) :
             return "object"
         elif isinstance(value, list):
             return "array"
@@ -354,7 +360,7 @@ class JSONAdapter(BaseAdapter):
         """Get a preview of a value for display."""
         if value is None:
             return "null"
-        elif isinstance(value, (dict, list)):
+        elif isinstance(value, (dict, list)) :
             return None  # No preview for complex types
         elif isinstance(value, str):
             if len(value) > 50:

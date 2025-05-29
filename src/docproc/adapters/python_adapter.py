@@ -210,7 +210,7 @@ class PythonAdapter(BaseAdapter):
         # Handle options based on type
         process_options = dict(self.options)
         if options is not None:
-            if isinstance(options, dict):
+            if isinstance(options, dict) :
                 process_options.update(options)
             elif isinstance(options, str):
                 # Handle string options (e.g., format specification)
@@ -266,7 +266,7 @@ class PythonAdapter(BaseAdapter):
         # Handle dictionary input
         if isinstance(content, dict) and "raw_content" in content:
             python_content = str(content["raw_content"])
-        elif isinstance(content, str):
+        elif isinstance(content, str) :
             python_content = content
         else:
             return entities
@@ -388,7 +388,7 @@ class PythonAdapter(BaseAdapter):
         # Handle dictionary input
         if isinstance(content, dict) and "raw_content" in content:
             python_content = str(content["raw_content"])
-        elif isinstance(content, str):
+        elif isinstance(content, str) :
             python_content = content
         else:
             return metadata
@@ -572,7 +572,7 @@ class PythonAdapter(BaseAdapter):
 class EntityExtractor(ast.NodeVisitor):
     """AST Visitor that extracts all relevant code entities."""
     
-    def __init__(self, file_path: str, entities: Dict[str, Dict[str, Any]], parent_id: str):
+    def __init__(self, file_path: str, entities: Dict[str, Dict[str, Any]], parent_id: str) -> None:
         """Initialize the extractor.
         
         Args:
@@ -597,9 +597,9 @@ class EntityExtractor(ast.NodeVisitor):
         class_id = f"class_{hashlib.md5(name_path.encode()).hexdigest()[:8]}"
         
         # Extract base classes
-        bases = []
+        bases: List[Any] = []
         for base in node.bases:
-            if isinstance(base, ast.Name):
+            if isinstance(base, ast.Name) :
                 bases.append(base.id)
             elif isinstance(base, ast.Attribute):
                 bases.append(self._get_attribute_path(base))
@@ -658,9 +658,9 @@ class EntityExtractor(ast.NodeVisitor):
         args = [arg.arg for arg in node.args.args]
         
         # Extract decorator names
-        decorators = []
+        decorators: List[Any] = []
         for decorator in node.decorator_list:
-            if isinstance(decorator, ast.Name):
+            if isinstance(decorator, ast.Name) :
                 decorators.append(decorator.id)
             elif isinstance(decorator, ast.Attribute):
                 decorators.append(self._get_attribute_path(decorator))
@@ -767,7 +767,7 @@ class EntityExtractor(ast.NodeVisitor):
         Returns:
             Dotted path as string
         """
-        parts = []
+        parts: List[Any] = []
         
         current: Any = node
         while isinstance(current, ast.Attribute):
@@ -792,7 +792,7 @@ class EntityExtractor(ast.NodeVisitor):
             return cast(int, node.end_lineno)
             
         # If end_lineno not available, use lineno of last child or current line
-        if not hasattr(node, 'lineno'):
+        if not hasattr(node, 'lineno') :
             return 0
             
         max_line = cast(int, node.lineno)
@@ -818,7 +818,7 @@ class CallFinder(ast.NodeVisitor):
             node: Call node
         """
         # Handle simple name calls
-        if isinstance(node.func, ast.Name):
+        if isinstance(node.func, ast.Name) :
             self.calls.append(node.func.id)
         # Handle attribute calls (obj.method())
         elif isinstance(node.func, ast.Attribute):

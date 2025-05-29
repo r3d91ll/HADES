@@ -8,8 +8,12 @@ data validation across different document types.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from typing import Any, Dict, List, Literal, Optional, Union, Set, cast, Callable, TypeVar
 from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
+
+from pathlib import Path
 
 # Type variables for validator functions
 T = TypeVar('T')
@@ -32,6 +36,8 @@ def typed_model_validator(mode: str = 'after') -> Callable[[Callable[[Any], Any]
 # Import from the centralized schema structure
 from src.schemas.common.base import BaseSchema
 from src.schemas.common.types import MetadataDict
+
+from pathlib import Path
 
 
 class BaseEntity(BaseSchema):

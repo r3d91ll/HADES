@@ -41,7 +41,7 @@ class YAMLAdapter(BaseAdapter):
     creates relationships between YAML elements.
     """
     
-    def __init__(self, create_symbol_table: bool = True, options: Optional[Dict[str, Any]] = None):
+    def __init__(self, create_symbol_table: bool = True, options: Optional[Dict[str, Any]] = None) -> None:
         """
         Initialize the YAML adapter.
         
@@ -65,7 +65,7 @@ class YAMLAdapter(BaseAdapter):
         """
 
         # Process options
-        options_dict = {}
+        options_dict: Dict[str, Any] = {}
         content = None
         
         if options is None:
@@ -150,7 +150,7 @@ class YAMLAdapter(BaseAdapter):
         
         # If we have nodes, convert them to entities
         if "symbol_table" in document:
-            for symbol_id, symbol_info in document["symbol_table"].items():
+            for symbol_id, symbol_info in document["symbol_table"].items() :
                 if symbol_info.get("path", "").count("/") <= 1:  # Only top-level or direct children
                     entity = {
                         "id": symbol_id,
@@ -174,7 +174,7 @@ class YAMLAdapter(BaseAdapter):
         Returns:
             Processed YAML information
         """
-        if not text or not text.strip():
+        if not text or not text.strip() :
             return cast(Dict[str, Any], {"error": "Empty YAML content"})
             
         try:
@@ -251,9 +251,9 @@ class YAMLAdapter(BaseAdapter):
         Returns:
             Dictionary mapping line numbers to character positions
         """
-        positions = {}
+        positions: Dict[str, Any] = {}
         pos = 0
-        for i, line in enumerate(text.split("\n")):
+        for i, line in enumerate(text.split("\n")) :
             positions[i+1] = pos
             pos += len(line) + 1  # +1 for the newline
         return positions
@@ -283,7 +283,7 @@ class YAMLAdapter(BaseAdapter):
         relationships: List[Dict[str, Any]] = []
         
         # Process based on data type
-        if isinstance(data, dict):
+        if isinstance(data, dict) :
             for key, value in data.items():
                 # Create path for this element
                 current_path = f"{parent_path}.{key}" if parent_path else key
@@ -396,7 +396,7 @@ class YAMLAdapter(BaseAdapter):
         """Get the type name of a value."""
         if value is None:
             return "null"
-        elif isinstance(value, dict):
+        elif isinstance(value, dict) :
             return "mapping"
         elif isinstance(value, list):
             return "sequence"
@@ -415,7 +415,7 @@ class YAMLAdapter(BaseAdapter):
         """Get a preview of a value for display."""
         if value is None:
             return "null"
-        elif isinstance(value, (dict, list)):
+        elif isinstance(value, (dict, list)) :
             return None  # No preview for complex types
         elif isinstance(value, str):
             if len(value) > 50:

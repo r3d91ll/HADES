@@ -141,7 +141,7 @@ class PythonCodeAdapter(BaseAdapter):
             List of extracted entities with metadata
         """
         # If content is already processed data, use it directly
-        if isinstance(content, dict):
+        if isinstance(content, dict) :
             processed = content
         else:
             # Process the text content
@@ -151,7 +151,7 @@ class PythonCodeAdapter(BaseAdapter):
         code_analysis = processed.get("code_analysis", {})
         
         # Return entities
-        entities = []
+        entities: List[Any] = []
         
         # Add module entity
         module_info = code_analysis.get("module", {})
@@ -209,7 +209,7 @@ class PythonCodeAdapter(BaseAdapter):
             Dictionary of metadata
         """
         # If content is already processed data, use it directly
-        if isinstance(content, dict):
+        if isinstance(content, dict) :
             processed = content
         else:
             # Process the text content

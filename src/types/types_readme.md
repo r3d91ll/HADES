@@ -20,10 +20,22 @@ src/types/
   │   ├── __init__.py
   │   ├── queue.py           # Queue and backpressure types
   │   └── worker.py          # Worker pool types
-  ├── documents/             # Document and chunk types
+  ├── docproc/               # Document processing types (renamed from documents/)
   │   ├── __init__.py  
   │   ├── base.py            # Base document types
   │   └── schema.py          # Document schemas
+  ├── chunking/              # Chunking-related types
+  │   ├── __init__.py
+  │   └── chunk.py           # Chunk type definitions
+  ├── storage/               # Storage-related types
+  │   ├── __init__.py
+  │   └── repository.py      # Storage repository types
+  ├── pathrag/               # PathRAG-specific types
+  │   ├── __init__.py
+  │   └── path.py            # Path reasoning types
+  ├── indexing/              # Indexing-related types
+  │   ├── __init__.py
+  │   └── index.py           # Index structure types
   ├── embedding/             # Embedding-related types
   │   ├── __init__.py
   │   └── vector.py          # Embedding vector types
@@ -36,9 +48,11 @@ src/types/
 
 1. **Domain-Specific Types**: Place types in the appropriate subdirectory based on the module they primarily relate to
 2. **Common Types**: Types used across multiple modules should be placed in `common.py`
-3. **Import Structure**: Import types directly from their module, e.g., `from src.types.documents.base import DocumentType`
+3. **Import Structure**: Import types directly from their module, e.g., `from src.types.docproc.base import DocumentType`
 4. **Type Exports**: Each module should export its types through `__init__.py` for convenience
 5. **Documentation**: All types should have docstrings explaining their purpose and structure
+6. **Module Alignment**: Type directories should align with corresponding src/ module directories
+7. **Migration Strategy**: Module-specific types should be migrated to the centralized type system
 
 ## Type Safety
 
@@ -48,6 +62,26 @@ This module supports the team's commitment to type safety:
 2. We use TypedDict, Protocol, and structural types appropriately
 3. Validation functions are provided where needed
 4. All code should pass mypy validation with strict settings
+
+## Type Migration Strategy
+
+To ensure consistent type usage across the codebase, follow this migration strategy:
+
+1. **Syntax Fixes First**: Fix any syntax errors in type annotations within modules
+2. **Type Inventory**: Identify all module-specific types that need to be centralized
+3. **Create Centralized Types**: Create equivalent types in the appropriate src/types/ subdirectory
+4. **Update Imports**: Update all imports to use the centralized types
+5. **Run Type Checking**: Verify all changes with mypy (--disallow-untyped-defs --disallow-incomplete-defs)
+6. **Documentation**: Update type documentation to reflect the changes
+
+## Future Compatibility
+
+Centralizing types provides several benefits:
+
+1. **Easier Maintenance**: Single source of truth for type definitions
+2. **Mojo Compatibility**: Facilitates future porting to Mojo by centralizing type information
+3. **Consistent Validation**: Enables consistent validation across the codebase
+4. **Clearer Boundaries**: Establishes clear boundaries between modules
 
 ### Mypy Configuration
 

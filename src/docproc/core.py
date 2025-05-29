@@ -252,7 +252,7 @@ def process_text(text: str, format_type: str = "text", format_or_options: Option
     
     Returns:
         Dictionary with processed content and metadata in the standardized format,
-        matching the structure returned by process_document():
+        matching the structure returned by process_document() -> Dict[str, Any]:
         {
             "id": "generated-id",
             "content": "Processed text content",
@@ -285,7 +285,7 @@ def process_text(text: str, format_type: str = "text", format_or_options: Option
         )
         
         # Process Python code
-        code = "def hello(): print('Hello, world!')"
+        code = "def hello() -> Any: print('Hello, world!')"
         result = process_text(
             code, 
             format_type="python",
@@ -510,10 +510,10 @@ def process_documents_batch(
         )
         
         # With custom success/error callbacks
-        def on_doc_success(doc, path):
+        def on_doc_success(doc: Any, path: Any) -> Dict[str, Any]:
             print(f"Successfully processed {path} with ID {doc['id']}")
             
-        def on_doc_error(path, error):
+        def on_doc_error(path: Any, error: Any) -> Any:
             print(f"Failed to process {path}: {error}")
             
         stats = process_documents_batch(

@@ -91,7 +91,7 @@ class DocumentProcessorManager:
         """Initialize the DocumentProcessorManager.
 
         Args:
-            options (Dict[str, Any], optional): Options for processing. Defaults to None.
+            options (Dict[str, Any], optional) -> None: Options for processing. Defaults to None.
         """
         self.options = options or {}
         
@@ -337,7 +337,7 @@ class DocumentProcessorManager:
             print(f"Successfully processed {len(successful)} documents")
             print(f"Failed to process {len(failed)} documents")
         """
-        results = []
+        results: List[Any] = []
         options = options or {}
         
         for path in paths:
