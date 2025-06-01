@@ -68,6 +68,11 @@ This section outlines the planned improvements to the pipeline architecture for 
   - [x] Fix unreachable code issues and missing return statements
   - [x] Update schemas_readme.md with type safety guidelines
 - [ ] Address remaining type issues in other modules
+  - [x] Fix typing issues in adapter modules
+    - [x] Fix Python code adapter typing (`python_code_adapter.py`)
+    - [x] Fix Docling adapter typing (`docling_adapter.py`)
+    - [x] Fix Python adapter typing (`python_adapter.py`)
+    - [x] Improve test coverage for adapters to ≥85% standard
   - [ ] Implement centralized type system
     - [x] Create src/types/docproc/ directory (rename from src/types/documents/)
     - [x] Create src/types/chunking/ directory for chunking types
