@@ -4,8 +4,11 @@ Registry for document format adapters.
 This module provides functionality to register and retrieve format-specific adapters.
 """
 
-from typing import Dict, Type, Optional, TypeVar, cast, Any
+from typing import Dict, Type, Optional, TypeVar, cast, Any, List
 from .base import BaseAdapter
+
+# Import centralized type definitions
+from src.types.docproc import DocumentProcessorType
 
 # Type variable for concrete adapter classes that extend BaseAdapter
 T = TypeVar('T', bound=BaseAdapter)
@@ -52,7 +55,7 @@ def register_adapter(format_type: str, adapter_class: Type[T]) -> None:
     _ADAPTER_REGISTRY[format_type.lower()] = adapter_class
 
 
-def get_adapter_class(format_type: str) -> Type[BaseAdapter]:
+def get_adapter_class(format_type: str) -> Type[DocumentProcessorType]:
     """
     Get the adapter class for a specific format.
     
@@ -73,7 +76,7 @@ def get_adapter_class(format_type: str) -> Type[BaseAdapter]:
     return cast(Type[BaseAdapter], _ADAPTER_REGISTRY[format_type])
 
 
-def get_adapter_for_format(format_type: str) -> BaseAdapter:
+def get_adapter_for_format(format_type: str) -> DocumentProcessorType:
     """
     Get an instance of the adapter for a specific format.
     

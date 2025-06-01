@@ -28,7 +28,7 @@ Example:
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, Any, Optional, Union, List, Tuple, cast
+from typing import Dict, Any, Optional, Union, List, Tuple, cast, Protocol
 
 from src.config.preprocessor_config import load_config
 from src.types.common import (
@@ -36,6 +36,16 @@ from src.types.common import (
     MetadataExtractionConfig,
     EntityExtractionConfig,
     ChunkingPreparationConfig
+)
+
+# Import centralized adapter type definitions
+from src.types.docproc import (
+    AdapterConfig,
+    AdapterOptions,
+    ProcessedDocument,
+    AdapterResult,
+    EntityDict,
+    MetadataDict
 )
 
 
@@ -128,7 +138,7 @@ class BaseAdapter(ABC):
             logging.getLogger(__name__).warning(f"Failed to load configuration: {e}")
     
     @abstractmethod
-    def process(self, file_path: Union[str, Path], options: Optional[Union[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
+    def process(self, file_path: Union[str, Path], options: Optional[AdapterOptions] = None) -> ProcessedDocument:
         """
         Process a file or content string and convert to standardized format.
         
@@ -175,7 +185,7 @@ class BaseAdapter(ABC):
         pass
     
     @abstractmethod
-    def process_text(self, text: str, options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def process_text(self, text: str, format_type: str = "text", options: Optional[AdapterOptions] = None) -> ProcessedDocument:
         """
         Process text content directly without an associated file.
         
@@ -216,7 +226,7 @@ class BaseAdapter(ABC):
         pass
     
     @abstractmethod
-    def extract_entities(self, content: Union[str, Dict[str, Any]], options: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    def extract_entities(self, content: Union[str, Dict[str, Any]], options: Optional[AdapterOptions] = None) -> List[EntityDict]:
         """
         Extract entities from document content.
         
@@ -246,7 +256,7 @@ class BaseAdapter(ABC):
         pass
     
     @abstractmethod
-    def extract_metadata(self, content: Union[str, Dict[str, Any]], options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def extract_metadata(self, content: Union[str, Dict[str, Any]], options: Optional[AdapterOptions] = None) -> MetadataDict:
         """
         Extract metadata from document content.
         

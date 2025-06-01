@@ -17,6 +17,14 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional, Union, Tuple, Set, TypedDict, cast
 from collections import defaultdict
 
+# Import centralized type definitions
+from src.types.docproc import AdapterOptions, ProcessedDocument, EntityDict, MetadataDict
+
+# Custom extension of MetadataDict for Python-specific metadata
+class PythonMetadataDict(MetadataDict):
+    """Extended metadata for Python files with additional fields."""
+    file_path: str  # Path to the Python file (not in base MetadataDict)
+
 from .base import BaseAdapter
 
 # Set up logging
@@ -89,7 +97,7 @@ class PythonAdapter(BaseAdapter):
         
         logger.info(f"Initialized PythonAdapter with create_symbol_table={self.create_symbol_table}, analyze_calls={self.analyze_calls}")
 
-    def process(self, file_path: Union[str, Path], options: Optional[Union[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
+    def process(self, file_path: Union[str, Path], options: Optional[AdapterOptions] = None) -> ProcessedDocument:
         """Process a source-code file.
 
         Args:
@@ -106,11 +114,16 @@ class PythonAdapter(BaseAdapter):
         # Handle options based on type
         process_options = dict(self.options)
         if options is not None:
-            if isinstance(options, dict):
-                process_options.update(options)
-            elif isinstance(options, str):
-                # Handle string options (e.g., format specification)
-                process_options["format"] = options
+            # Use type guards to handle different option types
+            # Handle string options
+            options_str = options if isinstance(options, str) else None
+            if options_str is not None:
+                process_options["format"] = options_str
+            
+            # Handle dictionary options
+            options_dict = cast(Dict[str, Any], options) if isinstance(options, dict) else None
+            if options_dict is not None:
+                process_options.update(options_dict)
 
         # Convert to Path object if string
         path_obj = Path(file_path) if isinstance(file_path, str) else file_path
@@ -194,9 +207,10 @@ class PythonAdapter(BaseAdapter):
                 if "error" in python_data:
                     document["error"] = python_data["error"]
         
-        return document
+        # Cast the return value to the required type for BaseAdapter compliance
+        return cast(ProcessedDocument, document)
     
-    def process_text(self, text: str, options: Optional[Union[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
+    def process_text(self, text: str, format_type: str = "python", options: Optional[AdapterOptions] = None) -> ProcessedDocument:
         """
         Process Python text content.
         
@@ -210,11 +224,16 @@ class PythonAdapter(BaseAdapter):
         # Handle options based on type
         process_options = dict(self.options)
         if options is not None:
-            if isinstance(options, dict) :
-                process_options.update(options)
-            elif isinstance(options, str):
-                # Handle string options (e.g., format specification)
-                process_options["format"] = options
+            # Use type guards to handle different option types
+            # Handle string options
+            options_str = options if isinstance(options, str) else None
+            if options_str is not None:
+                process_options["format"] = options_str
+            
+            # Handle dictionary options
+            options_dict = cast(Dict[str, Any], options) if isinstance(options, dict) else None
+            if options_dict is not None:
+                process_options.update(options_dict)
         
         # Generate a stable document ID
         doc_id = f"python_text_{hashlib.md5(text[:100].encode()).hexdigest()[:8]}"
@@ -222,7 +241,9 @@ class PythonAdapter(BaseAdapter):
         try:
             # Extract metadata
             metadata = self.extract_metadata(text)
-            metadata["file_path"] = "text"  # Consistent with other adapters
+            # Use custom metadata keys without adding to the TypedDict definition
+            metadata_dict = cast(MetadataDict, metadata)
+            metadata["file_path"] = "text"  # Custom key not in MetadataDict definition
             metadata["format"] = "python"
             
             # Extract entities
@@ -234,7 +255,8 @@ class PythonAdapter(BaseAdapter):
             # Format as a code block
             markdown_content = f"```python\n{escaped_content}\n```"
             
-            result = {
+            # Create a properly typed ProcessedDocument
+            result = cast(ProcessedDocument, {
                 "id": doc_id,
                 "source": "text",
                 "content": markdown_content,
@@ -243,7 +265,7 @@ class PythonAdapter(BaseAdapter):
                 "metadata": metadata,
                 "entities": entities,
                 "raw_content": text
-            }
+            })
             
             return result
             
@@ -251,7 +273,7 @@ class PythonAdapter(BaseAdapter):
             logger.error(f"Error processing Python text: {e}", exc_info=True)
             raise ValueError(f"Error processing Python text: {str(e)}")
     
-    def extract_entities(self, content: Union[str, Dict[str, Any]], options: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    def extract_entities(self, content: Union[str, Dict[str, Any]], options: Optional[AdapterOptions] = None) -> List[EntityDict]:
         """
         Extract entities from Python content.
         
@@ -269,7 +291,8 @@ class PythonAdapter(BaseAdapter):
         elif isinstance(content, str) :
             python_content = content
         else:
-            return entities
+            # Return with proper type casting for BaseAdapter compliance
+            return cast(List[EntityDict], entities)
         
         try:
             # Parse the AST
@@ -367,9 +390,10 @@ class PythonAdapter(BaseAdapter):
                     "confidence": 0.8
                 })
         
-        return entities
+        # Cast the return value to comply with BaseAdapter interface
+        return cast(List[EntityDict], entities)
     
-    def extract_metadata(self, content: Union[str, Dict[str, Any]], options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def extract_metadata(self, content: Union[str, Dict[str, Any]], options: Optional[AdapterOptions] = None) -> PythonMetadataDict:
         """
         Extract metadata from Python content.
         
@@ -391,7 +415,8 @@ class PythonAdapter(BaseAdapter):
         elif isinstance(content, str) :
             python_content = content
         else:
-            return metadata
+            # Return a properly typed PythonMetadataDict
+            return cast(PythonMetadataDict, metadata)
         
         # Basic metrics
         metadata["line_count"] = python_content.count('\n') + 1
@@ -430,7 +455,8 @@ class PythonAdapter(BaseAdapter):
             metadata["import_count"] = len(re.findall(r'import\s+[a-zA-Z0-9_.]+|from\s+[a-zA-Z0-9_.]+\s+import', python_content))
             metadata["has_syntax_errors"] = True
             
-        return metadata
+        # Cast the return value to comply with BaseAdapter interface
+        return cast(PythonMetadataDict, metadata)
     
     # convert_to_markdown and convert_to_text methods were removed as they are outside
     # the core functionality of the document processing pipeline

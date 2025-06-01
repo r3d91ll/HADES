@@ -6,7 +6,7 @@ including PDF, HTML, code files, and structured data formats (JSON, XML, YAML).
 It converts them to standardized formats for both RAG and direct model inference.
 """
 
-from .core import process_document, process_text, detect_format, get_format_for_document
+from .core import process_document, process_text, detect_file_format, get_format_for_document
 
 from pathlib import Path
 
@@ -17,6 +17,6 @@ from pathlib import Path
 __all__ = [
     "process_document",
     "process_text",
-    "detect_format",
+    "detect_file_format",
     "get_format_for_document"
 ]

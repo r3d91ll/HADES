@@ -6,14 +6,19 @@ built-in AST module to extract information about the code structure,
 such as functions, classes, and their relationships.
 """
 
-from typing import Dict, List, Any, Optional, Union
-import os
-import hashlib
-import logging
+from typing import Any, Dict, List, Optional, Union, cast
 from pathlib import Path
+import logging
+import ast
+import json
+import re
+import hashlib
 
-from .base import BaseAdapter
-from .registry import register_adapter
+from src.docproc.adapters.base import BaseAdapter
+from src.docproc.adapters.registry import register_adapter
+from src.docproc.utils.code_analysis import analyze_python_code
+from src.types.docproc.adapter import AdapterOptions, ProcessedDocument
+from src.types.docproc.metadata import MetadataDict, EntityDict
 from .python_adapter import PythonAdapter
 
 logger = logging.getLogger(__name__)
@@ -49,7 +54,7 @@ class PythonCodeAdapter(BaseAdapter):
         
         logger.info("PythonCodeAdapter initialized")
     
-    def process(self, file_path: Union[str, Path], options: Optional[Union[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
+    def process(self, file_path: Union[str, Path], options: Optional[AdapterOptions] = None) -> ProcessedDocument:
         """Process a Python code file.
         
         Args:
@@ -76,29 +81,33 @@ class PythonCodeAdapter(BaseAdapter):
             content = f.read()
         
         # Process with python_adapter
-        processed = self.python_adapter.process_text(content)
+        processed = cast(Dict[str, Any], self.python_adapter.process_text(content))
         
         # Create a document ID
         file_hash = hashlib.md5(str(path_obj).encode()).hexdigest()[:8]
         doc_id = f"python_{file_hash}_{path_obj.stem}"
         
         # Build document structure
-        document = {
+        document: ProcessedDocument = {
             "id": doc_id,
             "source": str(path_obj),
             "content": content,
+            "format": "python",  # Required field in ProcessedDocument
             "metadata": {
                 "path": str(path_obj),
                 "filename": path_obj.name,
                 "extension": path_obj.suffix,
                 "language": "python",
                 "code_analysis": processed
-            }
+            },
+            "entities": [],  # Required field in ProcessedDocument
+            "processing_time": 0.0,  # Required field
+            "error": None  # Required field
         }
         
         return document
     
-    def process_text(self, text: str, options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def process_text(self, text: str, format_type: str = "python", options: Optional[AdapterOptions] = None) -> ProcessedDocument:
         """Process Python code text content.
         
         Args:
@@ -109,27 +118,31 @@ class PythonCodeAdapter(BaseAdapter):
             Processed document with metadata and content
         """
         # Process with python_adapter
-        processed = self.python_adapter.process_text(text)
+        processed = cast(Dict[str, Any], self.python_adapter.process_text(text))
         
         # Create a document ID
         content_hash = hashlib.md5(text.encode()).hexdigest()[:8]
         doc_id = f"python_{content_hash}"
         
         # Build document structure
-        document = {
+        document: ProcessedDocument = {
             "id": doc_id,
             "source": "text_content",
             "content": text,
+            "format": "python",  # Required field in ProcessedDocument
             "metadata": {
                 "language": "python",
                 "code_analysis": processed
-            }
+            },
+            "entities": [],  # Required field in ProcessedDocument
+            "processing_time": 0.0,  # Required field
+            "error": None  # Required field
         }
         
         return document
 
 
-    def extract_entities(self, content: Union[str, Dict[str, Any]], options: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    def extract_entities(self, content: Union[str, Dict[str, Any]], options: Optional[AdapterOptions] = None) -> List[EntityDict]:
         """
         Extract entities from Python code content.
         
@@ -145,7 +158,7 @@ class PythonCodeAdapter(BaseAdapter):
             processed = content
         else:
             # Process the text content
-            processed = self.python_adapter.process_text(content)
+            processed = cast(Dict[str, Any], self.python_adapter.process_text(content))
         
         # Extract entities from processed data
         code_analysis = processed.get("code_analysis", {})
@@ -197,7 +210,7 @@ class PythonCodeAdapter(BaseAdapter):
         
         return entities
 
-    def extract_metadata(self, content: Union[str, Dict[str, Any]], options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def extract_metadata(self, content: Union[str, Dict[str, Any]], options: Optional[AdapterOptions] = None) -> MetadataDict:
         """
         Extract metadata from Python code content.
         
@@ -213,13 +226,13 @@ class PythonCodeAdapter(BaseAdapter):
             processed = content
         else:
             # Process the text content
-            processed = self.python_adapter.process_text(content)
+            processed = cast(Dict[str, Any], self.python_adapter.process_text(content))
         
         # Extract metadata from processed data
         code_analysis = processed.get("code_analysis", {})
         
         # Build metadata object
-        metadata = {
+        metadata: MetadataDict = {
             "language": "python",
             "document_type": "code",
             "code_type": "python"

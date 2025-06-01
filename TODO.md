@@ -74,42 +74,127 @@ This section outlines the planned improvements to the pipeline architecture for 
     - [x] Create src/types/storage/ directory for storage types
     - [x] Create src/types/pathrag/ directory for PathRAG types
     - [x] Create src/types/indexing/ directory for indexing types
+    - [x] Create src/types/model_engine/ directory for model engine types
+    - [x] Create src/types/embedding/ directory for embedding types
+    - [x] Create src/types/isne/ directory for ISNE types
     - [x] Update type migration plan document in src/types/types_readme.md
 
-    ### Current Type System Status By Module
+    ### Type System Refactoring Strategy
 
-    | Module | Type Status | Current Location | Migration Needs |
-    |--------|-------------|------------------|------------------|
-    | **docproc** | Mixed | `src/docproc/schemas/` and imports from `src/types/common` | Migrate internal types to `src/types/docproc/` |
-    | **chunking** | Local only | Types defined within module | Create and migrate to `src/types/chunking/` |
-    | **storage** | Mostly centralized | Uses types from `src/types/common` | Complete migration to `src/types/storage/` |
-    | **pathrag** | Mixed | Internal types + imports from `src/types/common` and `model_types` | Create and migrate to `src/types/pathrag/` |
-    | **pipeline** | Mixed | Has schemas in `src/schemas/pipeline/` and types in `src/types/pipeline/` | Consolidate to `src/types/pipeline/` |
-    | **embedding** | Mostly centralized | Uses `EmbeddingVector` from `src/types/common` | Complete migration to `src/types/embedding/` |
-    | **isne** | Mixed | Has types in both `src/isne/types/` and `src/types/isne/` | Consolidate to `src/types/isne/` |
-    | **model_engine** | Mostly centralized | Uses types from `src/types/vllm_types` | Create `src/types/model_engine/` |
+    Since we're in active development, we'll use a **replace-don't-migrate** approach to establish a clean type system without complex migrations. Each module will be refactored completely with proper type annotations.
 
-    ### Migration Priority Order
+    ### Git Strategy for Type Refactoring
 
-    1. **docproc**: Fix syntax issues, then migrate from internal schemas
-    2. **chunking**: Create and migrate to centralized types
-    3. **pathrag**: Create and migrate to centralized types
-    4. **storage**: Complete migration to centralized types
-    5. **isne**: Consolidate types from multiple locations
-    6. **model_engine**: Create and migrate to centralized types
-  - [ ] Fix type issues in docproc module
-    - [ ] Fix syntax errors in type annotations
-    - [ ] Migrate module-specific types to centralized types in src/types/docproc/
-    - [ ] Update imports to use centralized types
-    - [ ] Ensure consistent type usage across the module
-  - [ ] Fix type issues in storage module
-    - [ ] Fix syntax errors in type annotations
-    - [ ] Migrate module-specific types to centralized types in src/types/storage/
-    - [ ] Update imports to use centralized types
-  - [ ] Fix type issues in pathrag module
-    - [ ] Fix syntax errors in type annotations
-    - [ ] Migrate module-specific types to centralized types in src/types/pathrag/
-    - [ ] Update imports to use centralized types
+    For each module:
+    1. Create a feature branch: `git checkout -b feature/types-{module_name}`
+    2. Complete all type refactoring for that module
+    3. Run type checks with mypy
+    4. Create a pull request for review
+    5. After approval, merge to main branch
+
+    ### Module Refactoring Order and Approach
+
+    #### 1. docproc (First Priority)
+
+    - **Branch**: `feature/types-docproc`
+    - **Type Definitions**:
+      - `src/types/docproc/document.py`: Document type definitions
+      - `src/types/docproc/metadata.py`: Metadata type definitions
+      - `src/types/docproc/adapter.py`: Adapter interface types
+      - `src/types/docproc/processing.py`: Processing result types
+    - **Implementation Steps**:
+      - Replace all internal types with centralized types
+      - Fix any syntax errors in type annotations
+      - Ensure consistent usage of types across the module
+      - Run mypy to verify type correctness
+
+    #### 2. model_engine (Second Priority)
+
+    - **Branch**: `feature/types-model-engine`
+    - **Type Definitions**:
+      - `src/types/model_engine/engine.py`: Engine interface types
+      - `src/types/model_engine/adapters.py`: Model adapter types
+      - `src/types/model_engine/inference.py`: Inference request/response types
+      - `src/types/model_engine/config.py`: Configuration types
+    - **Implementation Steps**:
+      - Refactor all engine implementations to use centralized types
+      - Standardize interface for all engine types
+      - Run mypy to verify type correctness
+
+    #### 3. chunking (Third Priority)
+
+    - **Branch**: `feature/types-chunking`
+    - **Type Definitions**:
+      - `src/types/chunking/chunk.py`: Chunk data types
+      - `src/types/chunking/strategy.py`: Chunking strategy interfaces
+      - `src/types/chunking/text.py`: Text-specific chunking types
+      - `src/types/chunking/code.py`: Code-specific chunking types
+    - **Implementation Steps**:
+      - Replace local type definitions with centralized types
+      - Ensure compatibility with document types
+      - Run mypy to verify type correctness
+
+    #### 4. embedding (Fourth Priority)
+
+    - **Branch**: `feature/types-embedding`
+    - **Type Definitions**:
+      - `src/types/embedding/vector.py`: Embedding vector types
+      - `src/types/embedding/model.py`: Embedding model interfaces
+      - `src/types/embedding/service.py`: Embedding service types
+    - **Implementation Steps**:
+      - Standardize embedding vector representation
+      - Ensure compatibility with both text and code embedding needs
+      - Run mypy to verify type correctness
+
+    #### 5. isne (Fifth Priority)
+
+    - **Branch**: `feature/types-isne`
+    - **Type Definitions**:
+      - `src/types/isne/graph.py`: Graph structure types
+      - `src/types/isne/layers.py`: Neural network layer types
+      - `src/types/isne/training.py`: Training types
+      - `src/types/isne/inference.py`: Inference types
+    - **Implementation Steps**:
+      - Consolidate types from multiple locations
+      - Ensure compatibility with embedding types
+      - Run mypy to verify type correctness
+
+    #### 6. storage (Sixth Priority)
+
+    - **Branch**: `feature/types-storage`
+    - **Type Definitions**:
+      - `src/types/storage/repository.py`: Repository interface types
+      - `src/types/storage/document.py`: Document storage types
+      - `src/types/storage/connection.py`: Database connection types
+      - `src/types/storage/query.py`: Query types
+    - **Implementation Steps**:
+      - Refactor storage interfaces to use centralized types
+      - Ensure compatibility with document and embedding types
+      - Run mypy to verify type correctness
+
+    #### Common Type Utilities
+
+    - **Branch**: `feature/types-common`
+    - **Type Definitions**:
+      - `src/types/common/result.py`: Success/failure result types
+      - `src/types/common/validation.py`: Validation result types
+      - `src/types/common/config.py`: Configuration types
+      - `src/types/common/utils.py`: Type utilities and helpers
+    - **Implementation Steps**:
+      - Create shared type utilities used across modules
+      - Ensure compatibility with all module-specific types
+      - Run mypy to verify type correctness
+
+    #### Final Integration
+
+    - **Branch**: `feature/types-integration`
+    - **Implementation Steps**:
+      - Resolve any cross-module type compatibility issues
+      - Run comprehensive mypy checks across the entire codebase
+      - Create final documentation for the type system
+
+    After all type issues are addressed, we will circle back for unit and integration testing to ensure the refactored code meets our test coverage requirements.
+
 - [ ] Improve test coverage to ≥85% for schema modules
 
 #### 6. Streaming Document Processing

@@ -1,0 +1,60 @@
+
+=== Adapter Test Coverage Analysis ===
+
+Class: PythonMetadataDict
+  Method Coverage: 0.0% (0/0)
+  Line Coverage: 0.0% (0/0)
+
+Class: FunctionInfo
+  Method Coverage: 0.0% (0/0)
+  Line Coverage: 0.0% (0/0)
+
+Class: ClassInfo
+  Method Coverage: 0.0% (0/0)
+  Line Coverage: 0.0% (0/0)
+
+Class: ImportInfo
+  Method Coverage: 0.0% (0/0)
+  Line Coverage: 0.0% (0/0)
+
+Class: RelationshipInfo
+  Method Coverage: 0.0% (0/0)
+  Line Coverage: 0.0% (0/0)
+
+Class: PythonAdapter
+  Method Coverage: 87.5% (7/8)
+  Line Coverage: 95.7% (487/509)
+  Untested Methods:
+    - __init__
+
+Class: EntityExtractor
+  Method Coverage: 57.1% (4/7)
+  Line Coverage: 75.0% (168/224)
+  Untested Methods:
+    - __init__
+    - _get_attribute_path
+    - _get_end_line
+
+Class: CallFinder
+  Method Coverage: 50.0% (1/2)
+  Line Coverage: 86.4% (19/22)
+  Untested Methods:
+    - __init__
+
+Class: DoclingAdapter
+  Method Coverage: 85.7% (6/7)
+  Line Coverage: 75.5% (287/380)
+  Untested Methods:
+    - __init__
+
+Class: PythonCodeAdapter
+  Method Coverage: 80.0% (4/5)
+  Line Coverage: 89.8% (193/215)
+  Untested Methods:
+    - __init__
+
+=== Overall Coverage ===
+Method Coverage: 75.9% (22/29)
+Line Coverage: 85.5% (1154/1350)
+
+✅ MEETS 85% STANDARD

@@ -6,7 +6,8 @@ based on its content category (code or text) and format type.
 """
 
 import logging
-from typing import Any, Dict, Type, Optional
+from typing import Any, Dict, Type, Optional, cast
+from pathlib import Path
 
 from .base import BaseAdapter
 from .registry import get_adapter_class
@@ -14,6 +15,9 @@ from .python_code_adapter import PythonCodeAdapter
 from .json_adapter import JSONAdapter
 from .yaml_adapter import YAMLAdapter
 from src.docproc.utils.format_detector import get_content_category
+
+# Import centralized type definitions
+from src.types.docproc import DocumentProcessorType
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -27,7 +31,7 @@ _CODE_ADAPTERS: Dict[str, Type[Any]] = {
     # Add more code format adapters as they are implemented
 }
 
-def select_adapter_for_document(format_type: str) -> BaseAdapter:
+def select_adapter_for_document(format_type: str) -> DocumentProcessorType:
     """
     Select the appropriate adapter for a document based on its format and content category.
     
@@ -48,8 +52,9 @@ def select_adapter_for_document(format_type: str) -> BaseAdapter:
         # For code formats, use specialized code adapters
         if format_type in _CODE_ADAPTERS:
             logger.info(f"Using specialized {format_type} code adapter")
-            adapter: BaseAdapter = _CODE_ADAPTERS[format_type]()
-            return adapter
+            adapter = _CODE_ADAPTERS[format_type]()
+            # Cast to DocumentProcessorType to ensure type safety
+            return cast(DocumentProcessorType, adapter)
         else:
             # For unsupported code formats, fall back to the generic adapter
             logger.info(f"No specialized adapter for {format_type}, using generic adapter")

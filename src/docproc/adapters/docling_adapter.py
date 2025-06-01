@@ -27,6 +27,9 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Type, Iterator, cast, Tuple, Union
 
+# Import centralized type definitions
+from src.types.docproc import AdapterOptions, ProcessedDocument, EntityDict, MetadataDict
+
 # Set up logger
 logger = logging.getLogger(__name__)
 
@@ -248,8 +251,8 @@ class DoclingAdapter(BaseAdapter):
     # ------------------------------------------------------------------
 
     def process(
-        self, file_path: Union[str, Path], options: Optional[Union[str, Dict[str, Any]]] = None
-    ) -> Dict[str, Any]:
+        self, file_path: Union[str, Path], options: Optional[AdapterOptions] = None
+    ) -> ProcessedDocument:
         """Process a document file using Docling.
         
         Args:
@@ -275,17 +278,24 @@ class DoclingAdapter(BaseAdapter):
         format_name = None
         
         if options is not None:
-            if isinstance(options, dict):
-                opts.update(options)
+            # Use type guards to handle different option types
+            options_dict = options if isinstance(options, dict) else None
+            options_str = options if isinstance(options, str) else None
+            
+            # Handle dictionary options
+            if options_dict is not None:
+                opts.update(options_dict)
                 # Check if format is specified in options
                 if "format" in opts:
                     format_name = opts["format"]
                 else:
                     format_name = _detect_format(path_obj)
-            elif isinstance(options, str):
+            
+            # Handle string options
+            if options_str is not None:
                 # Handle string options (e.g., format specification)
-                opts["format"] = options
-                format_name = options
+                opts["format"] = options_str
+                format_name = options_str
         
         # If format_name is still None, detect it from the path
         if format_name is None:
@@ -335,7 +345,6 @@ class DoclingAdapter(BaseAdapter):
         else:
             # Check the format before attempting fallback methods
             format_name = _detect_format(path_obj)
-            
             # For binary formats, we shouldn't try to read as text
             if format_name in BINARY_FORMATS:
                 logger.warning(f"Failed to process binary file {path_obj} with Docling. Binary files require proper format-specific processing.")
@@ -411,27 +420,32 @@ class DoclingAdapter(BaseAdapter):
             
         # Basic document structure - ensuring metadata comes before content
         # for proper downstream processing (e.g., chunkers)
-        return {
+        # Create a ProcessedDocument structure without extra keys
+        # Store content_format information in the metadata
+        metadata["content_format"] = "markdown"  # How the content is stored in this JSON
+        
+        return cast(ProcessedDocument, {
             "id": doc_id,
             "source": str(path_obj),
             "format": format_name,  # Original document format (PDF, Markdown, etc.)
             "content_type": "text",  # Top-level content_type for primary chunking decision
             "metadata": metadata,  # metadata.format describes the content format
             "entities": entities,
-            "content_format": "markdown",  # How the content is stored in this JSON
             "content": cleaned_content  # Use cleaned content
-        }
+        })
 
     # ------------------------------------------------------------------
     # Public API – text based processing (best-effort)
     # ------------------------------------------------------------------
 
     def process_text(
-        self, text: str, options: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, text: str, format_type: str = "text", options: Optional[AdapterOptions] = None
+    ) -> ProcessedDocument:
         opts = options or {}
         hint = opts.get("format", "txt")  # default to `.txt`
-        suffix = f".{hint.lstrip('.')}"
+        # Make sure hint is a string before using lstrip
+        hint_str = str(hint)
+        suffix = f".{hint_str.lstrip('.')}"
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=suffix, delete=False) as tmp:
             tmp.write(text)
@@ -455,7 +469,7 @@ class DoclingAdapter(BaseAdapter):
 
     # Public API methods required by BaseAdapter
     
-    def extract_entities(self, content: Union[str, Dict[str, Any]], options: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    def extract_entities(self, content: Union[str, Dict[str, Any]], options: Optional[AdapterOptions] = None) -> List[EntityDict]:
         """Extract entities from document content.
         
         Args:
@@ -464,9 +478,10 @@ class DoclingAdapter(BaseAdapter):
         Returns:
             List of extracted entities with metadata
         """
-        return self._extract_entities(content)
+        # Cast the internal implementation result to the required type
+        return cast(List[EntityDict], self._extract_entities(content))
     
-    def extract_metadata(self, content: Union[str, Dict[str, Any]], options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def extract_metadata(self, content: Union[str, Dict[str, Any]], options: Optional[AdapterOptions] = None) -> MetadataDict:
         """Extract metadata from document content.
         
         Args:
@@ -475,7 +490,8 @@ class DoclingAdapter(BaseAdapter):
         Returns:
             Dictionary of metadata
         """
-        return self._extract_metadata(content)
+        # Cast the internal implementation result to the required type
+        return cast(MetadataDict, self._extract_metadata(content))
     
     # Private implementation methods
     def _extract_entities(self, content: Any, format_name: str = "") -> List[Dict[str, Any]]:  # noqa: D401,E501
@@ -548,7 +564,6 @@ def _detect_format(path: Union[str, Path]) -> str:
     # Convert to Path if string
     path_obj = Path(path) if isinstance(path, str) else path
     return EXTENSION_TO_FORMAT.get(path_obj.suffix.lower(), "text")
-
 
 def _build_doc_id(path: Union[str, Path], format_name: str) -> str:
     """Build a deterministic document ID from a path and format.

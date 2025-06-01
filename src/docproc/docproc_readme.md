@@ -1,24 +1,63 @@
 # Document Processing Module (docproc)
 
-## Type System Improvements (May 2025)
+## Centralized Type System (May 2025)
 
-The document processing module has been updated with improved type annotations to ensure compatibility with mypy type checking. Key improvements include:
+The document processing module has been refactored to use a centralized type system that improves type safety, consistency, and maintainability. This update replaces the previous mixed type approach with a clean, comprehensive type system located in `src/types/docproc/`.
 
-### Type Fixes Summary
+### Major Type System Improvements
 
-- Added proper type annotations for entity extractors in the markdown adapter
-- Fixed dictionary update operations in YAML and JSON adapters with appropriate type casts
-- Resolved incompatible types in collection assignments and dictionary updates
-- Added explicit casts for return values to match declared return types
-- Improved error handling with proper type annotations for error responses
+- **Centralized Type Definitions**: All types are now defined in `src/types/docproc/` instead of scattered throughout the module
+- **Consistent Type Usage**: Updated all function signatures to use the centralized types
+- **Comprehensive TypedDict Definitions**: Created detailed TypedDict definitions for all data structures
+- **Protocol Classes**: Added Protocol classes like `DocumentProcessorType` to define interfaces
+- **Improved Error Handling**: Added specific result types for success/failure conditions
+- **Type Safety for Processing Options**: Created structured types for processing options
 
-### Remaining Type Issues
+### Type System Structure
 
-Some type issues remain that would require further work:
+The new type system is organized into the following files:
 
-- Missing type stubs for the YAML library (could be resolved by installing `types-PyYAML`)
-- Some complex type incompatibilities in the YAML and JSON adapters related to TypedDict usage
-- Return type issues in the schemas/utils.py module
+- `src/types/docproc/base.py`: Base document type classes
+- `src/types/docproc/schema.py`: TypedDict schemas for document structures
+- `src/types/docproc/document.py`: Document-specific type definitions
+- `src/types/docproc/metadata.py`: Metadata and entity type definitions
+- `src/types/docproc/adapter.py`: Adapter interface and configuration types
+- `src/types/docproc/processing.py`: Types for document processing functions
+
+### Core Type Definitions
+
+1. **Document Types**:
+   - `DocumentDict`: Standard document structure
+   - `EntityDict`: Entity extracted from document
+   - `MetadataDict`: Document metadata
+
+2. **Processing Types**:
+   - `ProcessingOptions`: Options for document processing
+   - `ProcessingResult`: Result of document processing
+   - `BatchProcessingResult`: Results from batch processing
+   - `FormatDetectionResult`: Result of format detection
+
+3. **Adapter Types**:
+   - `DocumentProcessorType`: Protocol for document adapters
+   - `AdapterConfig`: Configuration for adapters
+   - `AdapterOptions`: Processing options for adapters
+   - `ProcessedDocument`: Standard output format
+
+### Migration Status
+
+All key components have been updated to use the new type system:
+
+- ✅ Core processing functions in `core.py`
+- ✅ Base adapter interface in `adapters/base.py`
+- ✅ Adapter registry in `adapters/registry.py`
+- ✅ Adapter selector in `adapters/adapter_selector.py`
+- ✅ Document manager in `manager.py`
+
+Some remaining work:
+
+- Individual adapter implementations need to be updated
+- Schema utility functions need further refinement
+- Unit tests need to be updated to use the new types
 
 ### Type Annotation Guidelines
 

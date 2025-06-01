@@ -15,6 +15,7 @@ from pydantic import BaseModel, ValidationError
 
 from src.docproc.schemas.base import BaseDocument
 from src.docproc.schemas.python_document import PythonDocument
+from src.types.docproc.adapter import ProcessedDocument
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 T = TypeVar('T', bound=BaseModel)
 
 
-def validate_document(data: Dict[str, Any]) -> BaseDocument:
+def validate_document(data: Union[Dict[str, Any], 'ProcessedDocument']) -> BaseDocument:
     """
     Validate document data and return the appropriate model instance.
     
@@ -33,7 +34,7 @@ def validate_document(data: Dict[str, Any]) -> BaseDocument:
     succeeded against that model.
     
     Args:
-        data: Document data dictionary
+        data: Document data dictionary or ProcessedDocument
         
     Returns:
         Validated document model (BaseDocument or a subclass)
@@ -41,12 +42,15 @@ def validate_document(data: Dict[str, Any]) -> BaseDocument:
     Raises:
         ValidationError: If validation fails against all schemas
     """
-    doc_format = data.get("format", "").lower()
+    
+    # Convert ProcessedDocument to dict if needed
+    data_dict = data if isinstance(data, dict) else dict(data)
+    doc_format = data_dict.get("format", "").lower()
     
     # Try to validate against the appropriate model
     if doc_format == "python":
         try:
-            return cast(BaseDocument, PythonDocument.model_validate(data))
+            return cast(BaseDocument, PythonDocument.model_validate(data_dict))
         except ValidationError as e:
             logger.warning(f"Python document validation failed: {e}")
             # Fall back to base document validation
@@ -54,7 +58,22 @@ def validate_document(data: Dict[str, Any]) -> BaseDocument:
     
     # Fall back to base document validation
     # Return as base type to satisfy mypy
-    return cast(BaseDocument, BaseDocument.model_validate(data))
+    return cast(BaseDocument, BaseDocument.model_validate(data_dict))
+
+
+def document_to_processed_document(doc: BaseDocument) -> ProcessedDocument:
+    """
+    Convert a BaseDocument instance to a ProcessedDocument TypedDict.
+    
+    Args:
+        doc: A BaseDocument instance
+        
+    Returns:
+        A ProcessedDocument TypedDict
+    """
+    # Convert to dict and cast to ProcessedDocument
+    result = cast(ProcessedDocument, doc.model_dump())
+    return result
 
 
 def validate_or_default(

@@ -32,16 +32,38 @@ Usage examples:
 """
 
 import logging
+import time
+import threading
 import os
 import sys
 import importlib
-from typing import Dict, Any, Optional, Union, List, cast
+from typing import Dict, Any, Optional, Union, List, Set, cast, TypedDict
 from pathlib import Path
+from src.types.docproc.processing import ProcessingOptions
 
+# Import docproc implementation modules
 from src.docproc.adapters.base import BaseAdapter
+from src.docproc.adapters.registry import get_adapter_class, get_adapter_for_format
+from src.types.docproc.adapter import DocumentProcessorType
 from .core import process_document, process_text, get_format_for_document
 from .adapters.registry import get_adapter_for_format
 from ..utils.device_utils import is_gpu_available
+
+# Import centralized type definitions
+from src.types.docproc import (
+    # Processing types
+    ProcessingOptions,
+    ProcessingResult,
+    BatchProcessingResult,
+    FormatDetectionResult,
+    
+    # Document types
+    DocumentDict,
+    ProcessedDocument,
+    
+    # Adapter types
+    DocumentProcessorType
+)
 
 logger = logging.getLogger(__name__)
 
@@ -180,16 +202,13 @@ class DocumentProcessorManager:
                 os.environ['PYTORCH_CUDA_DEVICE'] = '0'
                 logger.info("Defaulting PYTORCH_CUDA_DEVICE to 0")
             
-        self.cache: Dict[str, BaseAdapter] = {}  # Simple cache for frequently used adapters
+        self.cache: Dict[str, DocumentProcessorType] = {}  # Simple cache for frequently used adapters
         logger.info("Document processor manager initialized")
     
-    def process_document(
-        self, 
-        content: Optional[str] = None,
-        path: Optional[Union[str, Path]] = None,
-        doc_type: Optional[str] = None,
-        options: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    def process_document(self, path: Optional[Union[str, Path]] = None, 
+                         content: Optional[str] = None,
+                         doc_type: Optional[str] = None, 
+                         options: Optional[Dict[str, Any]] = None) -> ProcessedDocument:
         """Process a document from either content or file path.
         
         This method is the primary entry point for document processing and provides
@@ -251,8 +270,8 @@ class DocumentProcessorManager:
         
         # If we have global options from initialization, merge them
         if self.options and 'processing_options' in self.options:
-            merged_options = {**self.options['processing_options'], **options}
-            options = merged_options
+            merged_options: Dict[str, Any] = {**self.options['processing_options'], **options}
+            options = merged_options  # options is still a Dict[str, Any]
         
         # Case 1: Process text content with specified type
         if content is not None:
@@ -260,8 +279,13 @@ class DocumentProcessorManager:
                 # Default to plain text if no type is specified
                 doc_type = "text"
                 
+            # Create properly typed options dictionary
+            options_dict: Dict[str, Any] = {}
+            if options is not None:
+                options_dict.update(options)
+                
             # If path is provided but content is also supplied, use path just for metadata
-            document = process_text(content, doc_type, options)
+            document = process_text(content, doc_type, cast(ProcessingOptions, options_dict))
             
             # Add path info if available
             if path:
@@ -273,11 +297,14 @@ class DocumentProcessorManager:
         elif path is not None:
             path_obj = Path(path) if isinstance(path, str) else path
             
-            # If doc_type is explicitly provided, use it
+            # Combine all options
+            file_options_dict: Dict[str, Any] = {}
+            if options is not None:
+                file_options_dict.update(options)
             if doc_type:
-                options["format_override"] = doc_type
+                file_options_dict["format_override"] = doc_type
                 
-            return process_document(path_obj, options)
+            return process_document(path_obj, cast(ProcessingOptions, file_options_dict))
         
         # If neither content nor path is provided
         else:
@@ -286,8 +313,8 @@ class DocumentProcessorManager:
     def batch_process(
         self,
         paths: List[Union[str, Path]],
-        options: Optional[Dict[str, Any]] = None
-    ) -> List[Dict[str, Any]]:
+        options: Optional[ProcessingOptions] = None
+    ) -> List[ProcessedDocument]:
         """Process a batch of documents from paths.
         
         This method allows efficient processing of multiple documents in a single call.
@@ -342,7 +369,8 @@ class DocumentProcessorManager:
         
         for path in paths:
             try:
-                document = self.process_document(path=path, options=options)
+                # Cast ProcessingOptions to Dict[str, Any] to match method signature
+                document = self.process_document(path=path, options=cast(Dict[str, Any], options))
                 results.append(document)
             except Exception as e:
                 logger.error(f"Error processing {path}: {e}")
@@ -355,7 +383,7 @@ class DocumentProcessorManager:
         
         return results
     
-    def get_adapter_for_doc_type(self, doc_type: str) -> BaseAdapter:
+    def get_adapter_for_doc_type(self, doc_type: str) -> DocumentProcessorType:
         """Get the appropriate adapter for a document type.
         
         This method retrieves the appropriate adapter for a given document type from

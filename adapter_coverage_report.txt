@@ -1,0 +1,83 @@
+
+=== Adapter Test Coverage Analysis ===
+
+Class: PythonMetadataDict
+  Method Coverage: 0.0% (0/0)
+  Line Coverage: 0.0% (0/0)
+
+Class: FunctionInfo
+  Method Coverage: 0.0% (0/0)
+  Line Coverage: 0.0% (0/0)
+
+Class: ClassInfo
+  Method Coverage: 0.0% (0/0)
+  Line Coverage: 0.0% (0/0)
+
+Class: ImportInfo
+  Method Coverage: 0.0% (0/0)
+  Line Coverage: 0.0% (0/0)
+
+Class: RelationshipInfo
+  Method Coverage: 0.0% (0/0)
+  Line Coverage: 0.0% (0/0)
+
+Class: PythonAdapter
+  Method Coverage: 12.5% (1/8)
+  Line Coverage: 22.0% (112/509)
+  Untested Methods:
+    - __init__
+    - process_text
+    - extract_entities
+    - extract_metadata
+    - _process_python_file
+    - _extract_entities
+    - _build_entity_relationships
+
+Class: EntityExtractor
+  Method Coverage: 0.0% (0/7)
+  Line Coverage: 0.0% (0/224)
+  Untested Methods:
+    - __init__
+    - visit_ClassDef
+    - visit_FunctionDef
+    - visit_Import
+    - visit_ImportFrom
+    - _get_attribute_path
+    - _get_end_line
+
+Class: CallFinder
+  Method Coverage: 0.0% (0/2)
+  Line Coverage: 0.0% (0/22)
+  Untested Methods:
+    - __init__
+    - visit_Call
+
+Class: DoclingAdapter
+  Method Coverage: 42.9% (3/7)
+  Line Coverage: 57.4% (218/380)
+  Untested Methods:
+    - __init__
+    - extract_metadata
+    - _extract_entities
+    - _extract_metadata
+
+Class: PythonCodeAdapter
+  Method Coverage: 100.0% (5/5)
+  Line Coverage: 100.0% (215/215)
+
+=== Overall Coverage ===
+Method Coverage: 31.0% (9/29)
+Line Coverage: 40.4% (545/1350)
+
+⚠️ BELOW 85% STANDARD
+
+Suggestions to improve coverage:
+- Add tests for PythonMetadataDict: 
+- Add tests for FunctionInfo: 
+- Add tests for ClassInfo: 
+- Add tests for ImportInfo: 
+- Add tests for RelationshipInfo: 
+- Add tests for PythonAdapter: __init__, process_text, extract_entities, extract_metadata, _process_python_file, _extract_entities, _build_entity_relationships
+- Add tests for EntityExtractor: __init__, visit_ClassDef, visit_FunctionDef, visit_Import, visit_ImportFrom, _get_attribute_path, _get_end_line
+- Add tests for CallFinder: __init__, visit_Call
+- Add tests for DoclingAdapter: __init__, extract_metadata, _extract_entities, _extract_metadata

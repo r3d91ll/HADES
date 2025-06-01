@@ -49,36 +49,83 @@ document = process_text("# Markdown Content", format_type="markdown")
 # Process multiple documents
 from src.docproc.core import process_documents_batch
 results = process_documents_batch([
-    "/path/to/doc1.txt",
-    "/path/to/doc2.pdf",
-    "/path/to/code.py"
+    "/path/to/document1.pdf",
+    "/path/to/document2.md",
+    "/path/to/document3.txt"
 ])
+print(f"Processed {results['successful']} documents")
+```
+
+Integration Example:
+------------------
+```python
+# Complete pipeline integration
+from src.docproc.core import process_documents_batch
+from src.chunking import chunk_documents
+from src.embedding import embed_chunks
+from src.storage import store_documents
+
+# Process documents
+processing_results = process_documents_batch(file_paths)
+documents = processing_results['documents']
+
+# Continue with pipeline
+chunks = chunk_documents(documents)
+embedded_chunks = embed_chunks(chunks)
+store_documents(embedded_chunks)
 ```
 """
 
-import json
 import logging
-from pathlib import Path
-from typing import Dict, Any, Optional, Union, List, Callable, cast
+import json
+import time
+import uuid
+import concurrent.futures
 
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union, Callable, cast, TypeVar, Tuple
+from datetime import datetime
 from pydantic import ValidationError
 
-from src.docproc.utils.format_detector import (
-    detect_format,
+# Import utility functions
+from src.utils.file_utils import get_file_info, is_binary_file
+from src.utils.format_detection import (
+    detect_format_from_content, 
     detect_format_from_path, 
     get_content_category
 )
-from .utils.metadata_extractor import extract_metadata
-from .adapters.registry import get_adapter_for_format
-from .adapters.adapter_selector import select_adapter_for_document
-from .schemas.utils import validate_document, add_validation_to_adapter
-from .schemas.base import BaseDocument
+
+# Import docproc implementation modules
+from src.docproc.utils.metadata_extractor import extract_metadata
+from src.docproc.adapters.registry import get_adapter_for_format
+from src.docproc.adapters.adapter_selector import select_adapter_for_document
+from src.docproc.schemas.utils import validate_document, add_validation_to_adapter, document_to_processed_document
+from src.docproc.schemas.base import BaseDocument
+
+# Import centralized type definitions
+from src.types.docproc import (
+    # Processing types
+    ProcessingOptions,
+    ProcessingResult,
+    BatchProcessingResult,
+    ProcessingStats,
+    FormatDetectionResult,
+    SuccessCallback,
+    ErrorCallback,
+    
+    # Document types
+    DocumentDict,
+    
+    # Adapter types
+    AdapterOptions,
+    ProcessedDocument
+)
 
 # Setup logging
 logger = logging.getLogger(__name__)
 
 
-def process_document(file_path: Union[str, Path], options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def process_document(file_path: Union[str, Path], options: Optional[ProcessingOptions] = None) -> ProcessedDocument:
     """
     Process a document file, converting it to a standardized format.
     
@@ -209,9 +256,8 @@ def process_document(file_path: Union[str, Path], options: Optional[Dict[str, An
     # Validate the processed document using Pydantic
     try:
         validated_doc = validate_document(processed_doc)
-        # Explicitly type the return value to avoid returning Any
-        result: Dict[str, Any] = validated_doc.model_dump()
-        return result
+        # Convert to ProcessedDocument using our helper function
+        return document_to_processed_document(validated_doc)
     except ValidationError as e:
         logger.warning(f"Document validation failed: {e}")
         # Add validation error to the document
@@ -219,7 +265,7 @@ def process_document(file_path: Union[str, Path], options: Optional[Dict[str, An
         return processed_doc
 
 
-def process_text(text: str, format_type: str = "text", format_or_options: Optional[Union[str, Dict[str, Any]]] = None, options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def process_text(text: str, format_type: str = "text", format_or_options: Optional[Union[str, ProcessingOptions]] = None, options: Optional[ProcessingOptions] = None) -> ProcessedDocument:
     """
     Process text content directly, assuming a specific format.
     
@@ -331,7 +377,7 @@ def process_text(text: str, format_type: str = "text", format_or_options: Option
     # Enrich with metadata using our heuristic extraction
     content = processed_doc.get("content", "")
     source = actual_options.get("source", "direct_text")
-    metadata = extract_metadata(content, source, actual_format)
+    metadata = extract_metadata(content, str(source), actual_format)
     
     # Merge extracted metadata with any existing metadata
     existing_metadata = processed_doc.get("metadata", {})
@@ -345,9 +391,8 @@ def process_text(text: str, format_type: str = "text", format_or_options: Option
     # Validate the processed document using Pydantic
     try:
         validated_doc = validate_document(processed_doc)
-        # Explicitly type the return value to avoid returning Any
-        result: Dict[str, Any] = validated_doc.model_dump()
-        return result
+        # Convert to ProcessedDocument using our helper function
+        return document_to_processed_document(validated_doc)
     except ValidationError as e:
         logger.warning(f"Document validation failed: {e}")
         # Add validation error to the document
@@ -355,7 +400,7 @@ def process_text(text: str, format_type: str = "text", format_or_options: Option
         return processed_doc
 
 
-def get_format_for_document(file_path: Union[str, Path]) -> str:
+def get_format_for_document(file_path: Union[str, Path]) -> FormatDetectionResult:
     """
     Get the format for a document file.
     
@@ -363,7 +408,7 @@ def get_format_for_document(file_path: Union[str, Path]) -> str:
         file_path: Path to the document file
     
     Returns:
-        Detected format as a string
+        FormatDetectionResult with detected format information
     
     Raises:
         FileNotFoundError: If the file does not exist
@@ -374,12 +419,21 @@ def get_format_for_document(file_path: Union[str, Path]) -> str:
     if not path_obj.exists():
         raise FileNotFoundError(f"File not found: {path_obj}")
     
-    # Delegate to the utility function
-    return detect_format_from_path(path_obj)
+    # Get the format string from the path
+    format_str = detect_format_from_path(path_obj)
+    content_type = get_content_category(format_str)
+    
+    # Create and return a FormatDetectionResult
+    return {
+        "format": format_str,
+        "confidence": 0.9,  # High confidence when detecting from file extension
+        "content_type": content_type,
+        "detected_by": "extension"
+    }
 
 
 # Renamed to avoid conflict with imported function
-def detect_file_format(file_path: Union[str, Path]) -> str:
+def detect_file_format(file_path: Union[str, Path]) -> FormatDetectionResult:
     """
     Detect the format of a document file.
     
@@ -387,15 +441,24 @@ def detect_file_format(file_path: Union[str, Path]) -> str:
         file_path: Path to the document file
     
     Returns:
-        Detected format as a string
+        FormatDetectionResult with detected format information
     """
     path_obj = Path(file_path) if isinstance(file_path, str) else file_path
     
-    # Delegate to the utility function
-    return detect_format_from_path(path_obj)
+    # Get the format string from the path
+    format_str = detect_format_from_path(path_obj)
+    content_type = get_content_category(format_str)
+    
+    # Create and return a FormatDetectionResult
+    return {
+        "format": format_str,
+        "confidence": 0.8,  # Slightly lower confidence than get_format_for_document
+        "content_type": content_type,
+        "detected_by": "extension"
+    }
 
 
-def save_processed_document(document: Dict[str, Any], output_path: Union[str, Path]) -> Path:
+def save_processed_document(document: ProcessedDocument, output_path: Union[str, Path]) -> Path:
     """
     Save a processed document JSON to disk.
     
@@ -419,7 +482,8 @@ def save_processed_document(document: Dict[str, Any], output_path: Union[str, Pa
         try:
             # Attempt to validate the document
             validated_doc = validate_document(document)
-            document = validated_doc.model_dump()
+            # Convert to ProcessedDocument using our helper function
+            document = document_to_processed_document(validated_doc)
             document["_validated"] = True
         except ValidationError as e:
             logger.warning(f"Document validation failed before saving: {e}")
@@ -435,12 +499,12 @@ def save_processed_document(document: Dict[str, Any], output_path: Union[str, Pa
 
 def process_documents_batch(
     file_paths: List[Union[str, Path]], 
-    options: Optional[Dict[str, Any]] = None,
+    options: Optional[ProcessingOptions] = None,
     output_dir: Optional[Union[str, Path]] = None,
-    on_success: Optional[Callable[[Dict[str, Any], Optional[Path]], None]] = None,
-    on_error: Optional[Callable[[str, Exception], None]] = None,
+    on_success: Optional[SuccessCallback] = None,
+    on_error: Optional[ErrorCallback] = None,
     validate: bool = True
-) -> Dict[str, Any]:
+) -> BatchProcessingResult:
     """
     Process a batch of documents in parallel and return statistics.
     
@@ -535,12 +599,24 @@ def process_documents_batch(
         embeddings = embed_chunks(chunks)
         store_documents(embeddings)
     """
-    stats = {
+    # Track document IDs and successful/failed documents
+    document_ids: List[str] = []
+    successful_docs: List[Dict[str, Any]] = []
+    failed_docs: List[Dict[str, Any]] = []
+    output_files: List[str] = []
+    
+    # Initialize processing stats
+    stats: Dict[str, Any] = {
         "total": len(file_paths),
-        "success": 0,
-        "error": 0,
-        "saved": 0,
-        "validation_failures": 0
+        "successful": 0,
+        "failed": 0,
+        "formats": {},
+        "errors": {},
+        "processing_time": {
+            "total": 0.0,
+            "average": 0.0
+        },
+        "processed_at": datetime.now()
     }
     
     # Create output directory if needed
@@ -561,21 +637,43 @@ def process_documents_batch(
                 stats["validation_failures"] += 1
                 logger.warning(f"Validation failed for {path_obj}: {processed_doc['_validation_error']}")
             
-            stats["success"] += 1
+            stats["successful"] += 1
+            
+            # Track document ID
+            if "id" in processed_doc:
+                document_ids.append(processed_doc["id"])
+            
+            # Track format statistics
+            doc_format = processed_doc.get("format", "unknown")
+            stats["formats"][doc_format] = stats["formats"].get(doc_format, 0) + 1
+            
+            # Add to successful documents list
+            successful_docs.append(cast(Dict[str, Any], processed_doc))
             
             # Save if output directory is provided
             if output_dir:
                 out_path = Path(output_dir) / f"{path_obj.stem}.json"
                 save_processed_document(processed_doc, out_path)
-                stats["saved"] += 1
+                output_files.append(str(out_path))
             
             # Call success callback if provided
             if on_success:
-                result_path: Optional[Path] = Path(output_dir) / f"{path_obj.stem}.json" if output_dir else None
-                on_success(processed_doc, result_path)
+                if output_dir:
+                    result_path = Path(output_dir) / f"{path_obj.stem}.json"
+                    on_success(cast(Dict[str, Any], processed_doc), result_path)
+                else:
+                    # Use empty string path when no output directory is provided
+                    on_success(cast(Dict[str, Any], processed_doc), "")
                 
         except Exception as e:
-            stats["error"] += 1
+            stats["failed"] += 1
+            
+            # Track error statistics
+            error_type = type(e).__name__
+            stats["errors"][error_type] = stats["errors"].get(error_type, 0) + 1
+            
+            # Add to failed documents list
+            failed_docs.append({"path": str(path_obj), "error": str(e), "error_type": error_type})
             
             # Call error callback if provided
             if on_error:
@@ -584,4 +682,15 @@ def process_documents_batch(
                 # Log the error
                 logger.error(f"Error processing {path_obj}: {e}")
     
-    return stats
+    # Calculate average processing time (placeholder - would be more accurate with actual timing)
+    if stats["successful"] > 0:
+        stats["processing_time"]["average"] = stats["processing_time"]["total"] / stats["successful"]
+    
+    # Create and return the final BatchProcessingResult
+    return cast(BatchProcessingResult, {
+        "stats": stats,
+        "documents": document_ids,
+        "successful_documents": successful_docs,
+        "failed_documents": failed_docs,
+        "output_files": output_files if output_dir else None
+    })
