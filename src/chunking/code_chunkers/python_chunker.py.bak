@@ -1,196 +1,212 @@
-"""Python code chunker module.
+"""
+Python code chunker for HADES-PathRAG.
 
-This module provides a chunker for Python code that extracts semantic
-chunks using the Python adapter.
+This module provides a specialized chunker for Python code that breaks down
+code files into meaningful semantic chunks based on code structure (functions,
+classes, methods) rather than arbitrary text boundaries.
 """
 
-import os
-import re
+from typing import Dict, List, Any, Optional, Union, Tuple, cast, TypedDict
 import logging
 import hashlib
-from typing import List, Dict, Any, Optional, Union, cast, TypedDict
-
-from pydantic import BaseModel
+import uuid
+from pathlib import Path
+from datetime import datetime
 
 from src.chunking.base import BaseChunker
-from src.chunking.config import ChunkerConfig
-from src.docproc.adapters.registry import get_adapter_class
-from src.types.chunking.document import ChunkableDocument
-from src.types.chunking.chunk import ChunkMetadata, create_chunk_metadata
+from src.docproc.adapters.python_adapter import PythonAdapter
+from src.docproc.models.python_code import (
+    ModuleElement, ClassElement, FunctionElement, MethodElement, 
+    CodeRelationship, RelationshipType
+)
 
-# Define types for clarity
-CodeChunk = Dict[str, Any]
-CodeChunkList = List[Dict[str, Any]]
+# Import centralized type definitions
+from src.types.chunking import (
+    CodeChunk, CodeChunkMetadata, CodeChunkList, CodeChunkingOptions,
+    ChunkerConfig, ChunkableDocument, create_code_chunk_metadata
+)
+from src.types.chunking.chunk import ChunkMetadata
 
 logger = logging.getLogger(__name__)
 
 
 class PythonCodeChunker(BaseChunker):
-    """Chunker for Python code.
+    """
+    Chunker specialized for Python code files.
     
-    This chunker uses the Python adapter to extract semantic chunks
-    from Python code files. It handles both code and docstrings.
+    This chunker uses AST parsing to extract meaningful code entities (functions,
+    classes, methods) and creates chunks that preserve the semantic structure of
+    the code. Each chunk contains a complete code entity with its docstring and
+    relationships to other entities.
     """
     
     def __init__(self, config: Optional[ChunkerConfig] = None) -> None:
-        """Initialize the Python code chunker.
+        """
+        Initialize the Python code chunker.
         
         Args:
             config: Optional configuration for the chunker
         """
         super().__init__(name="python_code", config=config)
-        self.include_docstrings = True
-        self.include_source = True
-        self.min_chunk_size = 10  # Minimum characters to consider a valid chunk
-        self.max_chunk_size = 8000  # Maximum characters for a chunk
         
-        # Configure with custom settings if provided
-        if config:
-            self.include_docstrings = config.get_bool("include_docstrings", True)
-            self.include_source = config.get_bool("include_source", True)
-            self.min_chunk_size = config.get_int("min_chunk_size", 10)
-            self.max_chunk_size = config.get_int("max_chunk_size", 8000)
+        # Configure chunker behavior
+        self.include_imports = self.config.get("include_imports", False)
+        self.include_docstrings = self.config.get("include_docstrings", True)
+        self.include_source = self.config.get("include_source", True)
+        self.min_chunk_size = self.config.get("min_chunk_size", 50)  # Minimum characters
+        self.max_chunk_size = self.config.get("max_chunk_size", 1000)  # Maximum characters
+        
+        # Create Python adapter for parsing
+        self.python_adapter = PythonAdapter(
+            create_symbol_table=True, 
+            options={
+                "extract_docstrings": True,
+                "analyze_imports": True,
+                "analyze_calls": True,
+                "extract_type_hints": True,
+                "compute_complexity": True
+            }
+        )
+        
+        logger.info(f"Initialized PythonCodeChunker with config: {self.config}")
     
     def chunk(self, content: ChunkableDocument, **kwargs: Any) -> List[Dict[str, Any]]:
-        """Chunk Python code into semantic chunks.
+        """
+        Chunk Python code into semantically meaningful chunks.
         
         Args:
-            content: Content to chunk, which can be a dictionary, string, or Pydantic model
-            **kwargs: Additional keyword arguments for chunking
+            content: Python source code to chunk (string, dict, or BaseModel)
+            **kwargs: Optional additional arguments, including 'metadata' about the source file
             
         Returns:
-            List of chunks with ID, content, and metadata
+            List of code chunks, each representing a code entity
         """
-        try:
-            # Extract text and metadata from various content types
-            if isinstance(content, dict):
-                text = content.get('text', '') or content.get('content', '')
-                metadata = content.get('metadata', {})
-            elif isinstance(content, str):
-                text = content
-                metadata = kwargs.get('metadata', {})
-            else:
-                try:
-                    text = getattr(content, 'content', '') or getattr(content, 'text', '')
-                    metadata = getattr(content, 'metadata', {}) or {}
-                except AttributeError:
-                    return []
-            
-            # Skip empty content
-            if not text or len(text.strip()) < self.min_chunk_size:
+        # Handle different content types
+        if isinstance(content, dict):
+            text = content.get('text', '') or content.get('content', '')
+            metadata = content.get('metadata', {})
+        elif isinstance(content, str):
+            text = content
+            metadata = kwargs.get('metadata', {})
+        else:  # Pydantic model or other object
+            try:
+                text = getattr(content, 'content', '') or getattr(content, 'text', '')
+                metadata = getattr(content, 'metadata', {}) or {}
+            except AttributeError:
+                logger.warning("Unsupported content type provided to PythonCodeChunker")
                 return []
             
-            # Get file path from metadata if available
-            file_path = metadata.get('file_path', 'unknown.py')
-            if not file_path.endswith('.py'):
-                file_path = f"{file_path}.py"
+        if not text or not isinstance(text, str) or not text.strip():
+            logger.warning("Empty or invalid text provided to PythonCodeChunker")
+            return []
+        
+        # Process Python code using the adapter
+        metadata = metadata or {}
+        file_path = metadata.get("file_path", "unknown.py")
+        
+        try:
+            # Parse Python code
+            logger.info(f"Processing Python code from {file_path}, text length: {len(text)}")
+            processed = self.python_adapter.process_text(text)
             
-            # Process the Python code
-            python_adapter_cls = get_adapter_class('python')
-            if not python_adapter_cls:
-                logger.warning("Python adapter not found. Using fallback chunking.")
+            # Log the structure of processed output for debugging
+            logger.info(f"Processed Python code result keys: {list(processed.keys()) if processed else 'None'}")
+            
+            if not processed or "error" in processed and processed["error"]:
+                logger.warning(f"Error processing Python code: {processed.get('error', 'Unknown error')}")
                 return self._fallback_chunking(text, metadata)
             
-            python_adapter = python_adapter_cls()
-            processed = python_adapter.process_text(text, options=None)
+            # Extract chunks from processed code
+            chunks = self._extract_code_chunks(cast(Dict[str, Any], processed), metadata)
             
-            # Convert ProcessedDocument to Dict[str, Any] for internal processing
-            processed_dict: Dict[str, Any] = {}
-            if hasattr(processed, "model_dump"):
-                processed_dict = getattr(processed, 'model_dump', lambda: {})() if hasattr(processed, 'model_dump') else {}
-            elif hasattr(processed, "dict"):
-                processed_dict = getattr(processed, 'dict', lambda: {})() if hasattr(processed, 'dict') else {}
-            else:
-                # Fallback for unknown response type
-                try:
-                    processed_dict = dict(processed)
-                except (TypeError, ValueError):
-                    logger.warning("Could not convert ProcessedDocument to dictionary. Using fallback chunking.")
-                    return self._fallback_chunking(text, metadata)
+            # Handle case where no valid chunks were extracted
+            if not chunks:
+                logger.warning(f"No valid code chunks extracted from {file_path}, falling back to text chunking")
+                return self._fallback_chunking(text, metadata)
             
-            # Extract chunks from the processed code
-            chunks = self._extract_code_chunks(processed_dict, metadata)
+            return chunks  # Explicitly cast to match required return type
+
             
-            return chunks
+
+            
             
         except Exception as e:
             logger.error(f"Error chunking Python code: {e}")
             return self._fallback_chunking(text, metadata)
     
     def _extract_code_chunks(self, processed: Dict[str, Any], metadata: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Extract code chunks from processed Python code.
+        """
+        Extract code chunks from processed Python code.
         
         Args:
-            processed: Processed Python code from the adapter
-            metadata: Original document metadata
+            processed: Processed Python code from adapter
+            metadata: Metadata about the source file
             
         Returns:
-            List of code chunks with ID, content, and metadata
+            List of code chunks
         """
-        chunks: List[Dict[str, Any]] = []
-        file_path = metadata.get('file_path', 'unknown.py')
+        chunks = []
+        file_path = metadata.get("file_path", "unknown.py")
+        file_id = metadata.get("file_id", hashlib.md5(file_path.encode()).hexdigest())
         
-        # Create a file-level chunk for imports, etc.
-        if 'imports' in processed:
-            imports_text = "\n".join(processed.get('imports', []))
-            if imports_text and len(imports_text) > self.min_chunk_size:
-                file_id = self._hash_path(file_path)
-                
-                # Create chunk metadata
-                chunk_metadata = create_chunk_metadata(
-                    chunk_id=file_id,
-                    path=file_path,
-                    document_type="code",
-                    source_file=file_path,
-                    line_start=1,
-                    line_end=len(processed.get('imports', [])),
-                    token_count=len(imports_text) // 4,  # Simple token estimation
-                    language="python",
-                    symbol_type="imports",
-                    name=os.path.basename(file_path)
-                )
-                
-                chunks.append({
-                    "id": file_id,
-                    "content": imports_text,
-                    "metadata": cast(Dict[str, Any], chunk_metadata)
-                })
+        # Extract module-level docstring as a chunk if it exists
+        if "symbol_table" in processed and processed["symbol_table"]["docstring"]:
+            module_chunk = {
+                "chunk_id": f"{file_id}_module",
+                "type": "module",
+                "text": processed["symbol_table"]["docstring"],
+                "embedding": None,  # Will be populated by embedding component
+                "metadata": {
+                    "source": file_path,
+                    "line_range": [1, 1],  # Usually at the top
+                    "type": "module_docstring",
+                    "name": Path(file_path).stem,
+                    "references": []
+                }
+            }
+            chunks.append(module_chunk)
         
-        # Process all code elements
-        elements = processed.get('elements', [])
-        for element in elements:
-            # Skip elements that are too small
-            content = element.get('source', '')
-            if not content or len(content) < self.min_chunk_size:
-                continue
-                
-            # Skip elements that are too large
-            if len(content) > self.max_chunk_size:
-                logger.warning(f"Skipping large code element: {len(content)} characters")
-                continue
+        # Process each entity in the symbol table
+        if "symbol_table" in processed:
+            logger.info(f"Symbol table keys: {list(processed['symbol_table'].keys())}")
             
-            # Process the code element
-            chunk = self._process_code_element(element, file_id, file_path)
-            chunks.append(chunk)
+            if "elements" in processed["symbol_table"]:
+                logger.info(f"Found {len(processed['symbol_table']['elements'])} code elements to process")
+                for i, element in enumerate(processed["symbol_table"]["elements"]):
+                    logger.info(f"Processing element {i+1}/{len(processed['symbol_table']['elements'])}: {element.get('name', 'unnamed')} ({element.get('type', 'unknown')})")
+                    chunk = self._process_code_element(element, file_id, file_path)
+                    if chunk:
+                        chunks.append(chunk)
+                    else:
+                        logger.warning(f"Failed to create chunk for element: {element.get('name', 'unnamed')}")
+            else:
+                logger.warning(f"No 'elements' key found in symbol table for {file_path}")
+        else:
+            logger.warning(f"No 'symbol_table' key found in processed result for {file_path}")
         
-        # Process relationships between code elements
-        relationships = processed.get('relationships', [])
-        self._process_relationships(chunks, relationships)
+        # Process relationships to create references
+        if "relationships" in processed and processed["relationships"]:
+            self._process_relationships(chunks, processed["relationships"])
         
-        return chunks
+        return chunks  # Explicitly cast to match required return type
+
+        
+
+        
+        return chunks  # Cast to match base class return type
     
     def _process_code_element(self, element: Dict[str, Any], file_id: str, file_path: str) -> Dict[str, Any]:
-        """Process a code element and create a chunk.
+        """
+        Process a code element and create a chunk.
         
         Args:
-            element: Code element dictionary
-            file_id: ID of the parent file
+            element: Code element data
+            file_id: ID of the file
             file_path: Path to the file
             
         Returns:
-            Chunk dictionary with ID, content, and metadata
+            Code chunk dictionary
         """
-        # Extract basic info
         kind = element.get("kind", "unknown")
         name = element.get("name", "")
         start_line = element.get("start_line", 0)
@@ -201,23 +217,19 @@ class PythonCodeChunker(BaseChunker):
         chunk_id = self._hash_path(f"{file_path}:{kind}:{name}:{start_line}:{end_line}")
         
         # Create metadata for the chunk
-        metadata = create_chunk_metadata(
-            kind=kind,
-            name=name,
-            start_line=start_line,
-            end_line=end_line,
-            parent_id=file_id,
-            file_path=file_path,
-            language="python",
-            qualified_name=element.get("qualified_name", name),
-            docstring=element.get("docstring", ""),
-            imports=element.get("imports", [])
-        )
+        metadata = create_code_chunk_metadata(
+        
+        
+        # Use Dict[str, Any] to avoid TypedDict incompatibility
         
         return {
+        
             "id": chunk_id,
+        
             "content": content,
+        
             "metadata": cast(Dict[str, Any], metadata)
+        
         }
     
     def _create_chunk_from_element(self, element: Dict[str, Any], source_code: str, file_path: str, 
@@ -258,23 +270,19 @@ class PythonCodeChunker(BaseChunker):
         chunk_id = self._hash_path(f"{file_path}:{kind}:{name}:{start_line}:{end_line}")
         
         # Create metadata using the centralized helper function
-        metadata = create_chunk_metadata(
-            kind=kind,
-            name=name,
-            start_line=start_line,
-            end_line=end_line,
-            parent_id=parent_id,
-            file_path=file_path,
-            language="python",
-            qualified_name=element.get('qualified_name', name),
-            docstring=docstring,
-            imports=element.get('imports', [])
-        )
+        metadata = create_code_chunk_metadata(
+        
+        
+        # Use Dict[str, Any] to avoid TypedDict incompatibility
         
         return {
+        
             "id": chunk_id,
+        
             "content": content,
+        
             "metadata": cast(Dict[str, Any], metadata)
+        
         }
     
     def _hash_path(self, path_string: str) -> str:
@@ -343,7 +351,7 @@ class PythonCodeChunker(BaseChunker):
         """
         logger.info("Using fallback chunking for Python code")
         
-        chunks: List[Dict[str, Any]] = []
+        chunks: CodeChunkList = []
         lines = text.splitlines()
         file_path = metadata.get("file_path", "unknown.py")
         
@@ -362,7 +370,7 @@ class PythonCodeChunker(BaseChunker):
                         chunk_id = self._hash_path(f"{file_path}:{i-len(chunk_lines)+1}:{i-1}")
                         
                         # Create chunk metadata
-                        chunk_metadata = create_chunk_metadata(
+                        chunk_metadata = create_code_chunk_metadata(
                             chunk_id=chunk_id,
                             path=file_path,
                             document_type="code",
@@ -392,7 +400,7 @@ class PythonCodeChunker(BaseChunker):
                 chunk_id = self._hash_path(f"{file_path}:{len(lines)-len(chunk_lines)+1}:{len(lines)}")
                 
                 # Create chunk metadata
-                chunk_metadata = create_chunk_metadata(
+                chunk_metadata = create_code_chunk_metadata(
                     chunk_id=chunk_id,
                     path=file_path,
                     document_type="code",
@@ -411,9 +419,15 @@ class PythonCodeChunker(BaseChunker):
                     "metadata": cast(Dict[str, Any], chunk_metadata)
                 })
         
-        return chunks
+        return chunks  # Explicitly cast to match required return type
+
+        
+
+        
+        return chunks  # Cast to match base class return type
 
 
 # Register the chunker
 from src.chunking.registry import register_chunker
 register_chunker("python_code", PythonCodeChunker)
+

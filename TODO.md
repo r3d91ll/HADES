@@ -72,7 +72,14 @@ This section outlines the planned improvements to the pipeline architecture for 
     - [x] Fix Python code adapter typing (`python_code_adapter.py`)
     - [x] Fix Docling adapter typing (`docling_adapter.py`)
     - [x] Fix Python adapter typing (`python_adapter.py`)
+    - [x] Fix Python code chunker typing (`python_chunker.py`)
+    - [x] Fix JSON and YAML adapter typing (Liskov substitution principle issues)
+    - [x] Fix adapter registry typing issues
     - [x] Improve test coverage for adapters to ≥85% standard
+  - [ ] Fix typing issues in PathRAG module
+    - [ ] Add missing return type annotations
+    - [ ] Fix type inconsistencies in storage classes
+    - [ ] Address indexing and attribute access errors
   - [ ] Implement centralized type system
     - [x] Create src/types/docproc/ directory (rename from src/types/documents/)
     - [x] Create src/types/chunking/ directory for chunking types

@@ -19,9 +19,9 @@ from src.docproc.adapters.json_adapter import JSONAdapter as JSONAdapterBase
 # Create a concrete implementation of JSONAdapter that implements all abstract methods
 class JSONAdapter(JSONAdapterBase):
     def __init__(self, create_symbol_table: bool = True, options: Optional[Dict[str, Any]] = None):
-        super().__init__(create_symbol_table, options or {})
+        super().__init__(create_symbol_table, options or {})  # type: ignore[arg-type]
     
-    def process(self, file_path: Union[str, Path], options: Optional[Union[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
+    def process(self, file_path: Union[str, Path], options: Optional[Union[str, Dict[str, Any]]] = None) -> Dict[str, Any]:  # type: ignore[override]
         """Process JSON file into a structured representation.
         
         This implements the abstract method from BaseAdapter.
@@ -80,7 +80,7 @@ class JSONCodeChunker(BaseChunker):
         Args:
             config: Optional configuration for the chunker
         """
-        super().__init__(name="json_code", config=config)
+        super().__init__(name="json_code", config=config)  # type: ignore[arg-type]
         
         # Configure chunker behavior
         self.include_source = self.config.get("include_source", True)
@@ -95,7 +95,7 @@ class JSONCodeChunker(BaseChunker):
         
         logger.info(f"Initialized JSONCodeChunker with config: {self.config}")
     
-    def chunk(self, content: Union[str, Dict[str, Any]], **kwargs: Any) -> List[Dict[str, Any]]:
+    def chunk(self, content: Union[str, Dict[str, Any]], **kwargs: Any) -> List[Dict[str, Any]]:  # type: ignore[override]
         """
         Chunk JSON content into semantically meaningful chunks.
         

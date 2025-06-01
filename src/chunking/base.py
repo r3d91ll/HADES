@@ -2,53 +2,63 @@
 Base classes for document chunking in HADES-PathRAG.
 
 This module provides the base classes and interfaces for document chunking
-components used in the HADES-PathRAG system.
+components used in the HADES-PathRAG system. This implementation uses
+the centralized type definitions from src.types.chunking.
 """
 
-from typing import Dict, List, Any, Optional, Union, Type, TypeVar
+from typing import Dict, List, Any, Optional, Union, Type, TypeVar, cast
 from abc import ABC, abstractmethod
+
+# Import centralized type definitions
+from src.types.chunking import (
+    BaseChunkerABC, ChunkerConfig, ChunkerRegistry,
+    ChunkableDocument, ChunkList, ChunkingOptions, 
+    Chunk, ChunkMetadata
+)
 
 # Type variable for chunker subclasses
 T = TypeVar('T', bound='BaseChunker')
 
 
-class BaseChunker(ABC):
+class BaseChunker(BaseChunkerABC):
     """Base class for all document chunkers.
     
     A chunker is responsible for breaking down a document into smaller, semantically
     meaningful chunks that can be processed and embedded independently. Chunkers may
     be specialized for specific document types (e.g., text, code, PDF) and should
     preserve the semantic structure of the document.
+    
+    This implementation extends the BaseChunkerABC from src.types.chunking and
+    provides a concrete implementation of the chunker interface.
     """
     
-    def __init__(self, name: str = "base", config: Optional[Dict[str, Any]] = None):
+    def __init__(self, name: str = "base", config: Optional[ChunkerConfig] = None):
         """Initialize the base chunker.
         
         Args:
             name: Name of the chunker
             config: Configuration options for the chunker
         """
-        self.name = name
-        self.config = config or {}
+        super().__init__(name, config)
     
     @abstractmethod
-    def chunk(self, content: Union[str, Dict[str, Any]], **kwargs: Any) -> List[Dict[str, Any]]:
+    def chunk(self, content: ChunkableDocument, **kwargs: Any) -> ChunkList:
         """Chunk a document into smaller parts.
         
         Args:
-            content: Document content to chunk
+            content: Document content to chunk (string, dict, or BaseModel)
             **kwargs: Additional arguments specific to the chunker implementation
             
         Returns:
             List of chunk dictionaries, where each chunk contains at least:
-            - text: The chunk content
+            - content: The chunk content
             - metadata: Additional information about the chunk
         """
         pass
 
 
 # Function to register chunkers in the registry
-_CHUNKER_REGISTRY: Dict[str, Type[BaseChunker]] = {}
+_CHUNKER_REGISTRY: ChunkerRegistry = {}
 
 def register_chunker(name: str, chunker_cls: Type[BaseChunker]) -> None:
     """Register a chunker class with a name.
@@ -77,4 +87,4 @@ def get_chunker(name: str, **kwargs: Any) -> BaseChunker:
         raise ValueError(f"No chunker registered with name '{name}'")
     
     chunker_cls = _CHUNKER_REGISTRY[name]
-    return chunker_cls(**kwargs)
+    return cast(BaseChunker, chunker_cls(**kwargs))

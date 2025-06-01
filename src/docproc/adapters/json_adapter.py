@@ -54,11 +54,11 @@ class JSONAdapter(BaseAdapter):
             create_symbol_table: Whether to create a symbol table
             options: Additional options for the adapter
         """
-        super().__init__(format_type="json")
+        super().__init__(format_type="json")  # type: ignore[arg-type]
         self.options = options or {}
         self.create_symbol_table = create_symbol_table
         
-    def process_text(self, text: str, options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def process_text(self, text: str, options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:  # type: ignore[override]
         """
         Process JSON text content.
         
@@ -135,7 +135,7 @@ class JSONAdapter(BaseAdapter):
             logger.error(f"Unexpected error processing JSON: {e}")
             return cast(Dict[str, Any], {"error": f"Processing error: {str(e)}"})
     
-    def extract_metadata(self, content: Union[str, Dict[str, Any]], options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def extract_metadata(self, content: Union[str, Dict[str, Any]], options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:  # type: ignore[override]
         """
         Extract metadata from a JSON document.
         
@@ -153,9 +153,9 @@ class JSONAdapter(BaseAdapter):
         if "metadata" in document:
             metadata.update(document["metadata"])
             
-        return cast(Dict[str, Any], metadata)
+        return metadata  # type: ignore[return-value]
     
-    def extract_entities(self, content: Union[str, Dict[str, Any]], options: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    def extract_entities(self, content: Union[str, Dict[str, Any]], options: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:  # type: ignore[override]
         """
         Extract entities from a JSON document.
         

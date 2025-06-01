@@ -11,8 +11,17 @@ import hashlib
 import logging
 import uuid
 from datetime import datetime
-from multiprocessing.pool import ThreadPool
 from typing import Any, Dict, List, Optional, Tuple, Union, Sequence, cast
+from multiprocessing.pool import ThreadPool
+
+def _safe_int_conversion(value: Any, default: int = 0) -> int:
+    """Safely convert value to int, with fallback to default."""
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
 
 from src.chunking.text_chunkers.chonky_chunker import (
     ParagraphSplitter,
@@ -21,14 +30,25 @@ from src.chunking.text_chunkers.chonky_chunker import (
     _hash_path
 )
 
-from src.schemas.documents.base import DocumentSchema, ChunkMetadata
+from src.schemas.documents.base import DocumentSchema, ChunkMetadata as SchemaChunkMetadata
 from src.schemas.common.enums import DocumentType, SchemaVersion
+
+# Import centralized type definitions
+from src.types.chunking.text import (
+    TextChunk, TextChunkMetadata, TextChunkList, TextChunkingOptions,
+    create_text_chunk_metadata
+)
+from src.types.chunking import (
+    ChunkableDocument, ChunkerConfig
+)
+# Import the TypedDict ChunkMetadata for type checking
+from src.types.chunking.chunk import ChunkMetadata
 
 logger = logging.getLogger(__name__)
 
 
 def chunk_text_cpu(
-    content: str,
+    content: ChunkableDocument,
     doc_id: Optional[str] = None,
     path: str = "unknown",
     doc_type: str = "text",
@@ -36,7 +56,7 @@ def chunk_text_cpu(
     output_format: str = "dict",
     model_id: str = "mirth/chonky_modernbert_large_1",
     num_workers: int = 4
-) -> Union[Dict[str, Any], DocumentSchemaType]:
+) -> Union[Dict[str, Any], DocumentSchemaType, TextChunkList]:
     """Chunk a text document into semantically coherent paragraphs using CPU.
     
     This function provides a CPU-optimized implementation of the text chunking,
@@ -59,8 +79,21 @@ def chunk_text_cpu(
     doc_id_log = doc_id if doc_id else 'new document'
     logger.info(f"CPU chunking document: {doc_id_log}")
     
+    # Extract content string from the ChunkableDocument
+    text_content = ""
+    if isinstance(content, str):
+        text_content = content
+    elif isinstance(content, dict):
+        text_content = content.get('text', '') or content.get('content', '')
+    else:
+        # Try to extract from object attributes
+        try:
+            text_content = getattr(content, 'content', '') or getattr(content, 'text', '')
+        except AttributeError:
+            logger.warning("Could not extract text from content object")
+    
     # Handle empty content
-    if not content or not content.strip():
+    if not text_content or not text_content.strip():
         logger.warning("Empty content provided to chunk_text_cpu")
         if output_format == "document":
             return DocumentSchema(
@@ -90,8 +123,8 @@ def chunk_text_cpu(
     )
     
     # Process document content
-    chunks = process_content_with_cpu(
-        content=content,
+    text_chunks: TextChunkList = process_content_with_cpu(
+        content=text_content,
         doc_id=doc_id,
         path=path,
         doc_type=doc_type,
@@ -102,10 +135,10 @@ def chunk_text_cpu(
     # Format output
     result = {
         "id": doc_id,
-        "content": content,
+        "content": text_content,
         "source": path,
         "document_type": doc_type,
-        "chunks": chunks
+        "chunks": text_chunks
     }
     
     # Handle different output formats
@@ -134,33 +167,67 @@ def chunk_text_cpu(
         )
         
         # Convert chunks to ChunkMetadata objects
-        chunk_metadata_list: List[ChunkMetadata] = []
+        chunk_metadata_list: List[SchemaChunkMetadata] = []
         for chunk in result.get("chunks", []):
             if not isinstance(chunk, dict):
                 continue
                 
             # Extract and convert chunk fields with proper type checking
-            start_offset = int(chunk.get("start_offset", 0))
-            end_offset = int(chunk.get("end_offset", 0))
+            try:
+                start_offset = int(chunk.get("start_offset", 0))
+            except (TypeError, ValueError):
+                start_offset = 0
+                
+            try:
+                end_offset = int(chunk.get("end_offset", 0))
+            except (TypeError, ValueError):
+                end_offset = 0
+                
             chunk_type = str(chunk.get("chunk_type", "text"))
-            chunk_index = int(chunk.get("chunk_index", 0))
+            
+            try:
+                chunk_index = int(chunk.get("chunk_index", 0))
+            except (TypeError, ValueError):
+                chunk_index = 0
             parent_id = str(chunk.get("parent_id", doc_id))
             context_before = None
-            context_after = None
-            metadata = chunk.get("metadata", {})
+            # Extract metadata from chunk and create a proper ChunkMetadata TypedDict
+            raw_metadata = chunk.get("metadata", {})
+            # Only include fields that are valid for ChunkMetadata TypedDict
+            chunk_metadata: ChunkMetadata = {
+                "id": raw_metadata.get("id", ""),
+                "parent_id": raw_metadata.get("parent_id"),
+                "path": raw_metadata.get("path", ""),
+                "document_type": raw_metadata.get("document_type", ""),
+                "source_file": raw_metadata.get("source_file", ""),
+                "line_start": _safe_int_conversion(raw_metadata.get("line_start"), 0),
+                "line_end": _safe_int_conversion(raw_metadata.get("line_end"), 0),
+                "char_start": raw_metadata.get("char_start"),
+                "char_end": raw_metadata.get("char_end"),
+                "token_count": _safe_int_conversion(raw_metadata.get("token_count"), 0),
+                "chunk_type": raw_metadata.get("chunk_type", "text"),
+                "language": raw_metadata.get("language"),
+                "created_at": raw_metadata.get("created_at", datetime.now().isoformat())
+            }
             
-            # Create chunk metadata without 'content' which isn't a field in the schema
-            chunk_metadata = ChunkMetadata(
-                start_offset=start_offset,
-                end_offset=end_offset,
-                chunk_type=chunk_type,
+            # Create a schema chunk metadata with available fields from the schema
+            # We need to convert our ChunkMetadata TypedDict to a regular dict for use with SchemaChunkMetadata
+            metadata_dict = dict(chunk_metadata)
+            
+            # Create the SchemaChunkMetadata (Pydantic model) with proper fields
+            schema_chunk_metadata = SchemaChunkMetadata(
+                # SchemaChunkMetadata is a different class than ChunkMetadata TypedDict
+                # Make sure to use proper field names for the Pydantic model
+                start_offset=_safe_int_conversion(metadata_dict.get("char_start"), 0),
+                end_offset=_safe_int_conversion(metadata_dict.get("char_end"), 0),
+                chunk_type=str(metadata_dict.get("chunk_type", "text")),  # Ensure chunk_type is str
                 chunk_index=chunk_index,
                 parent_id=parent_id,
                 context_before=context_before,
-                context_after=context_after,
-                metadata=metadata
+                context_after=None,
+                metadata=metadata_dict
             )
-            chunk_metadata_list.append(chunk_metadata)
+            chunk_metadata_list.append(schema_chunk_metadata)
         
         # Add chunks to the document
         doc_schema.chunks = chunk_metadata_list
@@ -194,7 +261,7 @@ def process_content_with_cpu(
     doc_type: str,
     splitter: ParagraphSplitter,
     num_workers: int = 4
-) -> List[Dict[str, Any]]:
+) -> TextChunkList:
     """Process document content with CPU-based multi-threading.
     
     Args:
@@ -241,7 +308,7 @@ def process_content_with_cpu(
             all_paragraphs.extend(paragraphs)
             
         # Create chunks from paragraphs
-        chunks = []
+        result_chunks: TextChunkList = []
         path_hash = _hash_path(path)
         
         for i, para_text in enumerate(all_paragraphs):
@@ -250,32 +317,40 @@ def process_content_with_cpu(
             start_offset = content.find(para_text) if para_text in content else 0
             end_offset = start_offset + len(para_text) if start_offset > 0 else len(para_text)
             
-            chunks.append({
+            # Create metadata using centralized helper
+            chunk_metadata = create_text_chunk_metadata(
+                chunk_id=chunk_id,
+                document_id=doc_id,
+                path=path,
+                document_type=doc_type,
+                token_count=len(para_text.split()),  # Approximate token count
+                char_count=len(para_text),
+                line_count=para_text.count('\n') + 1,
+                index=i,
+                start_offset=start_offset,
+                end_offset=end_offset,
+                paragraph_type="semantic",
+                chunk_method="cpu_parallel"
+            )
+            
+            # Create TextChunk
+            text_chunk: TextChunk = {
                 "id": chunk_id,
-                "parent_id": doc_id,  # Required field for ChunkMetadata
-                "start_offset": start_offset,  # Required field for ChunkMetadata
-                "end_offset": end_offset,  # Required field for ChunkMetadata
-                "chunk_index": i,  # Required field for ChunkMetadata
-                "chunk_type": doc_type,
                 "content": para_text,
-                "metadata": {
-                    "symbol_type": "paragraph",
-                    "name": f"paragraph_{i}",
-                    "path": path,
-                    "token_count": len(para_text.split()),  # Approximate token count
-                    "content_hash": hashlib.md5(para_text.encode()).hexdigest(),
-                }
-            })
+                "metadata": chunk_metadata
+            }
+            
+            result_chunks.append(text_chunk)
         
-        logger.info(f"Split document into {len(chunks)} semantic paragraphs across {len(segments)} segments")
-        return chunks
+        logger.info(f"Split document into {len(result_chunks)} semantic paragraphs across {len(segments)} segments")
+        return result_chunks
         
     else:
         # For smaller documents, process directly
         paragraphs = splitter.split_text(content)
         
         # Create chunks from paragraphs
-        chunks = []
+        direct_chunks: TextChunkList = []
         path_hash = _hash_path(path)
         
         for i, para_text in enumerate(paragraphs):
@@ -284,25 +359,33 @@ def process_content_with_cpu(
             start_offset = content.find(para_text) if para_text in content else 0
             end_offset = start_offset + len(para_text) if start_offset > 0 else len(para_text)
             
-            chunks.append({
-                "id": chunk_id,
-                "parent_id": doc_id,  # Required field for ChunkMetadata
-                "start_offset": start_offset,  # Required field for ChunkMetadata
-                "end_offset": end_offset,  # Required field for ChunkMetadata
-                "chunk_index": i,  # Required field for ChunkMetadata
-                "chunk_type": doc_type,
-                "content": para_text,
-                "metadata": {
-                    "symbol_type": "paragraph",
-                    "name": f"paragraph_{i}",
-                    "path": path,
-                    "token_count": len(para_text.split()),  # Approximate token count
-                    "content_hash": hashlib.md5(para_text.encode()).hexdigest(),
-                }
-            })
+            # Create metadata using centralized helper
+            chunk_metadata = create_text_chunk_metadata(
+                chunk_id=chunk_id,
+                document_id=doc_id,
+                path=path,
+                document_type=doc_type,
+                token_count=len(para_text.split()),  # Approximate token count
+                char_count=len(para_text),
+                line_count=para_text.count('\n') + 1,
+                index=i,
+                start_offset=start_offset,
+                end_offset=end_offset,
+                paragraph_type="semantic",
+                chunk_method="cpu_direct"
+            )
             
-        logger.info(f"Split document into {len(chunks)} semantic paragraphs")
-        return chunks
+            # Create TextChunk
+            direct_chunk: TextChunk = {
+                "id": chunk_id,
+                "content": para_text,
+                "metadata": chunk_metadata
+            }
+            
+            direct_chunks.append(direct_chunk)
+            
+        logger.info(f"Split document into {len(direct_chunks)} semantic paragraphs")
+        return direct_chunks
 
 
 def _process_segment(
@@ -328,13 +411,14 @@ def _process_segment(
 
 
 def chunk_document_cpu(
-    document: Union[Dict[str, Any], BaseDocument, DocumentSchema], 
+    document: ChunkableDocument, 
     *, 
     max_tokens: int = 2048, 
     return_pydantic: bool = False, 
     num_workers: int = 4,
-    model_id: str = "mirth/chonky_modernbert_large_1"
-) -> Union[DocumentSchema, Dict[str, Any]]:
+    model_id: str = "mirth/chonky_modernbert_large_1",
+    output_format: str = "json"
+) -> Union[Dict[str, Any], DocumentSchema, TextChunkList]:
     """Chunk a document using CPU-optimized processing.
     
     This function is a CPU-optimized version of the document chunking process
@@ -439,7 +523,25 @@ def chunk_document_cpu(
             chunk_list.append(chunk)
         elif isinstance(chunk, dict):
             try:
-                chunk_list.append(ChunkMetadata(**chunk))
+                # Create a dict with only the fields defined in ChunkMetadata TypedDict
+                # Then cast it to ChunkMetadata
+                metadata_dict = {
+                    "id": chunk.get("id", ""),
+                    "parent_id": chunk.get("parent_id"),
+                    "path": chunk.get("path", ""),
+                    "document_type": chunk.get("document_type", ""),
+                    "source_file": chunk.get("source_file", ""),
+                    "line_start": _safe_int_conversion(chunk.get("line_start"), 0),
+                    "line_end": _safe_int_conversion(chunk.get("line_end"), 0),
+                    "char_start": chunk.get("char_start"),
+                    "char_end": chunk.get("char_end"),
+                    "token_count": _safe_int_conversion(chunk.get("token_count"), 0),
+                    "chunk_type": chunk.get("chunk_type", "text"),
+                    "created_at": chunk.get("created_at", datetime.now().isoformat())
+                }
+                # Cast to ChunkMetadata TypedDict
+                chunk_list.append(cast(ChunkMetadata, metadata_dict))
+                # Already appended in the code above
             except Exception as e:
                 logger.warning(f"Error converting chunk to ChunkMetadata: {e}")
     
@@ -454,86 +556,143 @@ def chunk_document_cpu(
         # If it should be a Pydantic model, create a DocumentSchema with the right fields
         try:
             # Need to map fields correctly for DocumentSchema
-            # Convert doc_type_str to a valid DocumentType enum value
-            # First ensure it's a lowercase string to match the enum values
-            doc_type_lower = doc_type_str.lower()
+            # Process chunks to create schema chunk metadata
+            # Get the chunks data and process with safe type casting
+            chunks_list = []
+            document_type_enum = DocumentType.TEXT
+            if doc_dict.get("chunks") and isinstance(doc_dict["chunks"], list):
+                chunks_list = doc_dict["chunks"]
+                path = doc_dict.get("source", "")
+                doc_id = doc_dict["id"]
+                
+                # Extract document type
+                doc_type_str = str(doc_dict.get("document_type", "text"))
+                try:
+                    document_type_enum = DocumentType(doc_type_str)
+                except ValueError:
+                    document_type_enum = DocumentType.TEXT
+                    logger.warning(f"Unknown document type '{doc_type_str}', defaulting to {DocumentType.TEXT}")
             
-            # Use a valid DocumentType or default to TEXT if not recognized
+            # Initialize storage for retrieved chunks
+            chunk_metadata_list: List[SchemaChunkMetadata] = []
+            
+            # Check if doc already has chunks
+            if doc_dict.get("chunks") and isinstance(doc_dict["chunks"], list) and doc_dict["chunks"]:
+                logger.info("Document already has chunks - returning as is")
+                # Apply proper type casting for return type safety
+                if return_pydantic and isinstance(document, DocumentSchema):
+                    return document
+                elif output_format == "chunks":
+                    # If chunks were requested but doc has chunks already, extract them
+                    chunks_list = cast(TextChunkList, doc_dict.get("chunks", []))
+                    return chunks_list
+                else:
+                    # Return as JSON dict
+                    return doc_dict
+            
+            # Extract content to chunk
+            content: Optional[str] = None
+            # Check for content in either "content" or "text" field
+            if isinstance(doc_dict.get("content"), str) and doc_dict["content"].strip():
+                content = doc_dict["content"]
+            # Only check for text if content is not already set
+            if not content and isinstance(doc_dict.get("text"), str) and doc_dict["text"].strip():
+                content = doc_dict["text"]
+                
+            if not content:
+                logger.warning("No content found to chunk in document")
+                if return_pydantic and isinstance(document, DocumentSchema):
+                    return document
+                elif output_format == "chunks":
+                    # Return empty chunk list if chunks were requested
+                    return cast(TextChunkList, [])
+                else:
+                    # Return as dict
+                    return doc_dict
+            
+            # Create a proper DocumentSchema object
+            doc_schema = None
             try:
-                document_type_enum = DocumentType(doc_type_lower)
-            except ValueError:
-                # If the string doesn't match any enum value, default to TEXT
-                document_type_enum = DocumentType.TEXT
-                logger.warning(f"Unknown document type '{doc_type_str}', defaulting to {DocumentType.TEXT}")
-            
+                doc_schema = DocumentSchema(
+                    id=doc_dict["id"],
+                    content=doc_dict.get("content", ""),
+                    source=doc_dict.get("path", ""),  # Ensure it's a string
+                    document_type=document_type_enum,  # Use the properly converted enum
+                    created_at=datetime.now(),
+                    updated_at=datetime.now(),
+                    schema_version=SchemaVersion.V2,  # Use schema_version, not version
+                    title=None,
+                    author=None,
+                    metadata=doc_dict.get("metadata", {}),
+                    embedding=None,
+                    embedding_model=None,
+                    chunks=[
+                        # Create proper SchemaChunkMetadata (Pydantic model) objects for each chunk
+                        # Using the correct field names for SchemaChunkMetadata
+                        SchemaChunkMetadata(
+                            start_offset=_safe_int_conversion(chunk_item["metadata"].get("char_start"), 0),
+                            end_offset=_safe_int_conversion(chunk_item["metadata"].get("char_end"), 0),
+                            chunk_type=chunk_item["metadata"].get("chunk_type", "text"),
+                            chunk_index=_safe_int_conversion(chunk_item["metadata"].get("chunk_index"), 0),
+                            parent_id=chunk_item.get("parent_id", ""),
+                            context_before=None,
+                            context_after=None,
+                            metadata=dict(chunk_item["metadata"])
+                        )
+                        for chunk_item in chunks_list
+                    ],
+                    tags=[]
+                )
+                
+                doc_schema.chunks = chunk_metadata_list
+                return doc_schema
+            except Exception as e:
+                logger.error(f"Error creating DocumentSchema: {e}")
+                if output_format == "chunks":
+                    # Return empty chunk list if chunks were requested
+                    return cast(TextChunkList, [])
+                else:
+                    # Return original dict as fallback
+                    return doc_dict
+        except Exception as e:
+            logger.error(f"Error in chunk_document_cpu: {e}")
+            if return_pydantic and isinstance(document, DocumentSchema):
+                return document
+            elif output_format == "chunks":
+                # Return empty chunk list if chunks were requested
+                return cast(TextChunkList, [])
+            else:
+                # Return as dict
+                return doc_dict
+    
+    # Return in appropriate format based on output_format
+    if output_format == "document" and isinstance(doc_dict, Dict):
+        # Try to convert to DocumentSchema as fallback
+        try:
             doc_schema = DocumentSchema(
-                id=doc_dict["id"],
-                content=doc_dict["content"],
-                source=doc_dict.get("path", ""),  # Ensure it's a string
-                document_type=document_type_enum,  # Use the properly converted enum
-                schema_version=SchemaVersion.V2,
+                id=doc_dict.get("id", str(uuid.uuid4())),
+                content=doc_dict.get("content", ""),
+                source=doc_dict.get("source", ""),
+                document_type=DocumentType(doc_dict.get("document_type", "text")),
+                chunks=doc_dict.get("chunks", []),
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                schema_version=SchemaVersion.V2,  # Use schema_version, not version
                 title=None,
                 author=None,
-                created_at=datetime.now(),
-                updated_at=None,
-                metadata={},
+                metadata=doc_dict.get("metadata", {}),
                 embedding=None,
                 embedding_model=None,
-                chunks=[],  # Will convert chunks separately
                 tags=[]
             )
-            
-            # Create a properly typed list to hold chunk metadata
-            chunk_metadata_list: List[ChunkMetadata] = []
-            
-            # Get the chunks data from the document with proper typing
-            # First, get a safely typed variable that will hold our chunks
-            chunks_data: List[Any] = []
-            
-            # Extract the raw chunks data
-            raw_chunks: Any = doc_dict.get("chunks", [])
-            
-            # Ensure we have a properly typed list
-            if isinstance(raw_chunks, list):
-                chunks_data = raw_chunks
-            elif raw_chunks is not None:
-                # If not a list but has a value, convert to single-item list
-                chunks_data = [raw_chunks]
-            
-            # Process each chunk if there are any
-            if chunks_data and isinstance(chunks_data, list):
-                for chunk in chunks_data:
-                    if isinstance(chunk, dict):
-                        # Extract chunk data with proper type conversion
-                        chunk_start = int(chunk.get("start_offset", 0))
-                        chunk_end = int(chunk.get("end_offset", 0)) 
-                        chunk_type = str(chunk.get("chunk_type", "text"))
-                        chunk_index = int(chunk.get("chunk_index", 0))
-                        parent_id = str(chunk.get("parent_id", doc_dict.get("id", "")))
-                        
-                        # Create ChunkMetadata with safely typed values
-                        try:
-                            chunk_meta = ChunkMetadata(
-                                start_offset=chunk_start,
-                                end_offset=chunk_end,
-                                chunk_type=chunk_type,
-                                chunk_index=chunk_index,
-                                parent_id=parent_id,
-                                context_before=None, 
-                                context_after=None,
-                                metadata=chunk.get("metadata", {})
-                            )
-                            chunk_metadata_list.append(chunk_meta)
-                        except Exception as chunk_e:
-                            logger.error(f"Error creating ChunkMetadata: {chunk_e}")
-            
-            # Set chunks list on doc_schema
-            doc_schema.chunks = chunk_metadata_list
             return doc_schema
         except Exception as e:
-            logger.error(f"Failed to create DocumentSchema: {e}")
-            # Fall back to dict if creating DocumentSchema fails
-            return doc_dict
-    
+            logger.error(f"Error creating DocumentSchema: {e}")
+            # Fall through to dict return
+    elif output_format == "chunks" and isinstance(doc_dict, Dict) and "chunks" in doc_dict:
+        # Return just the chunks list
+        chunks = cast(TextChunkList, doc_dict.get("chunks", []))
+        return chunks
+        
     # Otherwise return as dict
     return doc_dict

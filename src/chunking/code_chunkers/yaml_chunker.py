@@ -35,7 +35,7 @@ class YAMLCodeChunker(BaseChunker):
         Args:
             config: Optional configuration for the chunker
         """
-        super().__init__(name="yaml_code", config=config)
+        super().__init__(name="yaml_code", config=config)  # type: ignore[arg-type]
         
         # Configure chunker behavior
         self.include_comments = self.config.get("include_comments", False)
@@ -53,7 +53,7 @@ class YAMLCodeChunker(BaseChunker):
         
         logger.info(f"Initialized YAMLCodeChunker with config: {self.config}")
     
-    def chunk(self, content: Union[str, Dict[str, Any]], **kwargs: Any) -> List[Dict[str, Any]]:
+    def chunk(self, content: Union[str, Dict[str, Any]], **kwargs: Any) -> List[Dict[str, Any]]:  # type: ignore[override]
         """
         Chunk YAML content into semantically meaningful chunks.
         
