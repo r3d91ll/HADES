@@ -5,15 +5,77 @@ document, graph, and vector storage and retrieval interfaces. These types
 support the concrete implementations of repository classes.
 """
 
-from typing import Dict, List, Any, Optional, Union, Protocol, Tuple, TypeVar, runtime_checkable
+from typing import Dict, List, Any, Optional, Union, Protocol, Tuple, TypeVar, runtime_checkable, TypedDict, Awaitable
 from datetime import datetime
 from uuid import UUID
 
 from src.types.common import NodeData, EdgeData, EmbeddingVector, NodeID, EdgeID
+from src.types.storage.query import QueryOptions, QueryResult, VectorQueryOptions, HybridQueryOptions, VectorSearchResult, HybridSearchResult
 
 
 # Result type for operations that may fail
 OperationResult = Tuple[bool, Optional[str]]
+
+
+# Bulk operation result types
+class BaseBulkOperationResult(TypedDict):
+    """Base result for bulk operations."""
+    success: bool
+    """Whether the bulk operation was successful overall."""
+    
+    total: int
+    """Total number of operations attempted."""
+    
+    errors: List[Dict[str, Any]]
+    """List of errors encountered during the operation."""
+
+
+class CustomBulkOperationResult(BaseBulkOperationResult):
+    """Extended result for custom bulk operations."""
+    created: List[str]
+    """List of IDs that were successfully created."""
+    
+    skipped: List[str]
+    """List of IDs that were skipped during the operation."""
+
+
+class DetailedBulkOperationResult(TypedDict, total=False):
+    """Detailed bulk operation result with additional fields."""
+    document_id: str
+    """ID of the document the operation was performed on."""
+    
+    status: str
+    """Status of the operation (success, error, etc.)."""
+    
+    message: str
+    """Descriptive message about the operation result."""
+    
+    chunks_stored: int
+    """Number of chunks stored during the operation."""
+    
+    embeddings_stored: int
+    """Number of embeddings stored during the operation."""
+    
+    successful: List[str]
+    """List of successful operation IDs."""
+    
+    failed: List[str]
+    """List of failed operation IDs."""
+    
+    success_count: int
+    """Count of successful operations."""
+    
+    error_count: int
+    """Count of failed operations."""
+    
+    operation: str
+    """Type of operation performed."""
+    
+    timestamp: str
+    """Timestamp when the operation was performed."""
+    
+    errors: Dict[str, str]
+    """Dictionary of error messages by ID."""
 
 # Define type alias for connection config to avoid circular imports
 ConnectionConfigType = Dict[str, Any]
@@ -396,7 +458,7 @@ class VectorRepository(Protocol):
         ...
     
     def get_nearest_neighbors(self, node_id: NodeID, 
-                             limit: int = 10) -> List[Tuple[NodeData, float]]:
+                              limit: int = 10) -> List[Tuple[NodeData, float]]:
         """
         Get nearest neighbors of a node based on embedding similarity.
         
@@ -407,4 +469,98 @@ class VectorRepository(Protocol):
         Returns:
             List of neighboring nodes with similarity scores
         """
+        ...
+
+
+@runtime_checkable
+class UnifiedRepository(Protocol):
+    """Interface combining document, graph, and vector repository operations.
+    
+    This unified interface represents the complete functionality required for the HADES system,
+    combining document, graph, and vector operations with additional collection management
+    and advanced query capabilities.
+    """
+    
+    # From DocumentRepository
+    def store_document(self, document: NodeData) -> Union[NodeID, Awaitable[NodeID]]:
+        """Store a document and return its ID."""
+        ...
+        
+    def get_document(self, document_id: NodeID) -> Union[Optional[NodeData], Awaitable[Optional[NodeData]]]:
+        """Get a document by its ID."""
+        ...
+        
+    def update_document(self, document_id: NodeID, updates: Dict[str, Any]) -> Union[bool, Awaitable[bool]]:
+        """Update a document with the provided updates."""
+        ...
+        
+    def delete_document(self, document_id: NodeID) -> Union[bool, Awaitable[bool]]:
+        """Delete a document by its ID."""
+        ...
+        
+    def search_documents(self, query: str, filters: Optional[Dict[str, Any]] = None, limit: int = 10) -> Union[List[NodeData], Awaitable[List[NodeData]]]:
+        """Search for documents matching the query."""
+        ...
+        
+    def get_documents_by_type(self, doc_type: str, limit: int = 100, offset: int = 0) -> Union[List[NodeData], Awaitable[List[NodeData]]]:
+        """Get documents of a specific type."""
+        ...
+        
+    # From GraphRepository
+    def store_node(self, node: NodeData) -> Union[NodeID, Awaitable[NodeID]]:
+        """Store a node in the graph."""
+        ...
+        
+    def get_node(self, node_id: NodeID) -> Union[Optional[NodeData], Awaitable[Optional[NodeData]]]:
+        """Get a node from the graph by its ID."""
+        ...
+        
+    def store_edge(self, edge: EdgeData) -> Union[EdgeID, Awaitable[EdgeID]]:
+        """Store an edge in the graph."""
+        ...
+        
+    def get_path(self, start_id: NodeID, end_id: NodeID, max_depth: int = 3) -> Union[List[EdgeData], Awaitable[List[EdgeData]]]:
+        """Get a path between two nodes."""
+        ...
+        
+    def get_connected_nodes(self, node_id: NodeID, edge_type: Optional[str] = None) -> Union[List[NodeData], Awaitable[List[NodeData]]]:
+        """Get all nodes connected to the specified node."""
+        ...
+        
+    # From VectorRepository
+    def store_embedding(self, node_id: NodeID, embedding: EmbeddingVector, options: Optional[Dict[str, Any]] = None) -> Union[bool, Awaitable[bool]]:
+        """Store an embedding vector for a node."""
+        ...
+        
+    def get_embedding(self, node_id: NodeID) -> Union[Optional[EmbeddingVector], Awaitable[Optional[EmbeddingVector]]]:
+        """Get the embedding vector for a node."""
+        ...
+        
+    def delete_embedding(self, node_id: NodeID) -> Union[bool, Awaitable[bool]]:
+        """Delete the embedding for a node."""
+        ...
+        
+    def vector_search(self, vector_options: VectorQueryOptions) -> Union[VectorSearchResult, Awaitable[VectorSearchResult]]:
+        """Search for nodes with similar embeddings using the provided options."""
+        ...
+        
+    def hybrid_search(self, hybrid_options: HybridQueryOptions) -> Union[HybridSearchResult, Awaitable[HybridSearchResult]]:
+        """Perform a hybrid search using both text and vector similarity."""
+        ...
+    
+    # Additional custom methods
+    def create_similarity_edges(self, embeddings: List[Tuple[NodeID, EmbeddingVector]], threshold: float = 0.8, limit: int = 5) -> Union[BaseBulkOperationResult, Awaitable[BaseBulkOperationResult]]:
+        """Create similarity edges between nodes based on embedding similarity."""
+        ...
+        
+    def query_documents(self, query_options: QueryOptions) -> Union[QueryResult, Awaitable[QueryResult]]:
+        """Query documents based on the provided options."""
+        ...
+        
+    def setup_collections(self) -> None:
+        """Set up the necessary collections and indexes in the repository."""
+        ...
+    
+    def collection_stats(self) -> Dict[str, Any]:
+        """Get statistics about the collections in the repository."""
         ...

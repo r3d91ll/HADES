@@ -357,7 +357,16 @@ class ArangoRepository(UnifiedRepository):
             logger.error(f"Error creating edge: {e}")
             raise
     
-    def get_edges(self, node_id: NodeID, 
+    async def get_edges(self, node_id: NodeID, 
+                  edge_types: Optional[List[str]] = None) -> List[EdgeData]:
+        """Implementation of the UnifiedRepository protocol method.
+        Note: This method has a different internal implementation with the direction parameter."""
+        # Call the internal implementation with default direction
+        edges_with_nodes = self._get_edges_internal(node_id, edge_types)
+        # Extract just the edge data and return it
+        return [edge for edge, _ in edges_with_nodes]
+        
+    def _get_edges_internal(self, node_id: NodeID, 
                   edge_types: Optional[List[str]] = None,
                   direction: str = "outbound") -> List[Tuple[EdgeData, NodeData]]:
         """
@@ -619,7 +628,14 @@ class ArangoRepository(UnifiedRepository):
         
     # Vector Repository Implementation
     
-    def store_embedding(self, node_id: NodeID, embedding: EmbeddingVector, 
+    async def store_embedding(self, node_id: NodeID, embedding: EmbeddingVector, 
+                              options: Optional[Dict[str, Any]] = None) -> bool:
+        """Store an embedding vector for a node according to UnifiedRepository protocol."""
+        # Forward to internal implementation with metadata from options
+        metadata = options if options else None
+        return self._store_embedding_internal(node_id, embedding, metadata)
+        
+    def _store_embedding_internal(self, node_id: NodeID, embedding: EmbeddingVector, 
                        metadata: Optional[Dict[str, Any]] = None) -> bool:
         """
         Store an embedding for a node in ArangoDB.
@@ -688,7 +704,21 @@ class ArangoRepository(UnifiedRepository):
             logger.error(f"Error getting embedding for node {node_id}: {e}")
             return None
     
-    def search_similar(self, embedding: EmbeddingVector, 
+    async def search_similar(self, embedding: EmbeddingVector, limit: int = 10, 
+                          filters: Optional[List[str]] = None) -> List[Tuple[NodeID, float]]:
+        """Search for nodes with similar embeddings according to UnifiedRepository protocol."""
+        # Convert filters list to dict if needed
+        filter_dict = None
+        if filters:
+            filter_dict = {"type": {"$in": filters}}
+            
+        # Call internal implementation
+        results = self._search_similar_internal(embedding, filter_dict, limit)
+        
+        # Convert to the expected return type: List[Tuple[NodeID, float]]
+        return [(NodeID(node["id"]), score) for node, score in results]
+    
+    def _search_similar_internal(self, embedding: EmbeddingVector, 
                       filters: Optional[Dict[str, Any]] = None,
                       limit: int = 10) -> List[Tuple[NodeData, float]]:
         """

@@ -29,6 +29,20 @@ class TextArangoRepository(ArangoRepository):
     - Optimized document-to-chunk traversals
     """
     
+    async def _execute_aql(self, query: str, bind_vars: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Execute an AQL query and return the results as a list of dictionaries.
+        
+        Args:
+            query: The AQL query string
+            bind_vars: Dictionary of bind variables for the query
+            
+        Returns:
+            List of result documents
+        """
+        cursor = self.connection.raw_db.aql.execute(query, bind_vars=bind_vars)
+        return [doc for doc in cursor]
+    
     def __init__(self, 
                  connection: ArangoConnection,
                  node_collection: Optional[str] = None,
@@ -234,7 +248,7 @@ class TextArangoRepository(ArangoRepository):
         limit: int = 10,
         node_types: Optional[List[str]] = None,
         embedding_type: str = "default"
-    ) -> List[Tuple[Dict[str, Any], float]]:
+    ) -> List[Tuple[NodeData, float]]:
         """
         Search for nodes with similar embeddings and return full node data.
         
@@ -255,7 +269,7 @@ class TextArangoRepository(ArangoRepository):
             LET query_vec = @query_vector
             FOR doc IN {self.node_collection_name}
                 FILTER doc.{embedding_field} != null
-                {f"FILTER doc.type IN @node_types" if node_types else ""}
+                {f"FILTER doc.type IN @filter_types" if node_types else ""}
                 
                 LET vec = doc.{embedding_field}.vector
                 LET similarity = LENGTH(vec) == 0 ? 0 : 
@@ -272,16 +286,30 @@ class TextArangoRepository(ArangoRepository):
                 }}
             """
             
-            params = {
+            # Separate parameters by type to avoid type conflicts
+            # The query_vector is a numeric type (EmbeddingVector)
+            numeric_params = {
                 "query_vector": query_vector,
+            }
+            
+            # AQL doesn't allow mixing parameter types, so we need separate parameters
+            params = {
+                "@nodes": self.node_collection_name,
+                "vector": query_vector.tolist() if isinstance(query_vector, np.ndarray) else query_vector,
                 "min_score": 0.5,  # Minimum similarity threshold
                 "limit": limit
             }
             
+            # Create a separate filter_params dict for string parameters
+            filter_params = {}
             if node_types:
-                params["node_types"] = node_types
+                # Use the node_types directly in a separate parameter dictionary
+                filter_params["filter_types"] = node_types
                 
-            results = await self._execute_aql(aql, params)
+            # Merge the dictionaries only for the AQL execution
+            aql_params = {**params, **filter_params}
+                
+            results = await self._execute_aql(aql, aql_params)
             
             # Extract nodes and scores
             return [(item["node"], item["score"]) for item in results]
@@ -290,7 +318,7 @@ class TextArangoRepository(ArangoRepository):
             logger.error(f"Error in search_similar_with_data: {e}")
             return []
     
-    async def get_document_with_chunks(self, document_id: str) -> Optional[Dict[str, Any]]:
+    async def get_document_with_chunks(self, document_id: NodeID) -> Optional[Dict[str, Union[NodeData, List[NodeData], int]]]:
         """
         Get a document with all its chunks.
         
@@ -318,10 +346,14 @@ class TextArangoRepository(ArangoRepository):
                 "start_vertex": f"{self.node_collection_name}/{document_id}"
             }
             
-            chunks = await self._execute_aql(aql, params)
+            chunk_results = await self._execute_aql(aql, params)
+            # Convert results to properly typed NodeData objects
+            # Since NodeData is a TypedDict, we need to handle it differently than with a regular class
+            # Cast each dictionary to NodeData to maintain proper typing
+            chunks: List[NodeData] = [cast(NodeData, chunk) for chunk in chunk_results]
             
-            # Build complete document
-            result = {
+            # Build complete document with proper typing
+            result: Dict[str, Union[NodeData, List[NodeData], int]] = {
                 "document": document,
                 "chunks": chunks,
                 "chunk_count": len(chunks)
