@@ -206,7 +206,7 @@ class VLLMConfig(BaseModel):
                 max_tokens=2048
             )
     
-    def get_model_config(self, model_alias: str, mode: ModelMode = "inference") -> VLLMModelConfig:
+    def get_model_config(self, model_alias: str, mode: ModelMode = ModelMode.INFERENCE) -> VLLMModelConfig:
         """Get model configuration by alias and mode.
         
         Args:
@@ -216,14 +216,14 @@ class VLLMConfig(BaseModel):
         Returns:
             The model configuration
         """
-        if mode == "inference":
+        if mode == ModelMode.INFERENCE:
             if model_alias == "default":
                 model_alias = os.getenv("VLLM_DEFAULT_MODEL", "general")
             
             if model_alias not in self.inference_models:
                 raise ValueError(f"Inference model alias '{model_alias}' not found in configuration")
             return self.inference_models[model_alias]
-        elif mode == "ingestion":
+        elif mode == ModelMode.INGESTION:
             if model_alias == "default_embedding":
                 model_alias = os.getenv("VLLM_DEFAULT_EMBEDDING_MODEL", "embedding")
             
@@ -231,7 +231,7 @@ class VLLMConfig(BaseModel):
                 raise ValueError(f"Ingestion model alias '{model_alias}' not found in configuration")
             return self.ingestion_models[model_alias]
         else:
-            raise ValueError(f"Invalid mode '{mode}', must be 'inference' or 'ingestion'")
+            raise ValueError(f"Invalid mode '{mode}', must be {ModelMode.INFERENCE} or {ModelMode.INGESTION}")
 
 
 # Function to construct vLLM server command

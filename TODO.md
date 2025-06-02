@@ -76,6 +76,11 @@ This section outlines the planned improvements to the pipeline architecture for 
     - [x] Fix JSON and YAML adapter typing (Liskov substitution principle issues)
     - [x] Fix adapter registry typing issues
     - [x] Improve test coverage for adapters to ≥85% standard
+  - [x] Fix typing issues in storage module
+    - [x] Fix ArangoRepository to match UnifiedRepository protocol
+    - [x] Fix TextArangoRepository attribute reference issues
+    - [x] Fix proper TypeAlias definitions for StorageDocument
+    - [x] Fix parameter separation for AQL queries to avoid type conflicts
   - [ ] Fix typing issues in PathRAG module
     - [ ] Add missing return type annotations
     - [ ] Fix type inconsistencies in storage classes
