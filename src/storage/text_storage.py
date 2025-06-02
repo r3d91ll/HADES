@@ -56,7 +56,8 @@ from src.types.storage.query import (
 logger = logging.getLogger(__name__)
 
 # Define type aliases for this module
-StorageDocument = NodeData
+from typing import TypeAlias
+StorageDocument: TypeAlias = NodeData
 
 # Import specific implementations
 from src.storage.arango.connection import ArangoConnection
