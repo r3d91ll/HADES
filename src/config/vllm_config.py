@@ -65,7 +65,6 @@ class VLLMModelConfig(BaseModel):
         return {
             "model_id": self.model_id,
             "embedding_model_id": self.embedding_model_id,
-            "port": self.port,
             "max_tokens": self.max_tokens,
             "temperature": self.temperature,
             "top_p": self.top_p,
