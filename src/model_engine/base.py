@@ -57,7 +57,7 @@ class ModelEngine(ABC):
     
     @abstractmethod
     def infer(self, model_id: str, inputs: Union[str, List[str]], 
-             task: str, **kwargs) -> Any:
+             task: str, **kwargs) -> Dict[str, Any]:
         """Run inference with a model.
         
         Args:

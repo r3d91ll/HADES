@@ -14,9 +14,9 @@ import subprocess
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union, AsyncIterator
 
-import requests
-import aiohttp
-import numpy as np
+import requests  # type: ignore[import-untyped]
+import aiohttp  # type: ignore[import-untyped]
+import numpy as np  # numpy has type stubs
 
 from src.model_engine.base import ModelEngine
 from src.config.vllm_config import VLLMConfig
@@ -60,7 +60,7 @@ class VLLMModelEngine(ModelEngine):
         self.timeout = timeout
         
         # Track loaded models
-        self.loaded_models = {}
+        self.loaded_models: Dict[str, Dict[str, Union[str, float, List[str]]]] = {}
         self.running = False
         
         # Initialize session
@@ -202,11 +202,14 @@ class VLLMModelEngine(ModelEngine):
         if model_id not in self.loaded_models:
             raise RuntimeError(f"Model {model_id} not loaded. Call load_model() first.")
             
-        all_embeddings = []
+        all_embeddings: List[List[float]] = []
         # Use the session managed by the base class or overridden by tests
-        if not self._session or self._session.closed:
-            raise RuntimeError("AIOHTTP session is not available or closed.")
+        if not self._session:
+                raise RuntimeError("AIOHTTP session is not available.")
+        # Store reference in local variable before checking closed status
         session = self._session
+        if session.closed:
+                raise RuntimeError("AIOHTTP session is closed.")
         
         # Process in batches
         for i in range(0, len(texts), batch_size):
@@ -286,9 +289,12 @@ class VLLMModelEngine(ModelEngine):
             raise RuntimeError(f"Model {model_id} not loaded. Call load_model() first.")
 
         # Use the session managed by the base class or overridden by tests
-        if not self._session or self._session.closed:
-            raise RuntimeError("AIOHTTP session is not available or closed.")
+        if not self._session:
+                raise RuntimeError("AIOHTTP session is not available.")
+        # Store reference in local variable before checking closed status
         session = self._session
+        if session.closed:
+                raise RuntimeError("AIOHTTP session is closed.")
         
         url = f"{self.server_url}/v1/completions"
         
@@ -355,9 +361,12 @@ class VLLMModelEngine(ModelEngine):
             raise RuntimeError(f"Model {model_id} not loaded. Call load_model() first.")
             
         # Use the session managed by the base class or overridden by tests
-        if not self._session or self._session.closed:
-            raise RuntimeError("AIOHTTP session is not available or closed.")
+        if not self._session:
+                raise RuntimeError("AIOHTTP session is not available.")
+        # Store reference in local variable before checking closed status
         session = self._session
+        if session.closed:
+                raise RuntimeError("AIOHTTP session is closed.")
         
         url = f"{self.server_url}/v1/chat/completions"
         
@@ -405,4 +414,5 @@ class VLLMModelEngine(ModelEngine):
         norm = np.linalg.norm(embedding)
         if norm > 0:
             return (np.array(embedding) / norm).tolist()
-        return embedding
+        # Return a copy of the list to ensure consistent return type
+        return list(embedding)

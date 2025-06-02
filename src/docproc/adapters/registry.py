@@ -55,7 +55,7 @@ def register_adapter(format_type: str, adapter_class: Type[T]) -> None:
     _ADAPTER_REGISTRY[format_type.lower()] = adapter_class
 
 
-def get_adapter_class(format_type: str) -> Type[DocumentProcessorType]:
+def get_adapter_class(format_type: str) -> Type[BaseAdapter]:
     """
     Get the adapter class for a specific format.
     
@@ -90,7 +90,7 @@ def get_adapter_for_format(format_type: str) -> DocumentProcessorType:
     return adapter_class()
 
 
-def get_supported_formats() -> list:
+def get_supported_formats() -> List[str]:
     """
     Get a list of all supported document formats.
     

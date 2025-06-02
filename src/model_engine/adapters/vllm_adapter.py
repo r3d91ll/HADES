@@ -5,17 +5,19 @@ This adapter provides a unified interface for both embedding generation
 and text completion using vLLM's OpenAI-compatible API.
 """
 
-import logging
-import json
-import requests
-import aiohttp
-import numpy as np
-import time
-import os
 import asyncio
+import json
+import logging
+import os
 import subprocess
+import time
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union, AsyncIterator
+
+# Third-party imports
+import aiohttp
+import numpy as np
+import requests
 
 from src.model_engine.adapters.base import EmbeddingAdapter, CompletionAdapter, ChatAdapter
 from src.config.vllm_config import VLLMConfig
@@ -38,7 +40,7 @@ class VLLMAdapter(EmbeddingAdapter, CompletionAdapter, ChatAdapter):
         max_retries: int = 3,
         timeout: int = 60,
         use_openai_api: bool = True,
-        **kwargs
+        **kwargs: Any
     ) -> None:
         """
         Initialize the vLLM adapter.
@@ -129,7 +131,7 @@ class VLLMAdapter(EmbeddingAdapter, CompletionAdapter, ChatAdapter):
         
         return normalized
     
-    def get_embeddings(self, texts: List[str]) -> List[List[float]]:
+    def get_embeddings(self, texts: List[str], **kwargs: Any) -> List[List[float]]:
         """
         Generate embeddings for texts.
         
@@ -182,7 +184,7 @@ class VLLMAdapter(EmbeddingAdapter, CompletionAdapter, ChatAdapter):
         # Normalize if requested
         return self._normalize(all_embeddings)
     
-    def complete(self, prompt: str, **kwargs) -> str:
+    def complete(self, prompt: str, **kwargs: Any) -> str:
         """
         Complete a text prompt.
         
@@ -196,7 +198,7 @@ class VLLMAdapter(EmbeddingAdapter, CompletionAdapter, ChatAdapter):
         # Synchronous wrapper around async completion
         return asyncio.run(self.complete_async(prompt, **kwargs))
     
-    async def complete_async(self, prompt: str, **kwargs) -> str:
+    async def complete_async(self, prompt: str, **kwargs: Any) -> str:
         """
         Complete a text prompt asynchronously.
         
@@ -232,9 +234,9 @@ class VLLMAdapter(EmbeddingAdapter, CompletionAdapter, ChatAdapter):
                     raise RuntimeError(f"Error in completion request: {error_text}")
                 
                 data = await response.json()
-                return data["choices"][0]["text"]
+                return str(data["choices"][0]["text"])
     
-    def chat_complete(self, messages: List[Dict[str, str]], **kwargs) -> Dict[str, Any]:
+    def chat_complete(self, messages: List[Dict[str, str]], **kwargs: Any) -> Dict[str, Any]:
         """
         Complete a chat conversation.
         
@@ -248,7 +250,7 @@ class VLLMAdapter(EmbeddingAdapter, CompletionAdapter, ChatAdapter):
         # Synchronous wrapper around async chat completion
         return asyncio.run(self.chat_complete_async(messages, **kwargs))
     
-    async def chat_complete_async(self, messages: List[Dict[str, str]], **kwargs) -> Dict[str, Any]:
+    async def chat_complete_async(self, messages: List[Dict[str, str]], **kwargs: Any) -> Dict[str, Any]:
         """
         Complete a chat conversation asynchronously.
         
@@ -283,7 +285,8 @@ class VLLMAdapter(EmbeddingAdapter, CompletionAdapter, ChatAdapter):
                     error_text = await response.text()
                     raise RuntimeError(f"Error in chat completion request: {error_text}")
                 
-                return await response.json()
+                response_data: Dict[str, Any] = await response.json()
+                return response_data
 
 
 def start_vllm_server(
@@ -297,7 +300,7 @@ def start_vllm_server(
     use_openai_api: bool = True,
     cuda_visible_devices: Optional[str] = None,
     seed: int = 42,
-    **kwargs
+    **kwargs: Any
 ) -> str:
     """
     Generate command to start a vLLM server.

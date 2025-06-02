@@ -14,7 +14,10 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional, Union, Any, cast
 
-from src.config.vllm_config import make_vllm_command, VLLMConfig, ModelMode
+# Note: For proper type checking, run: pip install types-requests
+# These imports may show typing errors until then
+
+from src.config.vllm_config import make_vllm_command, VLLMConfig, ModelMode, VLLMModelConfig
 from src.types.vllm_types import VLLMProcessInfo
 
 # Set up logging
@@ -131,12 +134,19 @@ class VLLMProcessManager:
                 self._cleanup_process(process_key)
         
         try:
+            # Get model and server configuration
+            if not self.config:
+                # Load configuration if not already loaded
+                self.config = VLLMConfig.load_from_yaml(self.config_path)
+                
+            # Get model config based on alias and mode
+            model_config = self.config.get_model_config(model_alias, mode)
+            server_config = self.config.server_config
+            
             # Generate command to start model
             cmd = make_vllm_command(
-                model_alias=model_alias,
-                mode=mode,
-                yaml_path=self.config_path,
-                vllm_executable=self.vllm_executable
+                server_config=server_config,
+                model_id=model_config.model_id
             )
             
             logger.info(f"Starting vLLM model {model_alias} with command: {' '.join(cmd)}")
@@ -157,17 +167,23 @@ class VLLMProcessManager:
                 self.config.inference_models if mode == ModelMode.INFERENCE
                 else self.config.ingestion_models
             )
-            model_config = models.get(model_alias)
+            # Explicitly annotate the type to acknowledge it can be None from .get()
+            # Using 'model_settings' to avoid name collision with the earlier 'model_config'
+            model_settings: Optional[VLLMModelConfig] = models.get(model_alias)
             
-            if not model_config:
+            if not model_settings:
                 raise ValueError(f"Model {model_alias} not found in configuration")
+            
+            # Now model_settings is guaranteed to be non-None due to the check above
+            # This helps mypy understand that model_settings cannot be None here
+            assert model_settings is not None
             
             # Create process info
             process_info = VLLMProcessInfo(
                 process=process,
                 model_alias=model_alias,
                 mode=mode,
-                server_url=f"http://{self.config.server.host}:{model_config.port or self.config.server.port}",
+                server_url=f"http://{self.config.server.host}:{model_settings.port or self.config.server.port}",
                 start_time=time.time()
             )
             
@@ -288,8 +304,8 @@ class VLLMProcessManager:
         Returns:
             True if model is ready, False otherwise
         """
-        import requests
-        from requests.exceptions import RequestException
+        import requests  # type: ignore
+        from requests.exceptions import RequestException  # type: ignore
         
         start_time = time.time()
         
