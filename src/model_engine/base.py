@@ -25,6 +25,14 @@ class ModelEngine(ABC):
     - Error handling and recovery
     """
     
+    def __init__(self, config_path: Optional[str] = None) -> None:
+        """Initialize the model engine.
+        
+        Args:
+            config_path: Optional path to configuration file or socket
+        """
+        self.config_path = config_path
+    
     @abstractmethod
     def load_model(self, model_id: str, 
                   device: Optional[Union[str, List[str]]] = None) -> str:
@@ -57,7 +65,7 @@ class ModelEngine(ABC):
     
     @abstractmethod
     def infer(self, model_id: str, inputs: Union[str, List[str]], 
-             task: str, **kwargs) -> Dict[str, Any]:
+             task: str, **kwargs: Any) -> Dict[str, Any]:
         """Run inference with a model.
         
         Args:

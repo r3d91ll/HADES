@@ -194,6 +194,38 @@ class VLLMModelEngine(ModelEngine):
             # Return a string to match return type annotation
             return f"Error: {e}"
     
+    def unload_model(self, model_id: str) -> str:
+        """Unload a model from memory.
+        
+        This will stop the vLLM process for the specified model if it's running.
+        
+        Args:
+            model_id: The ID of the model to unload
+            
+        Returns:
+            Status string ("unloaded")
+            
+        Raises:
+            RuntimeError: If the model engine service is not running
+        """
+        if not self.running:
+            raise RuntimeError("Model engine service is not running")
+        
+        if self.manager is None:
+            raise RuntimeError("Process manager is not initialized")
+        
+        # Assert manager is not None for type checker
+        assert self.manager is not None
+        
+        try:
+            # Stop the model process if it's running
+            self.manager.stop_model(model_id)
+            return "unloaded"
+        except Exception as e:
+            print(f"[VLLMModelEngine] Failed to unload model {model_id}: {e}")
+            # Still return the expected string to match the return type
+            return f"Error: {e}"
+    
     def get_loaded_models(self) -> Dict[str, Dict[str, Any]]:
         """Get information about loaded models.
         

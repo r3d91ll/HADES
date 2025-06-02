@@ -1,0 +1,6 @@
+src/pathrag/vllm_server.py:41:79: error: Incompatible default for argument "mode" (default has type "str", argument has type "ModelMode")  [assignment]
+src/pathrag/vllm_server.py:96:13: error: Value of type "Coroutine[Any, Any, bool]" must be used  [unused-coroutine]
+src/pathrag/vllm_server.py:96:13: note: Are you missing an await?
+src/pathrag/vllm_server.py:145:13: error: Value of type "Coroutine[Any, Any, bool]" must be used  [unused-coroutine]
+src/pathrag/vllm_server.py:145:13: note: Are you missing an await?
+src/pathrag/vllm_server.py:220:66: error: Incompatible default for argument "mode" (default has type "str", argument has type "ModelMode")  [assignment]

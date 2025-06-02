@@ -41,10 +41,8 @@ def create_model_engine(engine_type: str, config_path: Optional[str] = None) -> 
     
     engine_class = ENGINE_REGISTRY[engine_type]
     
-    if engine_type == "haystack":
-        return engine_class(socket_path=config_path)
-    else:
-        return engine_class(config_path=config_path)
+    # Use config_path for all engine types for consistency
+    return engine_class(config_path=config_path)
 
 
 # Global engine instances
@@ -52,12 +50,12 @@ _haystack_engine: Optional[HaystackModelEngine] = None
 _vllm_engine: Optional[VLLMModelEngine] = None
 
 
-def get_haystack_engine(socket_path: Optional[str] = None) -> HaystackModelEngine:
+def get_haystack_engine(config_path: Optional[str] = None) -> HaystackModelEngine:
     """
     Get the global Haystack model engine instance.
     
     Args:
-        socket_path: Optional custom path to the Unix domain socket
+        config_path: Optional custom path to the Unix domain socket
         
     Returns:
         Global HaystackModelEngine instance
@@ -65,7 +63,7 @@ def get_haystack_engine(socket_path: Optional[str] = None) -> HaystackModelEngin
     global _haystack_engine
     
     if _haystack_engine is None:
-        _haystack_engine = HaystackModelEngine(socket_path=socket_path)
+        _haystack_engine = HaystackModelEngine(config_path=config_path)
         
     return _haystack_engine
 

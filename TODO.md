@@ -81,6 +81,15 @@ This section outlines the planned improvements to the pipeline architecture for 
     - [x] Fix TextArangoRepository attribute reference issues
     - [x] Fix proper TypeAlias definitions for StorageDocument
     - [x] Fix parameter separation for AQL queries to avoid type conflicts
+  - [ ] Fix typing issues in model_engine module
+    - [x] Fix typing issues in VLLM engine
+      - [x] Fix unreachable code in session availability checks
+      - [x] Add proper type annotations for loaded_models
+      - [x] Fix return type of _normalize_embedding
+      - [x] Add proper type ignore comments for third-party imports
+    - [ ] Fix typing issues in Haystack engine
+    - [ ] Fix typing issues in server_manager.py
+    - [ ] Fix typing issues in adapters
   - [ ] Fix typing issues in PathRAG module
     - [ ] Add missing return type annotations
     - [ ] Fix type inconsistencies in storage classes

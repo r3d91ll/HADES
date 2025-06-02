@@ -23,8 +23,7 @@ def clear_registry() -> None:
     
     This is primarily useful for testing purposes.
     """
-    global _ADAPTER_REGISTRY
-    _ADAPTER_REGISTRY: Dict[str, Any] = {}
+    _ADAPTER_REGISTRY.clear()
 
 
 def register_adapter(format_type: str, adapter_class: Type[T]) -> None:

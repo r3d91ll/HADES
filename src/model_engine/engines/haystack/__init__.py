@@ -28,13 +28,13 @@ class HaystackModelEngine(ModelEngine):
         running: Whether the model manager service is currently running
     """
     
-    def __init__(self, socket_path: Optional[str] = None) -> None:
+    def __init__(self, config_path: Optional[str] = None) -> None:
         """Initialize the Haystack model engine.
         
         Args:
-            socket_path: Optional custom path to the Unix domain socket
+            config_path: Optional custom path to the Unix domain socket
         """
-        self.socket_path = socket_path
+        self.socket_path = config_path
         self.client: Optional[ModelClient] = None
         self.running = False
         

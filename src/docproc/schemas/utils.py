@@ -57,8 +57,7 @@ def validate_document(data: Union[Dict[str, Any], 'ProcessedDocument']) -> BaseD
             pass
     
     # Fall back to base document validation
-    # Return as base type to satisfy mypy
-    return cast(BaseDocument, BaseDocument.model_validate(data_dict))
+    return BaseDocument.model_validate(data_dict)
 
 
 def document_to_processed_document(doc: BaseDocument) -> ProcessedDocument:
@@ -95,7 +94,7 @@ def validate_or_default(
         Validated model or default
     """
     try:
-        return cast(T, model_class.model_validate(data))
+        return model_class.model_validate(data)
     except ValidationError as e:
         logger.warning(f"Validation failed for {model_class.__name__}: {e}")
         return default

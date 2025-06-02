@@ -18,15 +18,18 @@ ValidatorFunc = Callable[[Any, T], T]
 def typed_field_validator(field_name: str) -> Callable[[Callable[[Any, T], T]], Callable[[Any, T], T]]:
     """Typed wrapper for field_validator to make mypy happy."""
     def decorator(func: Callable[[Any, T], T]) -> Callable[[Any, T], T]:
-        return cast(Callable[[Any, T], T], field_validator(field_name)(func))
+        # Remove redundant cast - field_validator already returns the right type
+        return field_validator(field_name)(func)
     return decorator
 
-# Create a typed wrapper for model validators
-def typed_model_validator(mode: str = 'after') -> Callable[[Callable[[Any], Any]], Callable[[Any], Any]]:
-    """Typed wrapper for model_validator to make mypy happy."""
-    def decorator(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
-        return cast(Callable[[Any], Any], model_validator(mode=mode)(func))
-    return decorator
+# Create a typed wrapper for model validators - simplified approach used across schema files
+def typed_model_validator(*, mode: Literal['after', 'before', 'wrap'] = 'after') -> Callable[[Any], Any]:
+    """Typed wrapper for model_validator to make mypy happy.
+    
+    This creates a wrapper for Pydantic's model_validator with proper literal typing.
+    """
+    # This approach matches what was used to fix other schema files
+    return model_validator(mode=mode)
 
 from pydantic import Field, field_validator, model_validator, ConfigDict
 

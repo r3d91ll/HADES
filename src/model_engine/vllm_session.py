@@ -20,6 +20,9 @@ from typing import Dict, List, Optional, Union, Any, cast
 from src.config.vllm_config import make_vllm_command, VLLMConfig, ModelMode, VLLMModelConfig
 from src.types.vllm_types import VLLMProcessInfo
 
+import requests
+from requests.exceptions import RequestException
+
 # Set up logging
 logger = logging.getLogger(__name__)
 
@@ -141,7 +144,7 @@ class VLLMProcessManager:
                 
             # Get model config based on alias and mode
             model_config = self.config.get_model_config(model_alias, mode)
-            server_config = self.config.server_config
+            server_config = self.config.server
             
             # Generate command to start model
             cmd = make_vllm_command(
@@ -304,9 +307,7 @@ class VLLMProcessManager:
         Returns:
             True if model is ready, False otherwise
         """
-        import requests  # type: ignore
-        from requests.exceptions import RequestException  # type: ignore
-        
+      
         start_time = time.time()
         
         # Check if process is still running

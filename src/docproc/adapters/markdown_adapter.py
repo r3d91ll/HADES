@@ -15,7 +15,8 @@ import os
 from pathlib import Path
 import re
 import logging
-from typing import Dict, List, Optional, Any, Tuple, Union, cast, TYPE_CHECKING, Protocol
+from typing import Dict, List, Optional, Any, Tuple, Union, cast, TYPE_CHECKING, Protocol, Type, TypeVar
+from src.types.docproc import AdapterOptions, ProcessedDocument, EntityDict, MetadataDict
 import yaml
 from datetime import datetime
 
@@ -35,7 +36,7 @@ except ImportError:
 class EntityExtractor:
     """Base interface for entity extraction from content."""
     
-    def __init__(self) :
+    def __init__(self) -> None:
         self.entities: List[Dict[str, Any]] = []
         self.current_heading_level: int = 0
         self.heading_stack: List[Dict[str, Any]] = []
@@ -83,10 +84,10 @@ if HAS_MISTUNE:
             # Ensure we always return a string
             return result if isinstance(result, str) else ""
             
-        def _create_renderer(self) :
+        def _create_renderer(self) -> Any:
             """Create and return a custom mistune renderer."""
             # Create a renderer implementation class dynamically
-            class Renderer(mistune.BaseRenderer) :
+            class Renderer(mistune.BaseRenderer):
                 def __init__(self, extractor: MistuneMarkdownExtractor) -> None:
                     super().__init__()
                     self.extractor = extractor
@@ -156,7 +157,7 @@ if HAS_MISTUNE:
 
 
 # Define an accessor function that provides the right implementation
-def get_markdown_extractor() :
+def get_markdown_extractor() -> EntityExtractor:
     """Get the appropriate markdown extractor based on available dependencies."""
     if HAS_MISTUNE:
         return MistuneMarkdownExtractor()
@@ -172,7 +173,7 @@ class MarkdownEntityExtractor(EntityExtractor) :
     New code should use the get_markdown_extractor() function instead.
     """
     
-    def __init__(self) :
+    def __init__(self) -> None:
         super().__init__()
         self._impl = get_markdown_extractor()
     
@@ -182,13 +183,14 @@ class MarkdownEntityExtractor(EntityExtractor) :
     
     # Forward attribute lookups to the implementation
     def __getattr__(self, name: str) -> Any:
-        return getattr(self._impl, name)
+        # Use cast to ensure mypy knows this can return any type
+        return cast(Any, getattr(self._impl, name))
 
 
 class MarkdownAdapter:
     """Adapter for processing markdown documents."""
     
-    def __init__(self) :
+    def __init__(self) -> None:
         if not HAS_MISTUNE:
             logger.warning("MarkdownAdapter initialized without mistune support")
             

@@ -198,6 +198,7 @@ To add support for new document formats:
 ## Testing
 
 The module has a comprehensive test suite with over 85% coverage for key components:
+
 - Unit tests for the manager (`tests/unit/docproc/test_manager.py`)
 - Tests for processing functions and adapters
 - Validation tests for document schemas
