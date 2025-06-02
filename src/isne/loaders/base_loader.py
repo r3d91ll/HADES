@@ -10,7 +10,7 @@ from typing import Dict, List, Optional, Union, Any, Tuple, Set
 from pathlib import Path
 import numpy as np
 
-from ..types.models import (
+from src.types.isne import (
     DocumentType,
     RelationType, 
     IngestDocument,

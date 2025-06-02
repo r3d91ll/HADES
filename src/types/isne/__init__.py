@@ -14,5 +14,7 @@ __all__ = [
     "DocumentType",
     "RelationType",
     "IngestDocument",
-    "DocumentRelation"
+    "DocumentRelation",
+    "EmbeddingVector",
+    "LoaderResult"
 ]

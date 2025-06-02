@@ -20,7 +20,7 @@ from torch_geometric.data import Data, HeteroData
 import logging
 from pathlib import Path
 
-from ..types.models import (
+from src.types.isne import (
     DocumentType,
     RelationType, 
     IngestDocument,

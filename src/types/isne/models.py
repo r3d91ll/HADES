@@ -4,9 +4,13 @@ This module provides TypedDict and Enum definitions for ISNE models,
 training configuration, and document graph structures.
 """
 
-from typing import Any, Dict, List, Literal, Optional, TypedDict, Union
+from typing import Any, Dict, List, Literal, Optional, TypedDict, Union, TypeVar, Generic
 from enum import Enum
 from datetime import datetime
+import numpy as np
+
+# Type alias for embedding vectors
+EmbeddingVector = Union[List[float], np.ndarray]
 
 
 class DocumentType(str, Enum):
@@ -247,3 +251,20 @@ class DocumentRelation(TypedDict, total=False):
     
     metadata: Dict[str, Any]
     """Additional metadata about the relationship."""
+
+
+class LoaderResult(TypedDict, total=False):
+    """Result of loading documents through a loader.
+    
+    This class contains the loaded documents and their relationships,
+    forming the input to the ISNE pipeline.
+    """
+    
+    documents: List[IngestDocument]
+    """List of ingested documents."""
+    
+    relations: List[DocumentRelation]
+    """List of document relationships."""
+    
+    metadata: Dict[str, Any]
+    """Additional metadata about the loading process."""

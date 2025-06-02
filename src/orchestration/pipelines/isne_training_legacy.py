@@ -71,7 +71,7 @@ except ImportError:
 # Import ISNE module
 try:
     from src.isne.models.isne_model import ISNEModel
-    from src.isne.types.models import IngestDocument, DocumentRelation, RelationType, DocumentType
+    from src.types.isne import IngestDocument, DocumentRelation, RelationType, DocumentType
     from src.isne.loaders.modernbert_loader import ModernBERTLoader
     ISNE_AVAILABLE = True
 except ImportError:

@@ -75,7 +75,7 @@ except ImportError:
 try:
     import torch
     from src.isne.models.isne_model import ISNEModel
-    from src.isne.types.models import IngestDocument, DocumentRelation, RelationType
+    from src.types.isne import IngestDocument, DocumentRelation, RelationType
     from src.isne.loaders.modernbert_loader import ModernBERTLoader
     ISNE_AVAILABLE = True
 except ImportError:

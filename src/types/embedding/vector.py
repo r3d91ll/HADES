@@ -30,6 +30,15 @@ class EmbeddingConfig(TypedDict, total=False):
     batch_size: int
     """Batch size for embedding generation."""
     
+    model_dimension: int
+    """Dimension of the embedding vectors produced by the model."""
+    
+    use_gpu: bool
+    """Whether to use GPU for embedding generation."""
+    
+    normalize_embeddings: bool
+    """Whether to normalize embeddings to unit length."""
+    
     device: str
     """Device to run embeddings on ("cpu", "cuda:0", etc.)."""
     

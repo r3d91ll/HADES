@@ -17,7 +17,7 @@ from src.storage.arango.connection import ArangoConnection
 from src.ingest.repository.arango_repository import ArangoRepository
 from src.isne.integrations.pathrag_connector import PathRAGConnector
 from src.isne.pipeline import ISNEPipeline, PipelineConfig
-from src.isne.types.models import EmbeddingConfig
+from src.types.embedding import EmbeddingConfig
 from src.types.common import StorageConfig, PathRankingConfig
 
 # Configure logging

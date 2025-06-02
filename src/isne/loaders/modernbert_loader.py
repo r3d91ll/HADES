@@ -15,7 +15,7 @@ from typing import Dict, List, Optional, Union, Any, Set, Iterator, Tuple, cast
 import logging
 from datetime import datetime
 
-from src.isne.types.models import IngestDocument, DocumentRelation, RelationType, EmbeddingVector
+from src.types.isne import IngestDocument, DocumentRelation, RelationType, EmbeddingVector
 from src.isne.loaders.base_loader import BaseLoader, LoaderConfig, LoaderResult
 
 # Set up logging
