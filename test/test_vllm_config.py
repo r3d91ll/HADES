@@ -3,7 +3,7 @@ Test script to check if VLLMModelConfig.to_dict() aligns with VLLMModelConfigTyp
 """
 from src.config.vllm_config import VLLMModelConfig
 
-def main():
+def main() -> None:
     # Create an instance with the minimum required fields
     config = VLLMModelConfig(model_id="test-model")
     

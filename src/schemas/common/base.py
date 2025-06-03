@@ -53,5 +53,5 @@ class BaseSchema(BaseModel):
         if hasattr(self, 'vector') and 'vector' not in data and not exclude_none:
             data['vector'] = None
             
-        # Use explicit cast to resolve mypy error
-        return cast(Dict[str, Any], data)
+        # Return the data directly - cast is no longer needed
+        return data
