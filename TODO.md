@@ -189,6 +189,9 @@ This section outlines the planned improvements to the pipeline architecture for 
       - [x] Update imports across codebase to use centralized types
       - [x] Add deprecation warnings to legacy type locations
       - [x] Ensure compatibility with embedding types
+      - [x] Created missing PipelineConfig type in src/isne/pipeline/config.py
+      - [x] Enhanced EmbeddingConfig TypedDict with additional fields (model_dimension, use_gpu, normalize_embeddings)
+      - [x] Fixed import errors in src/cli/query.py and related modules
       - [x] Run mypy to verify type correctness
 
     #### 6. storage (Sixth Priority)
