@@ -119,3 +119,29 @@ Each task will be considered complete when:
 - Documentation is complete and accurate
 - Code meets quality standards (type hints, docstrings, etc.)
 - Performance benchmarks show no degradation (or document acceptable tradeoffs)
+
+## Type System Improvements
+
+### Docproc Module Type Migration
+
+- [x] Centralize docproc type definitions
+  - [x] Create `src/types/docproc/python.py` for Pydantic models
+  - [x] Create `src/types/docproc/code_elements.py` for TypedDict definitions
+  - [x] Create `src/types/docproc/enums.py` for shared enum types
+- [x] Implement comprehensive testing
+  - [x] Add isolated tests for TypedDict definitions
+  - [x] Create mock base classes for isolated testing
+  - [x] Add return type annotations to test methods
+- [x] Fix type errors in docproc module
+  - [x] Fix validator wrapper functions to use proper Literal typing
+  - [x] Resolve import conflicts between Python and code_elements modules
+  - [x] Remove redundant casts in validation functions
+  - [x] Fix return type annotations
+- [x] Documentation
+  - [x] Create docproc_types_readme.md
+  - [x] Document testing strategy and type migration approach
+  - [x] Add usage examples
+- [x] Utilities
+  - [x] Create utility scripts for automating fixes (`fix_docproc_types.py`)
+  - [x] Add return type annotations to utility functions
+  - [x] Implement import statement migration helpers
