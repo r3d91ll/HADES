@@ -88,5 +88,14 @@ class VLLMProcessInfo:
     server_url: str            # Full server URL (http://host:port)
     start_time: float          # Unix timestamp when process was started
 
+    def get_uptime_seconds(self) -> float:
+        """Get the uptime of the process in seconds.
+        
+        Returns:
+            The number of seconds the process has been running
+        """
+        return time.time() - self.start_time
+
+
 # Function type for checking server status
 ServerStatusType = Dict[str, Any]

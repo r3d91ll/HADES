@@ -14,7 +14,7 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional, Union, Any, cast
 
-from src.config.vllm_config import make_vllm_command, VLLMConfig, ModelMode
+from src.config.vllm_config import make_vllm_command, VLLMConfig, VLLMModelConfig, ModelMode
 from src.types.vllm_types import VLLMProcessInfo
 
 # Set up logging
@@ -131,12 +131,22 @@ class VLLMProcessManager:
                 self._cleanup_process(process_key)
         
         try:
+            # Get model configuration based on mode and model_alias
+            if mode == ModelMode.INFERENCE:
+                model_configs = self.config.inference_models
+            else:  # INGESTION
+                model_configs = self.config.ingestion_models
+                
+            # Find the model config for this alias
+            if model_alias not in model_configs:
+                raise ValueError(f"Model alias '{model_alias}' not found in {mode.value} configurations")
+                
+            model_config = model_configs[model_alias]
+            
             # Generate command to start model
             cmd = make_vllm_command(
-                model_alias=model_alias,
-                mode=mode,
-                yaml_path=self.config_path,
-                vllm_executable=self.vllm_executable
+                server_config=self.config.server,
+                model_id=model_config.model_id
             )
             
             logger.info(f"Starting vLLM model {model_alias} with command: {' '.join(cmd)}")
@@ -157,9 +167,12 @@ class VLLMProcessManager:
                 self.config.inference_models if mode == ModelMode.INFERENCE
                 else self.config.ingestion_models
             )
-            model_config = models.get(model_alias)
             
-            if not model_config:
+            # Use dictionary access that raises KeyError instead of returning None
+            # This eliminates the need for explicit type casting
+            try:
+                model_config = models[model_alias]  # This will never be None
+            except KeyError:
                 raise ValueError(f"Model {model_alias} not found in configuration")
             
             # Create process info

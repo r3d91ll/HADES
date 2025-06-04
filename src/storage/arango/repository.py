@@ -357,7 +357,64 @@ class ArangoRepository(UnifiedRepository):
             logger.error(f"Error creating edge: {e}")
             raise
     
-    def get_edges(self, node_id: NodeID, 
+    async def get_edges(self, node_id: NodeID, 
+                   edge_types: Optional[List[str]] = None) -> List[EdgeData]:
+        """Implementation of the interface method.
+        Note: This method has been modified to match the interface signature.
+        To use the direction parameter, use get_edges_with_direction instead.
+        """
+        """
+        Get edges connected to a node.
+        
+        Args:
+            node_id: The ID of the node
+            edge_types: Optional list of edge types to filter by
+            
+        Returns:
+            List of edges
+        """
+        try:
+            # Build AQL query parameters
+            bind_vars: Dict[str, Any] = {
+                "node_id": f"{self.node_collection_name}/{node_id}",
+                "@edge_collection": self.edge_collection_name,
+                "@node_collection": self.node_collection_name
+            }
+            
+            # Add edge type filter if provided
+            edge_filter = ""
+            if edge_types:
+                edge_filter = "FILTER edge.type IN @edge_types"
+                bind_vars["edge_types"] = edge_types
+            
+            # AQL query for graph traversal
+            aql_query = f"""
+            FOR vertex, edge IN 1..1 OUTBOUND @node_id GRAPH @graph_name
+                {edge_filter}
+                RETURN {{ edge: edge }}
+            """
+            
+            bind_vars["graph_name"] = self.graph_name
+            
+            # Execute traversal query
+            results = self.connection.raw_db.aql.execute(aql_query, bind_vars=bind_vars)
+            
+            # Process results
+            result: List[EdgeData] = []
+            
+            # Extract traversal data from results
+            results_iter = cast(Iterator[Dict[str, Any]], results)
+            for item in results_iter:
+                edge_data = self._convert_to_edge_data(item["edge"])
+                result.append(edge_data)
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error getting edges for node {node_id}: {e}")
+            return []
+    
+    def get_edges_with_direction(self, node_id: NodeID, 
                   edge_types: Optional[List[str]] = None,
                   direction: str = "outbound") -> List[Tuple[EdgeData, NodeData]]:
         """
@@ -619,15 +676,13 @@ class ArangoRepository(UnifiedRepository):
         
     # Vector Repository Implementation
     
-    def store_embedding(self, node_id: NodeID, embedding: EmbeddingVector, 
-                       metadata: Optional[Dict[str, Any]] = None) -> bool:
+    async def store_embedding(self, node_id: NodeID, embedding: EmbeddingVector) -> bool:
         """
         Store an embedding for a node in ArangoDB.
         
         Args:
             node_id: The ID of the node
             embedding: The vector embedding
-            metadata: Optional metadata about the embedding
             
         Returns:
             True if the operation was successful, False otherwise
@@ -641,16 +696,6 @@ class ArangoRepository(UnifiedRepository):
                 update_data["embedding"] = embedding.tolist()
             else:
                 update_data["embedding"] = embedding
-            
-            # Add metadata if provided
-            if metadata:
-                # If there's existing metadata, we'll update it
-                update_data["embedding_metadata"] = metadata
-            
-            # Add embedding model info if provided in metadata
-            if metadata and "model" in metadata:
-                update_data["embedding_model"] = metadata["model"]
-            
             # Update the node with the embedding
             self.update_document(node_id, update_data)
             
@@ -688,33 +733,33 @@ class ArangoRepository(UnifiedRepository):
             logger.error(f"Error getting embedding for node {node_id}: {e}")
             return None
     
-    def search_similar(self, embedding: EmbeddingVector, 
-                      filters: Optional[Dict[str, Any]] = None,
-                      limit: int = 10) -> List[Tuple[NodeData, float]]:
+    async def search_similar(self, 
+                         query_vector: EmbeddingVector, 
+                         limit: int = 10,
+                         node_types: Optional[List[str]] = None) -> List[Tuple[NodeID, float]]:
         """
         Search for nodes with similar embeddings using ArangoDB.
         
         Args:
             embedding: The query embedding
-            filters: Optional filters to apply to the search
             limit: Maximum number of results to return
+            filters: Optional list of node types to filter by
             
         Returns:
-            List of nodes with similarity scores
+            List of (node_id, similarity_score) tuples
         """
         try:
             # Convert embedding to list if it's a numpy array
-            query_vector = embedding.tolist() if isinstance(embedding, np.ndarray) else embedding
+            vector = query_vector.tolist() if isinstance(query_vector, np.ndarray) else query_vector
             
             # Prepare AQL query
             aql_filters = []
-            bind_vars: Dict[str, Any] = {"embedding": query_vector, "limit": limit}
+            bind_vars: Dict[str, Any] = {"embedding": vector, "limit": limit}
             
-            # Add filters if provided
-            if filters:
-                for key, value in filters.items():
-                    aql_filters.append(f"FILTER doc.{key} == @{key}")
-                    bind_vars[key] = value
+            # Handle node_types as list of node types
+            if node_types and len(node_types) > 0:
+                aql_filters.append("FILTER doc.type IN @node_types")
+                bind_vars["node_types"] = node_types
             
             # AQL query for vector search using dot product similarity
             # Note: This is a simplified version - for production, use ArangoDB's
@@ -739,13 +784,16 @@ class ArangoRepository(UnifiedRepository):
             # Execute the query
             cursor = self.connection.raw_db.aql.execute(aql_query, bind_vars=bind_vars)
             
-            # Process results
-            results: List[Tuple[NodeData, float]] = []
+            # Process results - Convert to List[Tuple[NodeID, float]] as required by the interface
+            results: List[Tuple[NodeID, float]] = []
             cursor_iter = cast(Iterator[Dict[str, Any]], cursor)
             for item in cursor_iter:
-                    node_data = self._convert_to_node_data(item["document"])
+                node_data = self._convert_to_node_data(item["document"])
+                # Extract just the ID from the node data
+                if "id" in node_data:
+                    node_id = cast(NodeID, node_data["id"])
                     score = item["score"]
-                    results.append((node_data, score))
+                    results.append((node_id, score))
             
             return results
             

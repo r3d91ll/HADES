@@ -6,12 +6,14 @@ This section outlines the current status of type migration to centralized `src/t
 
 ### 1. src/docproc
 
-**Status**: Partially migrated
+**Status**: Fully migrated ✅
 
 - ✅ Basic document types migrated to `src/types/docproc/document.py`
 - ✅ Adapter protocols migrated to `src/types/docproc/adapter.py`
-- ✅ **Needs Migration**: Python-specific schemas in `src/docproc/schemas/python_document.py` contain several type definitions (`PythonMetadata`, `PythonEntity`, `CodeRelationship`, etc.) that should be migrated
-- ✅ **Needs Migration**: Code model enums in `src/docproc/models/python_code.py` like `RelationshipType` and `AccessLevel`
+- ✅ Python-specific schemas migrated to `src/types/docproc/python.py` (models from `python_document.py` including `PythonMetadata`, `PythonEntity`, etc.)
+- ✅ Code model enums migrated to `src/types/docproc/enums.py` (enums from `python_code.py` including `RelationshipType` and `AccessLevel`)
+- ✅ TypedDict definitions migrated to `src/types/docproc/code_elements.py` (from `python_code.py`)
+- ✅ Original files updated to re-export from centralized types for backward compatibility
 
 ### 2. src/chunking
 

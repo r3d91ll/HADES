@@ -91,6 +91,41 @@ class TextArangoRepository(ArangoRepository):
                 return True
         return False
             
+    def _execute_aql_sync(self, query: str, bind_vars: Dict[str, Any]) -> List[Any]:
+        """
+        Execute an AQL query synchronously and return results.
+        
+        Args:
+            query: AQL query string
+            bind_vars: Parameters to bind to the query
+            
+        Returns:
+            List of query results
+        """
+        try:
+            cursor = self.connection.raw_db.aql.execute(query, bind_vars=bind_vars)
+            result = [doc for doc in cursor]
+            return result
+        except Exception as e:
+            logger.error(f"Error executing AQL query: {e}")
+            raise
+    
+    async def _execute_aql(self, query: str, bind_vars: Dict[str, Any]) -> List[Any]:
+        """
+        Execute an AQL query asynchronously and return results.
+        This is a compatibility method that currently uses the synchronous ArangoDB driver.
+        
+        Args:
+            query: AQL query string
+            bind_vars: Parameters to bind to the query
+            
+        Returns:
+            List of query results
+        """
+        # Currently using synchronous execution since ArangoDB Python driver doesn't have native async support
+        # In the future, this could be updated to use aiohttp or similar for true async execution
+        return self._execute_aql_sync(query, bind_vars)
+    
     async def store_embedding_with_type(
         self, 
         node_id: NodeID, 
@@ -272,7 +307,7 @@ class TextArangoRepository(ArangoRepository):
                 }}
             """
             
-            params = {
+            params: Dict[str, Any] = {
                 "query_vector": query_vector,
                 "min_score": 0.5,  # Minimum similarity threshold
                 "limit": limit
@@ -284,13 +319,13 @@ class TextArangoRepository(ArangoRepository):
             results = await self._execute_aql(aql, params)
             
             # Extract nodes and scores
-            return [(item["node"], item["score"]) for item in results]
+            return [(item["node"], float(item["score"])) for item in results]
             
         except Exception as e:
             logger.error(f"Error in search_similar_with_data: {e}")
             return []
     
-    async def get_document_with_chunks(self, document_id: str) -> Optional[Dict[str, Any]]:
+    async def get_document_with_chunks(self, document_id: NodeID) -> Optional[Dict[str, Any]]:
         """
         Get a document with all its chunks.
         

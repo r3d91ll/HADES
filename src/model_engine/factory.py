@@ -5,17 +5,18 @@ This module provides factory functions for creating model engines based on confi
 It supports both Haystack and vLLM engines.
 """
 
-from typing import Dict, Optional, Union, Type
+from typing import Dict, Optional, Union, Type, Tuple, Callable, Any, cast
 
 from src.model_engine.base import ModelEngine
 from src.model_engine.engines.haystack import HaystackModelEngine
 from src.model_engine.engines.vllm import VLLMModelEngine
 
 
-# Registry of available engine types
-ENGINE_REGISTRY: Dict[str, Type[ModelEngine]] = {
-    "haystack": HaystackModelEngine,
-    "vllm": VLLMModelEngine,
+# Registry of available engine types with their specific constructors
+# Each entry is a tuple of (engine_class, constructor_function)
+ENGINE_REGISTRY: Dict[str, Tuple[Type[ModelEngine], Callable[[Optional[str]], ModelEngine]]] = {
+    "haystack": (HaystackModelEngine, lambda config_path: HaystackModelEngine(socket_path=config_path)),
+    "vllm": (VLLMModelEngine, lambda config_path: VLLMModelEngine(config_path=config_path)),
 }
 
 
@@ -39,12 +40,11 @@ def create_model_engine(engine_type: str, config_path: Optional[str] = None) -> 
             f"Supported types: {', '.join(ENGINE_REGISTRY.keys())}"
         )
     
-    engine_class = ENGINE_REGISTRY[engine_type]
+    # Get the constructor function for this engine type
+    _, constructor = ENGINE_REGISTRY[engine_type]
     
-    if engine_type == "haystack":
-        return engine_class(socket_path=config_path)
-    else:
-        return engine_class(config_path=config_path)
+    # Create the engine using the appropriate constructor
+    return constructor(config_path)
 
 
 # Global engine instances
