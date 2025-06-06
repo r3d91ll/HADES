@@ -14,8 +14,9 @@ from typing import Dict, List, Optional, Union, Any, cast
 
 import numpy as np
 
-from src.types.common import EmbeddingVector
-from src.embedding.base import EmbeddingAdapter, register_adapter
+# Import consolidated types
+from src.types.embedding import EmbeddingAdapter, EmbeddingVector
+from src.embedding.base import register_adapter
 
 logger = logging.getLogger(__name__)
 

@@ -18,7 +18,9 @@ import numpy as np
 import torch
 from torch import nn
 
-from src.embedding.base import EmbeddingAdapter, EmbeddingVector, register_adapter
+# Import consolidated types
+from src.types.embedding import EmbeddingAdapter, EmbeddingVector
+from src.embedding.base import register_adapter
 from src.utils.device_utils import get_device_info
 
 logger = logging.getLogger(__name__)

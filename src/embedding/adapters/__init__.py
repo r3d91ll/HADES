@@ -15,6 +15,9 @@ from .cpu_adapter import CPUEmbeddingAdapter
 from .vllm_adapter import VLLMEmbeddingAdapter
 from .encoder_adapter import EncoderEmbeddingAdapter
 
+# Import consolidated types for backward compatibility
+from src.types.embedding import ModernBERTEmbeddingAdapter as TypedModernBERTAdapter
+
 # For backward compatibility, make ModernBERTEmbeddingAdapter an alias for EncoderEmbeddingAdapter
 ModernBERTEmbeddingAdapter = EncoderEmbeddingAdapter
 

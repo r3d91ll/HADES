@@ -1,108 +1,55 @@
 """Embedding vector type definitions.
 
-This module provides TypedDict definitions for embedding vectors,
-adapter configurations, and embedding results.
+This module provides core type definitions for embedding vectors and operations.
+This is now a compatibility layer - main types have been moved to other modules
+in src.types.embedding for better organization.
+
+DEPRECATED: Import from specific modules instead:
+- src.types.embedding.base for core types and protocols
+- src.types.embedding.config for configuration types  
+- src.types.embedding.results for result types
 """
 
-from typing import Any, Dict, List, Literal, Optional, TypedDict, Union
+from typing import Any, Dict, List, Optional, TypedDict, Union
 from datetime import datetime
 
+# Import consolidated types for backward compatibility
+from src.types.embedding.base import EmbeddingVector, EmbeddingModelType, AdapterType, PoolingStrategy
+from src.types.embedding.config import (
+    EmbeddingConfig,
+    EmbeddingAdapterConfig,
+    PydanticEmbeddingConfig,
+    PydanticEmbeddingAdapterConfig
+)
+from src.types.embedding.results import (
+    EmbeddingResult,
+    BatchEmbeddingResult,
+    PydanticEmbeddingResult,
+    PydanticBatchEmbeddingResult
+)
 
-# Type alias for embedding vectors - either a list of floats or a bytes object
-EmbeddingVector = Union[List[float], bytes]
+# Legacy type aliases for backward compatibility
+LegacyEmbeddingVector = Union[List[float], bytes]  # Original definition
 
-
-class EmbeddingConfig(TypedDict, total=False):
-    """Configuration for embedding generation."""
+__all__ = [
+    # Core types (from base)
+    "EmbeddingVector",
+    "EmbeddingModelType", 
+    "AdapterType",
+    "PoolingStrategy",
     
-    adapter_name: str
-    """Name of the embedding adapter to use."""
+    # Configuration types (from config)
+    "EmbeddingConfig",
+    "EmbeddingAdapterConfig", 
+    "PydanticEmbeddingConfig",
+    "PydanticEmbeddingAdapterConfig",
     
-    model_name: str
-    """Name of the specific model within the adapter."""
+    # Result types (from results)
+    "EmbeddingResult",
+    "BatchEmbeddingResult",
+    "PydanticEmbeddingResult", 
+    "PydanticBatchEmbeddingResult",
     
-    max_length: int
-    """Maximum input length for the embedding model."""
-    
-    pooling_strategy: Literal["mean", "cls", "max"]
-    """Strategy for pooling token embeddings."""
-    
-    batch_size: int
-    """Batch size for embedding generation."""
-    
-    device: str
-    """Device to run embeddings on ("cpu", "cuda:0", etc.)."""
-    
-    normalize_embeddings: bool
-    """Whether to L2-normalize embeddings."""
-    
-    cache_embeddings: bool
-    """Whether to cache embeddings to avoid recomputation."""
-    
-    cache_dir: Optional[str]
-    """Directory to store embedding cache."""
-
-
-class EmbeddingAdapterConfig(TypedDict, total=False):
-    """Configuration for a specific embedding adapter."""
-    
-    name: str
-    """Name of the embedding adapter."""
-    
-    description: str
-    """Description of the embedding adapter."""
-    
-    default_model: str
-    """Default model to use for this adapter."""
-    
-    supported_models: List[str]
-    """List of models supported by this adapter."""
-    
-    max_input_length: int
-    """Maximum input length supported by the adapter."""
-    
-    vector_dimension: int
-    """Dimension of the output embedding vectors."""
-    
-    supports_batching: bool
-    """Whether the adapter supports batched embedding generation."""
-    
-    default_pooling: str
-    """Default pooling strategy."""
-    
-    recommended_settings: Dict[str, Any]
-    """Recommended settings for different use cases."""
-
-
-class EmbeddingResult(TypedDict, total=False):
-    """Result of embedding generation."""
-    
-    text_id: str
-    """Identifier for the embedded text."""
-    
-    text: Optional[str]
-    """The text that was embedded (may be omitted to save space)."""
-    
-    vector: EmbeddingVector
-    """The embedding vector."""
-    
-    model_name: str
-    """Name of the model used to generate the embedding."""
-    
-    adapter_name: str
-    """Name of the adapter used to generate the embedding."""
-    
-    vector_dim: int
-    """Dimension of the embedding vector."""
-    
-    is_normalized: bool
-    """Whether the vector is L2-normalized."""
-    
-    truncated: bool
-    """Whether the input was truncated due to length."""
-    
-    created_at: Optional[Union[str, datetime]]
-    """Timestamp when the embedding was generated."""
-    
-    metadata: Dict[str, Any]
-    """Additional metadata about the embedding."""
+    # Legacy compatibility
+    "LegacyEmbeddingVector"
+]

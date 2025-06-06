@@ -2,61 +2,28 @@
 
 This module defines the core interfaces for embedding generation and
 provides a registry mechanism to manage different embedding adapters.
+
+NOTE: Type definitions have been migrated to src.types.embedding.
+This module now imports types from the centralized location.
 """
 
 from __future__ import annotations
 
 import abc
-from typing import Any, Dict, List, Protocol, TypeVar, Union, runtime_checkable, cast, Optional
+from typing import Any, Dict, List, Union, cast, Optional
 import logging
 import numpy as np
 
-# Type definitions
-# Note: List[float] is more JSON-serializable than np.ndarray
-# Using a more flexible type definition to handle all embedding vector types
-EmbeddingVector = Union[List[float], np.ndarray]  # Supports both list and ndarray return types
+# Import consolidated types
+from src.types.embedding import EmbeddingAdapter, EmbeddingVector, EmbeddingAdapterRegistry
 
 logger = logging.getLogger(__name__)
 
 # Registry for adapters
-_adapter_registry: Dict[str, type[EmbeddingAdapter]] = {}
+_adapter_registry: EmbeddingAdapterRegistry = {}
 
 
-@runtime_checkable
-class EmbeddingAdapter(Protocol):
-    """Protocol defining the interface for embedding adapters."""
-    
-    @abc.abstractmethod
-    async def embed(self, texts: List[str], **kwargs: Any) -> List[EmbeddingVector]:
-        """Generate embeddings for a list of texts.
-        
-        Args:
-            texts: List of text strings to embed
-            **kwargs: Additional parameters to pass to the model
-            
-        Returns:
-            List of embedding vectors, one for each input text
-            
-        Raises:
-            RuntimeError: If the embedding operation fails
-        """
-        pass
-    
-    @abc.abstractmethod
-    async def embed_single(self, text: str, **kwargs: Any) -> EmbeddingVector:
-        """Generate an embedding for a single text.
-        
-        Args:
-            text: Text string to embed
-            **kwargs: Additional parameters to pass to the model
-            
-        Returns:
-            Embedding vector for the input text
-            
-        Raises:
-            RuntimeError: If the embedding operation fails
-        """
-        pass
+# EmbeddingAdapter protocol is now imported from src.types.embedding
 
 
 def register_adapter(name: str, adapter_cls: type[EmbeddingAdapter]) -> None:
