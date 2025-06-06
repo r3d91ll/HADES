@@ -38,6 +38,26 @@ from .validation import (
     ValidationSeverity,
 )
 
+from .alerts import (
+    AlertLevel,
+    Alert,
+)
+
+from .api import (
+    WriteRequest,
+    QueryRequest,
+    QueryResponse,
+    WriteResponse,
+    StatusResponse,
+    QueryResult,
+)
+
+from .config import (
+    EngineConfig,
+    PipelineConfig,
+    ArangoDBConfig,
+)
+
 __all__ = [
     # Common types
     "NodeID",
@@ -67,4 +87,21 @@ __all__ = [
     "ValidationStage",
     "ValidationStatus",
     "ValidationSeverity",
+    
+    # Alert types
+    "AlertLevel",
+    "Alert",
+    
+    # API types
+    "WriteRequest",
+    "QueryRequest",
+    "QueryResponse", 
+    "WriteResponse",
+    "StatusResponse",
+    "QueryResult",
+    
+    # Config types
+    "EngineConfig",
+    "PipelineConfig",
+    "ArangoDBConfig",
 ]

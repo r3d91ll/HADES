@@ -10,7 +10,7 @@ from typing import Optional, Dict, Any, List, cast
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
-from .models import WriteRequest, QueryRequest, WriteResponse, QueryResponse, StatusResponse, QueryResult
+from src.types.api import WriteRequest, QueryRequest, WriteResponse, QueryResponse, StatusResponse, QueryResult
 from .core import PathRAGSystem
 
 # Configure logging
