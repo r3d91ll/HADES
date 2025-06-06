@@ -25,6 +25,19 @@ from .vllm_types import (
     ServerStatusType
 )
 
+from .utils import (
+    BatchStats,
+)
+
+from .validation import (
+    PreValidationResult,
+    PostValidationResult,
+    ValidationSummary,
+    ValidationStage,
+    ValidationStatus,
+    ValidationSeverity,
+)
+
 __all__ = [
     # Common types
     "NodeID",
@@ -42,5 +55,16 @@ __all__ = [
     "VLLMModelConfigType",
     "VLLMConfigType",
     "ModelMode",
-    "ServerStatusType"
+    "ServerStatusType",
+    
+    # Utils types
+    "BatchStats",
+    
+    # Validation types
+    "PreValidationResult",
+    "PostValidationResult", 
+    "ValidationSummary",
+    "ValidationStage",
+    "ValidationStatus",
+    "ValidationSeverity",
 ]

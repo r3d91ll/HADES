@@ -15,13 +15,13 @@ from arango.cursor import Cursor
 
 from src.types.common import NodeData, EdgeData, EmbeddingVector, NodeID, EdgeID
 from src.storage.arango.connection import ArangoConnection
-from .repository_interfaces import UnifiedRepository
+from src.types.storage import AbstractUnifiedRepository
 
 # Set up logging
 logger = logging.getLogger(__name__)
 
 
-class ArangoRepository(UnifiedRepository):
+class ArangoRepository(AbstractUnifiedRepository):
     """
     Unified ArangoDB repository for HADES-PathRAG.
     

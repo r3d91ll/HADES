@@ -30,7 +30,7 @@ from src.types.docproc.python import (
 
 # Import for backward compatibility
 from src.schemas.common.base import BaseSchema
-from src.schemas.common.types import MetadataDict
+from src.types.common import MetadataDict
 from src.docproc.schemas.base import BaseDocument, BaseEntity, BaseMetadata
 from src.types.docproc.enums import RelationshipType, AccessLevel
 

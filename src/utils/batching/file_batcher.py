@@ -9,13 +9,9 @@ from collections import defaultdict
 import os
 import fnmatch
 from pathlib import Path
-from typing import Dict, List, Set, Optional, Union, TypedDict, Mapping, Any
+from typing import Dict, List, Set, Optional, Union, Mapping, Any
 
-
-class BatchStats(TypedDict):
-    """Statistics about batched files."""
-    total: int
-    by_type: Dict[str, int]
+from src.types.utils.batching import BatchStats
 
 
 class FileBatcher:

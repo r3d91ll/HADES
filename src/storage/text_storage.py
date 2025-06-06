@@ -764,8 +764,8 @@ class TextStorageService:
         
         # Store the embedding if available
         if embedding is not None:
-            # store_embedding is synchronous in the repository implementation
-            success = self.repository.store_embedding(chunk_id, embedding)
+            # store_embedding is async in the repository implementation
+            success = await self.repository.store_embedding(chunk_id, embedding)
             if not success:
                 logger.warning(f"Failed to store embedding for chunk: {chunk_id}")
         

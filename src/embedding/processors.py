@@ -17,7 +17,7 @@ import numpy as np
 from pydantic import ValidationError
 
 # Import from new schema structure
-from src.schemas.common.types import EmbeddingVector
+from src.types.common import EmbeddingVector
 from src.schemas.documents.base import DocumentSchema, ChunkMetadata
 from src.embedding.base import EmbeddingAdapter, get_adapter
 

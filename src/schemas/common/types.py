@@ -12,8 +12,8 @@ from pydantic import Field, GetJsonSchemaHandler
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import core_schema
 
-# Import common types from centralized type system
-from src.types.common import EmbeddingVector, PathSpec, MetadataDict, ArangoDocument, GraphNode
+# This file has been significantly refactored. Common types are now in src.types.common
+# The UUIDString class below is kept for Pydantic validation purposes only
 
 
 # Custom type for UUID strings with validation

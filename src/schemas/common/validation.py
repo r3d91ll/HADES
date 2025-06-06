@@ -14,7 +14,7 @@ from pydantic import BaseModel, ValidationError
 from src.schemas.documents.base import DocumentSchema
 from src.schemas.documents.dataset import DatasetSchema
 from src.schemas.documents.relations import DocumentRelationSchema
-from src.schemas.common.enums import SchemaVersion
+from src.types.common import SchemaVersion
 
 # Set up logger
 logger = logging.getLogger(__name__)

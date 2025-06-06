@@ -36,7 +36,7 @@ def typed_model_validator(*, mode: Literal['after', 'before', 'wrap'] = 'after')
 
 # Import from the centralized schema structure
 from src.schemas.common.base import BaseSchema
-from src.schemas.common.types import MetadataDict
+from src.types.common import MetadataDict
 
 
 class BaseEntity(BaseSchema):

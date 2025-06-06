@@ -8,9 +8,17 @@ during the data ingestion pipeline, particularly when applying ISNE embeddings.
 import logging
 from typing import Dict, List, Any, Tuple, Optional, Set
 
+from src.types.validation import (
+    PreValidationResult,
+    PostValidationResult,
+    ValidationSummary,
+    DocumentListWithValidation,
+    ChunkIdentifier,
+)
+
 logger = logging.getLogger(__name__)
 
-def validate_embeddings_before_isne(documents: List[Dict[str, Any]]) -> Dict[str, Any]:
+def validate_embeddings_before_isne(documents: List[Dict[str, Any]]) -> PreValidationResult:
     """
     Validate documents before ISNE embedding to ensure data consistency.
     
@@ -35,7 +43,7 @@ def validate_embeddings_before_isne(documents: List[Dict[str, Any]]) -> Dict[str
                                    if "embedding" in chunk and chunk["embedding"])
     
     # Track chunks without base embeddings
-    missing_base_embeddings: List[str] = []
+    missing_base_embeddings: List[ChunkIdentifier] = []
     for doc_idx, doc in enumerate(documents):
         if "chunks" not in doc:
             continue
@@ -69,7 +77,7 @@ def validate_embeddings_before_isne(documents: List[Dict[str, Any]]) -> Dict[str
     }
 
 def validate_embeddings_after_isne(documents: List[Dict[str, Any]], 
-                                  pre_validation: Dict[str, Any]) -> Dict[str, Any]:
+                                  pre_validation: PreValidationResult) -> PostValidationResult:
     """
     Validate documents after ISNE embedding to ensure data consistency.
     
@@ -96,11 +104,11 @@ def validate_embeddings_after_isne(documents: List[Dict[str, Any]],
                            for chunk in doc.get("chunks", []))
     
     # Check for chunks without ISNE embeddings
-    chunks_missing_isne: List[str] = []
+    chunks_missing_isne: List[ChunkIdentifier] = []
     # Check for chunks without relationships
-    chunks_missing_relationships: List[str] = []
+    chunks_missing_relationships: List[ChunkIdentifier] = []
     # Check for invalid relationship structures
-    chunks_with_invalid_relationships: List[str] = []
+    chunks_with_invalid_relationships: List[ChunkIdentifier] = []
     
     for doc_idx, doc in enumerate(documents):
         if "chunks" not in doc:
@@ -133,7 +141,7 @@ def validate_embeddings_after_isne(documents: List[Dict[str, Any]],
                          for _ in [1] if "isne_embedding" in chunk)
     
     # Check for duplicate ISNE embeddings (same chunk with multiple embeddings)
-    duplicate_chunks: Set[str] = set()
+    duplicate_chunks: Set[ChunkIdentifier] = set()
     for doc_idx, doc in enumerate(documents):
         if "chunks" not in doc:
             continue
@@ -194,8 +202,8 @@ def validate_embeddings_after_isne(documents: List[Dict[str, Any]],
         "duplicate_chunk_ids": list(duplicate_chunks)[:10]  # Store first 10 for reference
     }
 
-def create_validation_summary(pre_validation: Dict[str, Any], 
-                             post_validation: Dict[str, Any]) -> Dict[str, Any]:
+def create_validation_summary(pre_validation: PreValidationResult, 
+                             post_validation: PostValidationResult) -> ValidationSummary:
     """
     Create a comprehensive validation summary comparing pre and post ISNE embedding states.
     
@@ -218,7 +226,7 @@ def create_validation_summary(pre_validation: Dict[str, Any],
     }
 
 def attach_validation_summary(documents: List[Dict[str, Any]], 
-                             validation_summary: Dict[str, Any]) -> List[Dict[str, Any]]:
+                             validation_summary: ValidationSummary) -> DocumentListWithValidation:
     """
     Attach validation summary to documents list as a special attribute.
     
@@ -232,15 +240,10 @@ def attach_validation_summary(documents: List[Dict[str, Any]],
     Returns:
         Documents list with attached validation_summary attribute
     """
-    # Since we can't directly set attributes on a list, we'll use a custom class
-    # to wrap the list and add our attribute
-    class DocumentList(list):
-        pass
+    # Create a DocumentListWithValidation with the documents
+    doc_list = DocumentListWithValidation(documents)
     
-    # Create a new DocumentList with the same items as documents
-    doc_list = DocumentList(documents)
-    
-    # Set the validation_summary attribute on the new list
-    setattr(doc_list, "validation_summary", validation_summary)
+    # Set the validation_summary attribute 
+    doc_list.validation_summary = validation_summary
     
     return doc_list

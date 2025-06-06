@@ -26,7 +26,7 @@ from src.types.chunking import (
     DocumentSchema,
     ChunkMetadata
 )
-from src.schemas.common.enums import DocumentType, SchemaVersion
+from src.types.common import DocumentType, SchemaVersion
 
 logger = logging.getLogger(__name__)
 

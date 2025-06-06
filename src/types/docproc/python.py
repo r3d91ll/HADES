@@ -14,7 +14,7 @@ from pydantic import Field, field_validator, model_validator, ConfigDict
 
 # Import centralized types
 from src.schemas.common.base import BaseSchema
-from src.schemas.common.types import MetadataDict
+from src.types.common import MetadataDict
 from src.types.docproc.enums import RelationshipType, AccessLevel
 
 # Import document types using TYPE_CHECKING to avoid circular imports

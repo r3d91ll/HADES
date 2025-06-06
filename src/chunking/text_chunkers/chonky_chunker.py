@@ -59,7 +59,7 @@ from contextlib import contextmanager
 from pydantic import BaseModel
 
 # Import the schema types  
-from src.schemas.common.enums import DocumentType, SchemaVersion
+from src.types.common import DocumentType, SchemaVersion
 
 # Import consolidated chunking types
 from src.types.chunking import ChunkMetadata, BaseDocument, DocumentSchema, DocumentSchemaBase
