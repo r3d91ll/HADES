@@ -7,7 +7,7 @@ It supports both Haystack and vLLM engines.
 
 from typing import Dict, Optional, Union, Type, Tuple, Callable, Any, cast
 
-from src.model_engine.base import ModelEngine
+from src.types.model_engine import ModelEngine
 from src.model_engine.engines.haystack import HaystackModelEngine
 from src.model_engine.engines.vllm import VLLMModelEngine
 

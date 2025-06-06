@@ -18,7 +18,7 @@ import requests
 import aiohttp
 import numpy as np
 
-from src.model_engine.base import ModelEngine
+from src.types.model_engine import ModelEngine
 from src.config.vllm_config import VLLMConfig
 
 

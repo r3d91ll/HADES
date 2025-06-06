@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Union
 
-from src.model_engine.base import ModelEngine
+from src.types.model_engine import ModelEngine
 from src.model_engine.engines.haystack.runtime import ModelClient
 
 

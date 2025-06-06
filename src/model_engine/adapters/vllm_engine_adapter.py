@@ -14,7 +14,7 @@ import time
 import asyncio
 from typing import Dict, List, Any, Optional, Union, AsyncIterator
 
-from src.model_engine.adapters.base import EmbeddingAdapter, CompletionAdapter, ChatAdapter
+from src.types.model_engine import EmbeddingAdapter, CompletionAdapter, ChatAdapter
 from src.model_engine.factory import get_vllm_engine
 from src.config.vllm_config import ModelMode
 
