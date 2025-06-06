@@ -14,7 +14,8 @@ import numpy as np
 T = TypeVar('T', bound='EmbeddingAdapter')
 
 # Comprehensive embedding vector type that supports all formats
-EmbeddingVector = Union[List[float], np.ndarray, bytes]
+# Import EmbeddingVector from centralized location
+from ..common import EmbeddingVector
 
 
 class EmbeddingModelType(str, Enum):

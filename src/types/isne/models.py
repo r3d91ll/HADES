@@ -5,49 +5,10 @@ training configuration, and document graph structures.
 """
 
 from typing import Any, Dict, List, Literal, Optional, TypedDict, Union
-from enum import Enum
 from datetime import datetime
 
-
-class DocumentType(str, Enum):
-    """Types of documents in the ISNE system."""
-    
-    TEXT = "text"
-    """Plain text document."""
-    
-    PDF = "pdf"
-    """PDF document."""
-    
-    CODE = "code"
-    """Source code document."""
-    
-    MARKDOWN = "markdown"
-    """Markdown document."""
-    
-    HTML = "html"
-    """HTML document."""
-
-
-class RelationType(str, Enum):
-    """Types of relationships between document entities."""
-    
-    SIMILARITY = "similarity"
-    """Embedding similarity relationship."""
-    
-    SAME_DOCUMENT = "same_document"
-    """Entities from the same document."""
-    
-    SEQUENTIAL = "sequential"
-    """Sequential relationship between chunks."""
-    
-    REFERENCE = "reference"
-    """One entity references another."""
-    
-    PARENT_CHILD = "parent_child"
-    """Hierarchical relationship."""
-    
-    CUSTOM = "custom"
-    """Custom relationship type."""
+# Import standardized types from common module
+from ..common import DocumentType, RelationType
 
 
 class ISNEModelConfig(TypedDict, total=False):

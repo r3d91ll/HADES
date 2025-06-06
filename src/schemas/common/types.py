@@ -12,8 +12,8 @@ from pydantic import Field, GetJsonSchemaHandler
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import core_schema
 
-# Type alias for embedding vectors with special JSON schema handling
-EmbeddingVector: TypeAlias = Union[List[float], np.ndarray]
+# Import common types from centralized type system
+from src.types.common import EmbeddingVector, PathSpec, MetadataDict, ArangoDocument, GraphNode
 
 
 # Custom type for UUID strings with validation
@@ -75,14 +75,5 @@ class UUIDString(str):
         }
 
 
-# PathSpec type for defining traversal paths in graphs
-PathSpec: TypeAlias = List[str]
-
-# ArangoDocument type for Arango document collections
-ArangoDocument: TypeAlias = Dict[str, Any]
-
-# GraphNode type for node representation in graph operations
-GraphNode: TypeAlias = Dict[str, Any]
-
-# MetadataDict type for consistent metadata handling
-MetadataDict: TypeAlias = Dict[str, Any]
+# These types are now imported from src.types.common above
+# PathSpec, ArangoDocument, GraphNode, MetadataDict are available via import

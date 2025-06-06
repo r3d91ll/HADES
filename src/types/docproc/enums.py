@@ -11,22 +11,9 @@ import enum
 from typing import Any, Dict, List, Literal, Optional, Set, TypedDict, Union
 
 
-class RelationshipType(str, enum.Enum):
-    """Type of relationship between code elements."""
-    
-    # Primary relationships (weight 0.8-1.0)
-    CALLS = "CALLS"  # Function calling another function
-    CONTAINS = "CONTAINS"  # Parent-child relationship (e.g., class contains method)
-    IMPLEMENTS = "IMPLEMENTS"  # Implementation of an interface or protocol
-    
-    # Secondary relationships (weight 0.5-0.7)
-    IMPORTS = "IMPORTS"  # Import relationship
-    REFERENCES = "REFERENCES"  # Reference to another code element
-    EXTENDS = "EXTENDS"  # Inheritance relationship
-    
-    # Tertiary relationships (weight 0.2-0.4)
-    SIMILAR_TO = "SIMILAR_TO"  # Semantic similarity
-    RELATED_TO = "RELATED_TO"  # General relationship
+# RelationshipType is now available via RelationType from src.types.common
+# Import it instead of defining a separate enum
+from ..common import RelationType as RelationshipType
 
 
 class ImportSourceType(str, enum.Enum):

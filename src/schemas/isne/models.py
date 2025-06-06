@@ -14,25 +14,10 @@ from pydantic import Field, field_validator, model_validator
 
 from ..common.base import BaseSchema
 from ..common.types import EmbeddingVector, MetadataDict
+from src.types.common import DocumentType, RelationType
 
-
-class ISNEDocumentType(str, Enum):
-    """Types of documents in the ISNE system."""
-    TEXT = "text"
-    PDF = "pdf"
-    CODE = "code"
-    MARKDOWN = "markdown"
-    HTML = "html"
-
-
-class ISNERelationType(str, Enum):
-    """Types of relationships between document entities."""
-    SIMILARITY = "similarity"
-    SAME_DOCUMENT = "same_document"
-    SEQUENTIAL = "sequential"
-    REFERENCE = "reference"
-    PARENT_CHILD = "parent_child"
-    CUSTOM = "custom"
+# Use standardized types instead of ISNE-specific ones
+# DocumentType and RelationType now come from src.types.common
 
 
 class ISNEModelConfigSchema(BaseSchema):

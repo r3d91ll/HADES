@@ -2,20 +2,107 @@
 Common type definitions for HADES-PathRAG.
 
 This module provides common type annotations used across the codebase
-to ensure consistency and improve type safety.
+to ensure consistency and improve type safety. This is the single source
+of truth for all common types, enums, and type aliases.
 """
 
-from typing import Dict, List, Any, Optional, Union, TypedDict, NewType, ForwardRef
+from typing import Dict, List, Any, Optional, Union, TypedDict, NewType, ForwardRef, TypeAlias
 import numpy as np
 from pathlib import Path
 from datetime import datetime
+from enum import Enum
 
-# Basic type aliases
+# ============================================================================
+# CORE TYPE ALIASES - Single source of truth
+# ============================================================================
+
 NodeID = NewType('NodeID', str)
 DocumentID = NewType('DocumentID', str) 
 EdgeID = NewType('EdgeID', str)
 DocumentContent = NewType('DocumentContent', str)
-EmbeddingVector = Union[List[float], np.ndarray]
+
+# Consolidated EmbeddingVector definition with all variants
+EmbeddingVector: TypeAlias = Union[List[float], np.ndarray, bytes]
+
+# UUID string type alias
+UUIDString: TypeAlias = str
+
+# Path and metadata types
+PathSpec: TypeAlias = List[str]
+MetadataDict: TypeAlias = Dict[str, Any]
+ArangoDocument: TypeAlias = Dict[str, Any]
+GraphNode: TypeAlias = Dict[str, Any]
+
+# ============================================================================
+# CORE ENUMERATIONS - Standardized and consolidated
+# ============================================================================
+
+class DocumentType(str, Enum):
+    """Standardized document types used across the entire system."""
+    TEXT = "text"
+    PDF = "pdf"
+    CODE = "code"
+    MARKDOWN = "markdown"
+    HTML = "html"
+    JSON = "json"
+    XML = "xml"
+    YAML = "yaml"
+
+
+class RelationType(str, Enum):
+    """Standardized relationship types between documents and entities."""
+    # Primary structural relationships
+    CONTAINS = "contains"
+    REFERENCES = "references"
+    IMPLEMENTS = "implements"
+    CALLS = "calls"
+    
+    # Hierarchical relationships
+    PART_OF = "part_of"
+    PARENT_CHILD = "parent_child"
+    EXTENDS = "extends"
+    
+    # Semantic relationships
+    SIMILAR_TO = "similar_to"
+    RELATED_TO = "related_to"
+    CONNECTS_TO = "connects_to"
+    
+    # Sequential relationships
+    SEQUENTIAL = "sequential"
+    SAME_DOCUMENT = "same_document"
+    
+    # Import/dependency relationships
+    IMPORTS = "imports"
+    DEPENDS_ON = "depends_on"
+    DERIVED_FROM = "derived_from"
+    
+    # Custom/flexible relationships
+    CUSTOM = "custom"
+
+
+class ProcessingStage(str, Enum):
+    """Document processing stages."""
+    RAW = "raw"
+    PREPROCESSED = "preprocessed" 
+    CHUNKED = "chunked"
+    EMBEDDED = "embedded"
+    INDEXED = "indexed"
+    FAILED = "failed"
+
+
+class ProcessingStatus(str, Enum):
+    """Processing status of a document or task."""
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+
+
+class SchemaVersion(str, Enum):
+    """Schema version enumeration for backward compatibility tracking."""
+    V1 = "1.0.0"
+    V2 = "2.0.0"  # Current version
 
 # Code structure types
 class Module(TypedDict, total=False):
