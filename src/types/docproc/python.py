@@ -8,15 +8,18 @@ validation of Python-specific fields and relationships.
 
 from __future__ import annotations
 
-from typing import Optional, List, Dict, Any, Union, Literal, Set, cast, Callable, TypeVar
+from typing import Optional, List, Dict, Any, Union, Literal, Set, cast, Callable, TypeVar, TYPE_CHECKING
 
 from pydantic import Field, field_validator, model_validator, ConfigDict
 
 # Import centralized types
 from src.schemas.common.base import BaseSchema
 from src.schemas.common.types import MetadataDict
-from src.docproc.schemas.base import BaseDocument, BaseEntity, BaseMetadata
 from src.types.docproc.enums import RelationshipType, AccessLevel
+
+# Import document types using TYPE_CHECKING to avoid circular imports
+if TYPE_CHECKING:
+    from src.types.docproc.document import BaseDocument, BaseEntity, BaseMetadata
 
 # Type variables for validator functions
 T = TypeVar('T')
@@ -40,7 +43,7 @@ def typed_model_validator(*, mode: Literal['after', 'before', 'wrap'] = 'after')
     return model_validator(mode=mode)
 
 
-class PythonMetadata(BaseMetadata):
+class PythonMetadata(BaseSchema):
     """Metadata specific to Python documents."""
     
     function_count: int = Field(0, description="Number of functions in the document")
@@ -51,7 +54,7 @@ class PythonMetadata(BaseMetadata):
     has_syntax_errors: bool = Field(False, description="Whether the file has Python syntax errors")
 
 
-class PythonEntity(BaseEntity):
+class PythonEntity(BaseSchema):
     """Entity specific to Python code."""
     
     type: Literal["module", "class", "function", "method", "import", "decorator"] = Field(
@@ -147,7 +150,7 @@ class SymbolTable(BaseSchema):
     elements: List[Dict[str, Any]] = Field(default_factory=list, description="Module elements")
 
 
-class PythonDocument(BaseDocument):
+class PythonDocument(BaseSchema):
     """Document model for Python code."""
     
     format: Literal["python"] = "python"

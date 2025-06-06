@@ -58,9 +58,12 @@ from multiprocessing.pool import ThreadPool
 from contextlib import contextmanager
 from pydantic import BaseModel
 
-# Import the schema types
-from src.schemas.documents.base import ChunkMetadata
+# Import the schema types  
 from src.schemas.common.enums import DocumentType, SchemaVersion
+
+# Import consolidated chunking types
+from src.types.chunking import ChunkMetadata, BaseDocument, DocumentSchema, DocumentSchemaBase
+from src.types.chunking import DocumentBaseType, DocumentSchemaType
 
 logger = logging.getLogger(__name__)
 
@@ -113,44 +116,10 @@ except ImportError:
 from src.model_engine.engines.haystack import HaystackModelEngine
 from src.config.chunker_config import get_chunker_config
 
-# Define our own document models to avoid import issues
-class BaseDocument(BaseModel):
-    """Base document class for document processing."""
-    content: str
-    path: str
-    type: str = "text"
-    id: str = ""
-    chunks: List[Dict[str, Any]] = []
+# Document types are now imported from src.types.chunking
+# Remove local definitions and use consolidated types
 
-# NOTE: ChunkMetadata is now imported from src.schemas.documents.base
-
-# Define our document types
 from typing import Type, TypeVar, cast, Any as TypeAny, Union as TypeUnion
-
-# Initial type definition for document types
-DocumentBaseType = TypeUnion[Dict[str, TypeAny], BaseDocument]
-
-# Define a type for DocumentSchema
-class DocumentSchemaBase(BaseModel):
-    """Base document schema for document processing."""
-    content: str
-    path: str
-    type: str = "text"
-    id: str = ""
-    chunks: List[Dict[str, TypeAny]] = []
-
-# Try to import DocumentSchema from schema module
-try:
-    from src.schemas.documents.base import DocumentSchema as ImportedDocumentSchema
-    # Use the imported DocumentSchema
-    DocumentSchema = ImportedDocumentSchema
-except ImportError:
-    # Use our own DocumentSchema if not available
-    class DocumentSchema(DocumentSchemaBase):  # type: ignore
-        pass
-
-# Final type definition including DocumentSchema
-DocumentSchemaType = TypeUnion[Dict[str, TypeAny], BaseDocument, DocumentSchema]
 
 logger = logging.getLogger(__name__)
 

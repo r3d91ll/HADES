@@ -3,12 +3,18 @@ Base classes for document chunking in HADES-PathRAG.
 
 This module provides the base classes and interfaces for document chunking
 components used in the HADES-PathRAG system.
+
+NOTE: Type definitions have been migrated to src.types.chunking.
+This module now imports types from the centralized location.
 """
 
 from typing import Dict, List, Any, Optional, Union, Type, TypeVar
 from abc import ABC, abstractmethod
 
-# Type variable for chunker subclasses
+# Import consolidated types
+from src.types.chunking import ChunkerProtocol, ChunkerRegistry
+
+# Type variable for chunker subclasses  
 T = TypeVar('T', bound='BaseChunker')
 
 
@@ -48,7 +54,7 @@ class BaseChunker(ABC):
 
 
 # Function to register chunkers in the registry
-_CHUNKER_REGISTRY: Dict[str, Type[BaseChunker]] = {}
+_CHUNKER_REGISTRY: ChunkerRegistry = {}
 
 def register_chunker(name: str, chunker_cls: Type[BaseChunker]) -> None:
     """Register a chunker class with a name.

@@ -19,12 +19,11 @@ from typing import Any, Dict, List, Optional, Tuple, Set, Union, cast
 
 from src.config.chunker_config import get_chunker_config
 
+# Import consolidated types
+from src.types.chunking import ChunkInfo, SymbolInfo
+
 # Set up logging
 logger = logging.getLogger(__name__)
-
-# Type aliases
-ChunkInfo = Dict[str, Any]
-SymbolInfo = Dict[str, Any]
 
 
 def estimate_tokens(text: str) -> int:

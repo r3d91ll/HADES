@@ -8,13 +8,16 @@ types of chunkers including those for text and different code formats.
 
 from typing import Dict, Type, Any, Optional
 
+# Import consolidated types
+from src.types.chunking import ChunkerRegistry
+
 # Import chunkers
 from src.chunking.code_chunkers.python_chunker import PythonCodeChunker
 from src.chunking.code_chunkers.yaml_chunker import YAMLCodeChunker
 from src.chunking.code_chunkers.json_chunker import JSONCodeChunker
 
 # Registry for chunkers
-_CHUNKER_REGISTRY: Dict[str, Type] = {}
+_CHUNKER_REGISTRY: ChunkerRegistry = {}
 
 
 def register_chunker(name: str, chunker_cls: Type) -> None:

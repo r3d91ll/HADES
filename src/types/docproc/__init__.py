@@ -63,6 +63,7 @@ from src.types.docproc.adapter import (
 
 # Import document types
 from src.types.docproc.document import (
+    # Core TypedDict definitions
     DocumentEntity,
     DocumentMetadata,
     DocumentSection,
@@ -71,9 +72,25 @@ from src.types.docproc.document import (
     ChunkPreparedDocument,
     BatchProcessingStatistics,
     DocumentProcessingResult,
+    ChunkSchema,
+    DocumentSchema,
+    
+    # Pydantic model definitions
     PydanticDocumentEntity,
     PydanticDocumentMetadata,
     PydanticProcessedDocument,
+    PydanticChunkSchema,
+    
+    # Legacy compatibility classes (consolidated from src.types.documents)
+    BaseEntity,
+    BaseMetadata,
+    BaseDocument,
+    
+    # Aliases for backward compatibility
+    EntitySchema,
+    MetadataSchema,
+    
+    # Helper types
     DocumentSource,
     DocumentFilter,
     DocumentSortOptions,

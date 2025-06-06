@@ -31,8 +31,11 @@ except ImportError:
         return iterable if iterable is not None else iterable
     TQDM_AVAILABLE = False
     
-from .chonky_chunker import chunk_text, chunk_document, BaseDocument, DocumentSchema
-from ...schema.document_schema import DocumentType, SchemaVersion
+from .chonky_chunker import chunk_text, chunk_document
+
+# Import consolidated types
+from src.types.chunking import BaseDocument, DocumentSchema
+from src.schemas.common.enums import DocumentType, SchemaVersion
 
 logger = logging.getLogger(__name__)
 
