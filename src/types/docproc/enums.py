@@ -44,3 +44,14 @@ class AccessLevel(str, enum.Enum):
     PUBLIC = "public"  # Public access (no underscore)
     PROTECTED = "protected"  # Protected access (single underscore)
     PRIVATE = "private"  # Private access (double underscore)
+
+
+class ContentCategory(str, enum.Enum):
+    """Category of document content."""
+    
+    TEXT = "text"  # Plain text content
+    CODE = "code"  # Programming code
+    MARKUP = "markup"  # Markup language (HTML, XML, etc.)
+    DATA = "data"  # Structured data (JSON, YAML, etc.)
+    BINARY = "binary"  # Binary content
+    MIXED = "mixed"  # Mixed content types

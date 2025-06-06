@@ -10,26 +10,20 @@ focusing on extracting structure, keys, and relationships between components.
 import logging
 import yaml
 import hashlib
+import uuid
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Union, Tuple, Set, TypedDict, cast, Collection, MutableMapping
+from typing import Dict, Any, List, Optional, Union, Tuple, Set, cast, Collection, MutableMapping
 from collections import defaultdict
 
+from src.types.docproc.enums import ContentCategory
+
+from src.types.docproc.adapter import ExtractorOptions, MetadataExtractionConfig, EntityExtractionConfig
+from src.types.docproc.document import ProcessedDocument, DocumentEntity, DocumentMetadata
+from src.types.docproc.formats.yaml import YAMLNodeInfo, YAMLDocumentInfo, YAMLValidationResult
 from .base import BaseAdapter
 
 # Set up logging
 logger = logging.getLogger(__name__)
-
-
-class YAMLNodeInfo(TypedDict):
-    """TypedDict for YAML node information."""
-    key: str
-    path: str
-    line_start: int
-    line_end: int
-    value_type: str
-    value_preview: Optional[str]
-    children: List[str]
-    parent: Optional[str]
 
 
 class YAMLAdapter(BaseAdapter):
@@ -53,7 +47,7 @@ class YAMLAdapter(BaseAdapter):
         self.options = options or {}
         self.create_symbol_table = create_symbol_table
         
-    def process(self, file_path: Union[str, Path], options: Optional[Union[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
+    def process(self, file_path: Union[str, Path], options: Optional[ExtractorOptions] = None) -> ProcessedDocument:  # type: ignore[override]
         """Process a YAML file or content.
         
         Args:
@@ -64,16 +58,15 @@ class YAMLAdapter(BaseAdapter):
             Processed YAML document
         """
 
-        # Process options
-        options_dict = {}
-        content = None
+        # Convert to plain dict for easier handling
+        options_dict: Dict[str, Any] = {}
+        if options is not None:
+            # Create a copy of options as a regular dict
+            options_dict = dict(options)  
         
-        if options is None:
-            pass
-        elif isinstance(options, str):
-            content = options
-        elif isinstance(options, dict):
-            options_dict = options
+        content = None
+        # Handle ExtractorOptions properly
+        if options is not None:
             content = options.get('content')
         
         # Handle the case where content is provided directly
@@ -85,7 +78,20 @@ class YAMLAdapter(BaseAdapter):
             path_obj = Path(file_path) if isinstance(file_path, str) else file_path
             
             if not path_obj.exists():
-                raise FileNotFoundError(f"YAML file not found: {path_obj}")
+                # Return a properly typed error document
+                error_doc: ProcessedDocument = {
+                    "id": f"yaml-notfound-{str(uuid.uuid4())[:8]}",
+                    "content": "",
+                    "raw_content": "",
+                    "content_type": "text/yaml",
+                    "format": "yaml",
+                    "metadata": {},
+                    "entities": [],
+                    "sections": [],
+                    "error": f"File not found: {file_path}",
+                    "content_category": ContentCategory.DATA
+                }
+                return error_doc
                 
             # Read the file content
             text = path_obj.read_text(encoding="utf-8", errors="replace")
@@ -97,74 +103,119 @@ class YAMLAdapter(BaseAdapter):
         result["metadata"] = result.get("metadata", {})
         result["metadata"]["path"] = str(path_obj.absolute())
         result["metadata"]["filename"] = path_obj.name
-        result["metadata"]["extension"] = path_obj.suffix
-        result["metadata"]["language"] = "yaml"
-        result["metadata"]["file_type"] = "yaml"
-        result["metadata"]["content_category"] = "code"
+        # Create a properly typed metadata dictionary
+        metadata_dict: DocumentMetadata = {
+            "language": "yaml",
+            "file_type": "yaml",
+            "content_category": ContentCategory.DATA,
+            "custom": {
+                "extension": path_obj.suffix  # Store extension in custom field
+            }
+        }
+        result["metadata"] = metadata_dict
         
         # Set format information
         result["format"] = "yaml"
-        result["content_category"] = "code"
+        result["content_category"] = ContentCategory.DATA  # Use DATA for YAML
         
-        # Generate ID if not present
-        if "id" not in result:
-            file_hash = hashlib.md5(text.encode()).hexdigest()[:8]
+        # Generate ID if not present - only if needed
+        if not result["id"]:
+            file_hash = hashlib.md5(text.encode('utf-8')).hexdigest()[:8]
             result["id"] = f"yaml_{file_hash}_{path_obj.stem}"
             
-        return result  # Return type is already Dict[str, Any]
+        return result  
     
-    def extract_metadata(self, content: Union[str, Dict[str, Any]], options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        document = content if isinstance(content, dict) else {}
+    def extract_metadata(self, content: Union[str, ProcessedDocument], options: Optional[MetadataExtractionConfig] = None) -> DocumentMetadata:  # type: ignore[override]
         """
         Extract metadata from a YAML document.
         
         Args:
-            document: Processed YAML document
+            content: YAML content as string or processed document
+            options: Optional extraction configuration
             
         Returns:
-            Extracted metadata
+            Extracted document metadata
         """
+        # Convert content to appropriate type
+        # Initialize with an empty dict to avoid None issues
+        document: Dict[str, Any] = {}
+        
+        if isinstance(content, str):
+            try:
+                # Try to parse YAML string to extract metadata
+                yaml_data = yaml.safe_load(content)
+                if isinstance(yaml_data, dict):
+                    # Cast yaml_data to Dict[str, Any] to match document type
+                    document = cast(Dict[str, Any], yaml_data)
+            except Exception as e:
+                logger.warning(f"Failed to parse YAML for metadata extraction: {e}")
+        elif isinstance(content, dict):
+            # Cast ProcessedDocument to Dict[str, Any]
+            document = cast(Dict[str, Any], content)
         metadata = document.get("metadata", {})
         
         # Add any YAML-specific metadata extraction here
         if "symbol_table" in document:
             metadata["key_count"] = len(document["symbol_table"])
+        
+        # Ensure we have the minimum required fields for DocumentMetadata
+        if "title" not in metadata and "filename" in metadata:
+            metadata["title"] = metadata["filename"]
             
-        return cast(Dict[str, Any], metadata)
+        return cast(DocumentMetadata, metadata)
     
-    def extract_entities(self, content: Union[str, Dict[str, Any]], options: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
-        document = content if isinstance(content, dict) else {}
+    def extract_entities(self, content: Union[str, ProcessedDocument], options: Optional[EntityExtractionConfig] = None) -> List[DocumentEntity]:  # type: ignore[override]
         """
         Extract entities from a YAML document.
         
         Args:
-            document: Processed YAML document
+            content: YAML content as string or processed document
+            options: Optional extraction configuration
             
         Returns:
             List of extracted entities
         """
-        entities: List[Dict[str, Any]] = []
+        # Convert content to appropriate type
+        document: Dict[str, Any] = {}
+        if isinstance(content, str):
+            try:
+                # Try to parse YAML string to extract entities
+                yaml_data = yaml.safe_load(content)
+                if isinstance(yaml_data, dict):
+                    # Cast yaml_data to Dict[str, Any] to match document type
+                    document = cast(Dict[str, Any], yaml_data)
+            except Exception as e:
+                logger.warning(f"Failed to parse YAML for entity extraction: {e}")
+        elif isinstance(content, dict):
+            # Cast ProcessedDocument to Dict[str, Any]
+            document = cast(Dict[str, Any], content)
+        entities: List[DocumentEntity] = []
         
         # Track entities by key
-        entities_by_key: Dict[str, Dict[str, Any]] = {}
+        entities_by_key: Dict[str, DocumentEntity] = {}
         
         # If we have nodes, convert them to entities
         if "symbol_table" in document:
             for symbol_id, symbol_info in document["symbol_table"].items():
                 if symbol_info.get("path", "").count("/") <= 1:  # Only top-level or direct children
-                    entity = {
-                        "id": symbol_id,
+                    # Create a DocumentEntity with required fields
+                    entity: DocumentEntity = {
                         "type": "yaml_key",
-                        "name": symbol_info.get("key", ""),
-                        "value_type": symbol_info.get("value_type", ""),
-                        "path": symbol_info.get("path", ""),
+                        "text": symbol_info.get("key", ""),
+                        "start": symbol_info.get("line_start", 0),
+                        "end": symbol_info.get("line_end", 0),
+                        "metadata": {
+                            "id": symbol_id,  # Store ID in metadata
+                            "value_type": symbol_info.get("value_type", ""),
+                            "path": symbol_info.get("path", ""),
+                        }
                     }
                     entities.append(entity)
                     entities_by_key[symbol_id] = entity
         
-        return entities
-        
-    def process_text(self, text: str, options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        return entities  
+    
+    def process_text(self, text: str, options: Optional[ExtractorOptions] = None) -> ProcessedDocument:  # type: ignore[override]
         """
         Process YAML text content.
         
@@ -175,24 +226,41 @@ class YAMLAdapter(BaseAdapter):
             Processed YAML information
         """
         if not text or not text.strip():
-            return cast(Dict[str, Any], {"error": "Empty YAML content"})
+            # Return a properly typed error document
+            error_doc: ProcessedDocument = {
+                "id": f"yaml-notfound-{str(uuid.uuid4())[:8]}",
+                "content": "",
+                "raw_content": "",
+                "content_type": "text/yaml",
+                "format": "yaml",
+                "metadata": {},
+                "entities": [],
+                "sections": [],
+                "error": "Empty YAML content",
+                "content_category": ContentCategory.DATA
+            }
+            return error_doc
             
         try:
             # Parse the YAML content
             yaml_data = yaml.safe_load(text)
             
-            # Create basic result structure
-            result: Dict[str, Any] = {
-                "content_type": "yaml",
-                "content_hash": hashlib.md5(text.encode()).hexdigest(),
-                "symbol_table": {},
-                "relationships": [],  # List[Dict[str, Any]]
-                "metadata": {
-                    "line_count": len(text.split("\n")),
-                    "char_count": len(text),
-                    "root_elements": 1,  # YAML always has one root element
-                },
-                "original_content": text,
+            # Start with basic document structure
+            doc_id = f"yaml-{str(uuid.uuid4())[:8]}"
+            if options is not None and "id" in options:
+                doc_id = str(options.get("id", doc_id))
+                
+            document: ProcessedDocument = {
+                "id": doc_id,
+                "content": text,
+                "content_type": "text/yaml",
+                "format": "yaml",
+                "raw_content": text,  # Add required raw_content field
+                "metadata": {},
+                "entities": [],
+                "sections": [],  # Add required sections field
+                "error": None,  # Add required error field
+                "content_category": ContentCategory.DATA  # YAML is data format
             }
             
             # Extract structure if requested
@@ -212,34 +280,57 @@ class YAMLAdapter(BaseAdapter):
                 for k, v in elements.items():
                     elements_dict[k] = dict(v)  # Convert YAMLNodeInfo to plain dict
                 
-                result["symbol_table"] = elements_dict
-                result["relationships"] = cast(Any, relationships)
-                
-                # Add structure statistics - safely with proper types
-                if "metadata" not in result:
-                    result["metadata"] = {}
+                # Add custom field to metadata if it doesn't exist
+                if "custom" not in document["metadata"]:
+                    document["metadata"]["custom"] = {}
                     
-                # Create a fully typed metadata dictionary to avoid Collection issues
-                metadata_dict: Dict[str, Any] = {}
-                if isinstance(result["metadata"], dict):
-                    for k, v in result["metadata"].items():
-                        metadata_dict[k] = v
+                # Add to custom metadata
+                document["metadata"]["custom"]["symbol_table"] = elements_dict
+                document["metadata"]["custom"]["relationships"] = cast(Any, relationships)
                 
-                # Set values on our properly typed dictionary
-                metadata_dict["element_count"] = len(elements_dict)
-                metadata_dict["relationship_count"] = len(relationships)
+                # Add structure statistics
+                document["metadata"]["custom"]["element_count"] = len(elements_dict)
+                document["metadata"]["custom"]["relationship_count"] = len(relationships)
                 
-                # Update result with the properly typed metadata
-                result["metadata"] = metadata_dict
-                
-            return result
+            # Return the properly typed document
+            return document
             
         except yaml.YAMLError as e:
             logger.error(f"Error parsing YAML: {e}")
-            return cast(Dict[str, Any], {"error": f"YAML parsing error: {str(e)}"})
+            doc_id = f"yaml-error-{str(uuid.uuid4())[:8]}"
+            if options is not None and "id" in options:
+                doc_id = str(options.get("id", doc_id))
+                
+            # Use yaml_error_doc instead of error_doc to avoid redefinition
+            yaml_error_doc: ProcessedDocument = {
+                "id": doc_id,
+                "content": text,
+                "raw_content": text,
+                "content_type": "text/yaml",
+                "format": "yaml",
+                "metadata": {},
+                "entities": [],
+                "sections": [],
+                "error": f"YAML parsing error: {str(e)}",
+                "content_category": ContentCategory.DATA
+            }
+            return yaml_error_doc
         except Exception as e:
             logger.error(f"Unexpected error processing YAML: {e}")
-            return cast(Dict[str, Any], {"error": f"Processing error: {str(e)}"})
+            # Use a different variable name to avoid redefinition error
+            general_error_doc: ProcessedDocument = {
+                "id": doc_id,  # Reuse the doc_id generated above
+                "content": text,
+                "raw_content": text,
+                "content_type": "text/yaml",
+                "format": "yaml",
+                "metadata": {},
+                "entities": [],
+                "sections": [],
+                "error": f"Processing error: {str(e)}",
+                "content_category": ContentCategory.DATA
+            }
+            return general_error_doc
     
     def _create_line_mapping(self, text: str) -> Dict[int, int]:
         """

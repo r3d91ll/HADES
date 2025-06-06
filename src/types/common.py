@@ -12,6 +12,7 @@ from datetime import datetime
 
 # Basic type aliases
 NodeID = NewType('NodeID', str)
+DocumentID = NewType('DocumentID', str) 
 EdgeID = NewType('EdgeID', str)
 DocumentContent = NewType('DocumentContent', str)
 EmbeddingVector = Union[List[float], np.ndarray]

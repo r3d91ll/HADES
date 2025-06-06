@@ -14,53 +14,23 @@ import os
 import logging
 import re
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Union, Tuple, Set, TypedDict, cast
+from typing import Dict, Any, List, Optional, Union, Tuple, Set, cast
 from collections import defaultdict
 
+from src.types.docproc.adapter import ExtractorOptions, MetadataExtractionConfig, EntityExtractionConfig
+from src.types.docproc.document import ProcessedDocument, DocumentEntity, DocumentMetadata
+from src.types.docproc.formats.python import (
+    FunctionInfo,
+    ClassInfo,
+    ImportInfo,
+    RelationshipInfo,
+    PythonParserResult
+)
 from .base import BaseAdapter
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-
-class FunctionInfo(TypedDict):
-    """TypedDict for function information."""
-    name: str
-    line_start: int
-    line_end: int
-    args: List[str]
-    docstring: Optional[str]
-    decorators: List[str]
-    returns: Optional[str]
-    is_method: bool
-    calls: List[str]
-
-
-class ClassInfo(TypedDict):
-    """TypedDict for class information."""
-    name: str
-    line_start: int
-    line_end: int
-    docstring: Optional[str]
-    methods: List[str]
-    bases: List[str]
-
-
-class ImportInfo(TypedDict):
-    """TypedDict for import information."""
-    type: str  # 'import' or 'importfrom'
-    name: str
-    module: Optional[str]  # only for importfrom
-    line: int
-
-
-class RelationshipInfo(TypedDict):
-    """TypedDict for relationship information."""
-    type: str  # 'CALLS', 'CONTAINS', 'EXTENDS', etc.
-    from_entity: str
-    to_entity: str
-    weight: float
 
 
 class PythonAdapter(BaseAdapter):
@@ -89,7 +59,7 @@ class PythonAdapter(BaseAdapter):
         
         logger.info(f"Initialized PythonAdapter with create_symbol_table={self.create_symbol_table}, analyze_calls={self.analyze_calls}")
 
-    def process(self, file_path: Union[str, Path], options: Optional[Union[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
+    def process(self, file_path: Union[str, Path], options: Optional[ExtractorOptions] = None) -> ProcessedDocument:
         """Process a source-code file.
 
         Args:
@@ -196,7 +166,7 @@ class PythonAdapter(BaseAdapter):
         
         return document
     
-    def process_text(self, text: str, options: Optional[Union[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
+    def process_text(self, text: str, options: Optional[ExtractorOptions] = None) -> ProcessedDocument:
         """
         Process Python text content.
         
@@ -251,7 +221,7 @@ class PythonAdapter(BaseAdapter):
             logger.error(f"Error processing Python text: {e}", exc_info=True)
             raise ValueError(f"Error processing Python text: {str(e)}")
     
-    def extract_entities(self, content: Union[str, Dict[str, Any]], options: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    def extract_entities(self, content: Union[str, ProcessedDocument], options: Optional[EntityExtractionConfig] = None) -> List[DocumentEntity]:
         """
         Extract entities from Python content.
         
@@ -369,7 +339,7 @@ class PythonAdapter(BaseAdapter):
         
         return entities
     
-    def extract_metadata(self, content: Union[str, Dict[str, Any]], options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def extract_metadata(self, content: Union[str, ProcessedDocument], options: Optional[MetadataExtractionConfig] = None) -> DocumentMetadata:
         """
         Extract metadata from Python content.
         

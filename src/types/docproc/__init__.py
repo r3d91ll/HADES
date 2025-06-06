@@ -6,12 +6,12 @@ components of the HADES system, including document models, adapter protocols,
 and specialized schemas for different document formats.
 """
 
-# Import centralized type modules
 # Import enum types
 from src.types.docproc.enums import (
     RelationshipType,
     AccessLevel,
-    ImportSourceType
+    ImportSourceType,
+    ContentCategory
 )
 
 # Import Pydantic model types
@@ -31,7 +31,7 @@ from src.types.docproc.python import (
     typed_model_validator
 )
 
-# Import TypedDict definitions
+# Import TypedDict definitions for code elements
 from src.types.docproc.code_elements import (
     CodeRelationship as TypedDictCodeRelationship,
     ElementRelationship,
@@ -44,4 +44,80 @@ from src.types.docproc.code_elements import (
     ModuleElement,
     PySymbolTable,
     PythonDocument as TypedDictPythonDocument
+)
+
+# Import adapter types
+from src.types.docproc.adapter import (
+    AdapterProtocol,
+    AdapterRegistry,
+    ExtractorOptions,
+    MetadataExtractionConfig,
+    EntityExtractionConfig,
+    ChunkingPreparationConfig,
+    ProcessorConfig,
+    DocumentProcessingError,
+    FormatDetectionResult,
+    ProcessSuccessCallback,
+    ProcessErrorCallback
+)
+
+# Import document types
+from src.types.docproc.document import (
+    DocumentEntity,
+    DocumentMetadata,
+    DocumentSection,
+    ProcessedDocument,
+    ChunkPreparationMarker,
+    ChunkPreparedDocument,
+    BatchProcessingStatistics,
+    DocumentProcessingResult,
+    PydanticDocumentEntity,
+    PydanticDocumentMetadata,
+    PydanticProcessedDocument,
+    DocumentSource,
+    DocumentFilter,
+    DocumentSortOptions,
+    ProcessingMode
+)
+
+# Import configuration types
+from src.types.docproc.config import (
+    FormatDetectionConfig,
+    TextCleaningConfig,
+    AdapterConfig,
+    MarkdownConfig,
+    HtmlConfig,
+    PdfConfig,
+    PythonConfig,
+    JsonConfig,
+    YamlConfig,
+    DocumentProcessorConfig
+)
+
+# Import format-specific types
+# JSON format types
+from src.types.docproc.formats.json import (
+    JSONNodeInfo,
+    JSONQueryResult,
+    JSONRelationship,
+    JSONPathSegment,
+    JSONSchemaValidationResult
+)
+
+# Python format types
+from src.types.docproc.formats.python import (
+    FunctionInfo,
+    ClassInfo,
+    ImportInfo,
+    RelationshipInfo,
+    PythonParserResult,
+    ASTNodeInfo
+)
+
+# YAML format types
+from src.types.docproc.formats.yaml import (
+    YAMLNodeInfo,
+    YAMLValidationResult,
+    YAMLRelationship,
+    YAMLDocumentInfo
 )

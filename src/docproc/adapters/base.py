@@ -31,22 +31,30 @@ from pathlib import Path
 from typing import Dict, Any, Optional, Union, List, Tuple, cast
 
 from src.config.preprocessor_config import load_config
-from src.types.common import (
-    PreProcessorConfig, 
+from src.types.docproc.adapter import (
+    AdapterProtocol,
     MetadataExtractionConfig,
     EntityExtractionConfig,
-    ChunkingPreparationConfig
+    ChunkingPreparationConfig,
+    ProcessorConfig,
+    ExtractorOptions
+)
+from src.types.docproc.document import (
+    ProcessedDocument,
+    DocumentMetadata,
+    DocumentEntity,
+    ChunkPreparedDocument
 )
 
 
-class BaseAdapter(ABC):
+class BaseAdapter(ABC, AdapterProtocol):
     """
     Base interface for all document format adapters.
     
     The adapter's primary responsibility is to convert documents from various formats
-    into a standardized JSON structure that can be passed between pipeline stages.
+    into a standardized document representation that can be passed between pipeline stages.
     
-    The standard JSON structure includes:
+    The standard ProcessedDocument structure includes:
     - id: Unique identifier for the document
     - source: Source path/string
     - content: Document content (extracted text)
@@ -55,7 +63,8 @@ class BaseAdapter(ABC):
     - entities: Extracted entities from the content (named entities, references, etc.)
     - raw_content: Original content when possible (for debugging purposes)
     
-    This abstract class ensures all format adapters implement consistent interfaces for:
+    This abstract class implements the AdapterProtocol and ensures all format adapters 
+    provide consistent interfaces for:
     1. Full document processing (process method)
     2. Metadata extraction (extract_metadata method)
     3. Entity extraction (extract_entities method)
@@ -111,6 +120,11 @@ class BaseAdapter(ABC):
                 self.config.get("entity_extraction", {})
             )
             
+            self.processor_config = cast(
+                ProcessorConfig,
+                self.config.get("processor_config", {})
+            )
+            
             self.chunking_config = cast(
                 ChunkingPreparationConfig,
                 self.config.get("chunking_preparation", {})
@@ -128,7 +142,7 @@ class BaseAdapter(ABC):
             logging.getLogger(__name__).warning(f"Failed to load configuration: {e}")
     
     @abstractmethod
-    def process(self, file_path: Union[str, Path], options: Optional[Union[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
+    def process(self, file_path: Union[str, Path], options: Optional[ExtractorOptions] = None) -> ProcessedDocument:
         """
         Process a file or content string and convert to standardized format.
         
@@ -175,7 +189,7 @@ class BaseAdapter(ABC):
         pass
     
     @abstractmethod
-    def process_text(self, text: str, options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def process_text(self, text: str, options: Optional[ExtractorOptions] = None) -> ProcessedDocument:
         """
         Process text content directly without an associated file.
         
@@ -216,7 +230,7 @@ class BaseAdapter(ABC):
         pass
     
     @abstractmethod
-    def extract_entities(self, content: Union[str, Dict[str, Any]], options: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    def extract_entities(self, content: Union[str, ProcessedDocument], options: Optional[EntityExtractionConfig] = None) -> List[DocumentEntity]:
         """
         Extract entities from document content.
         
@@ -246,7 +260,7 @@ class BaseAdapter(ABC):
         pass
     
     @abstractmethod
-    def extract_metadata(self, content: Union[str, Dict[str, Any]], options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def extract_metadata(self, content: Union[str, ProcessedDocument], options: Optional[MetadataExtractionConfig] = None) -> DocumentMetadata:
         """
         Extract metadata from document content.
         
@@ -280,7 +294,7 @@ class BaseAdapter(ABC):
         """
         pass
     
-    def prepare_for_chunking(self, content: str) -> str:
+    def prepare_for_chunking(self, document: ProcessedDocument, options: Optional[ChunkingPreparationConfig] = None) -> ChunkPreparedDocument:
         """
         Prepare content for chunking based on configuration settings.
         
@@ -288,27 +302,35 @@ class BaseAdapter(ABC):
         configuration to make the content more suitable for the chunking stage.
         
         Args:
-            content: Document content to prepare
+            document: Document content to prepare
             
         Returns:
-            Prepared content ready for chunking
+            Prepared content ready for chunking with markers
         """
-        if not self.chunking_config:
-            return content
-            
-        prepared_content = content
+        # Options are not used in this base implementation, but present for protocol adherence
+        # Subclasses can override to use options
+        result: ChunkPreparedDocument = {
+            "id": document["id"],
+            "content": document["content"],
+            "markers": [],
+            "document": document
+        }
         
         # Add section markers if configured
         if self.chunking_config.get('add_section_markers', False):
-            prepared_content = self._add_section_markers(prepared_content)
+            section_markers = self._add_section_markers(result["content"])
+            result["content"] = section_markers["content"]
+            result["markers"].extend(section_markers.get("markers", []))
             
         # Mark potential chunk boundaries if configured
         if self.chunking_config.get('mark_chunk_boundaries', False):
-            prepared_content = self._mark_chunk_boundaries(prepared_content)
+            boundary_markers = self._mark_chunk_boundaries(result["content"])
+            result["content"] = boundary_markers["content"]
+            result["markers"].extend(boundary_markers.get("markers", []))
             
-        return prepared_content
+        return result
     
-    def _add_section_markers(self, content: str) -> str:
+    def _add_section_markers(self, content: str) -> Dict[str, Any]:
         """
         Add section markers to content to improve chunking.
         
@@ -318,10 +340,10 @@ class BaseAdapter(ABC):
         Returns:
             Content with section markers
         """
-        # Default implementation - can be overridden by format-specific adapters
-        return content
+        # Default implementation - override in format-specific adapters
+        return {"content": content, "markers": []} 
     
-    def _mark_chunk_boundaries(self, content: str) -> str:
+    def _mark_chunk_boundaries(self, content: str) -> Dict[str, Any]:
         """
         Mark natural chunk boundaries in the content.
         
@@ -332,7 +354,7 @@ class BaseAdapter(ABC):
             Content with chunk boundary markers
         """
         # Default implementation - can be overridden by format-specific adapters
-        return content
+        return {"content": content, "markers": []} # Caller will integrate this into ChunkPreparedDocument
     
     # Note: convert_to_markdown and convert_to_text methods were removed
     # as they are outside the core functionality of the document processing pipeline
