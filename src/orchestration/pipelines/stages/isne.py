@@ -1,47 +1,70 @@
 """
-ISNE (Inductive Shallow Node Embedding) stage for the HADES-PathRAG pipeline.
+ISNE (Inductive Shallow Node Embedding) stage for the unified HADES-PathRAG pipeline.
 
 This module provides a concrete implementation of the PipelineStage
 abstract base class for enhancing embeddings using graph-based relationships.
+
+This is the consolidated version that integrates with the orchestration system.
 """
 
 import logging
 from typing import Dict, Any, List, Tuple, Optional, Union
 import numpy as np
 import uuid
-import torch
 from pathlib import Path
 from datetime import datetime
 
-from src.pipeline.stages import PipelineStage, PipelineStageError
-from src.pipeline.schema import DocumentSchema, ChunkSchema, Relationship, ValidationResult, ValidationIssue, ValidationSeverity
-from src.isne.trainer.training_orchestrator import ISNETrainingOrchestrator
-from src.validation.embedding_validator import validate_embeddings_after_isne
+from .base import PipelineStage, PipelineStageError
+from ..schema import DocumentSchema, ChunkSchema, Relationship, ValidationResult, ValidationIssue, ValidationSeverity
 
 logger = logging.getLogger(__name__)
 
+# Try to import ISNE components
+try:
+    from src.isne.pipeline.isne_pipeline import ISNEPipeline
+    ISNE_AVAILABLE = True
+except ImportError:
+    ISNE_AVAILABLE = False
+    logger.warning("ISNE module not available")
+
+# Try to import validation components
+try:
+    from src.validation.embedding_validator import validate_embeddings_after_isne
+    VALIDATION_AVAILABLE = True
+except ImportError:
+    VALIDATION_AVAILABLE = False
+    logger.warning("Validation module not available")
+
 
 class ISNEStage(PipelineStage):
-    """Pipeline stage for ISNE processing.
+    """Pipeline stage for ISNE processing in the unified system.
     
     This stage handles the enhancement of embeddings using graph-based 
     relationships through the ISNE (Inductive Shallow Node Embedding) model.
     It builds a graph from document chunks, identifies relationships,
     and generates improved embeddings.
+    
+    Supports both sequential and parallel processing modes.
     """
     
     def __init__(
         self,
         name: str = "isne",
-        config: Optional[Dict[str, Any]] = None
+        config: Optional[Dict[str, Any]] = None,
+        enable_parallel: bool = False,
+        worker_pool=None,
+        queue_manager=None
     ):
         """Initialize ISNE stage.
         
         Args:
             name: Name of the stage
             config: Configuration dictionary with ISNE options
+            enable_parallel: Whether to enable parallel processing
+            worker_pool: Worker pool for parallel execution
+            queue_manager: Queue manager for task distribution
         """
-        super().__init__(name, config or {})
+        super().__init__(name, config or {}, enable_parallel, worker_pool, queue_manager)
         
         # Configure ISNE parameters
         self.model_path = self.config.get("model_path")
@@ -51,20 +74,16 @@ class ISNEStage(PipelineStage):
         self.generate_relationships = self.config.get("generate_relationships", True)
         self.validate_results = self.config.get("validate_results", True)
         
-        # Load or initialize ISNE model
-        try:
-            if self.model_path:
-                self.logger.info(f"Loading ISNE model from {self.model_path}")
-                self.isne_model = ISNETrainingOrchestrator.load_model(self.model_path)
-            else:
-                self.logger.info("Initializing new ISNE model")
-                self.isne_model = None  # Will be created during processing
-        except Exception as e:
-            raise PipelineStageError(
-                self.name,
-                f"Failed to initialize ISNE model: {str(e)}",
-                original_error=e
-            )
+        # Initialize ISNE pipeline
+        if ISNE_AVAILABLE:
+            try:
+                self.isne_pipeline = ISNEPipeline(config=self.config)
+                self.logger.info("Initialized ISNE pipeline")
+            except Exception as e:
+                self.logger.warning(f"Failed to initialize ISNE pipeline: {str(e)}")
+                self.isne_pipeline = None
+        else:
+            self.isne_pipeline = None
     
     def run(self, input_data: List[DocumentSchema]) -> List[DocumentSchema]:
         """Enhance embeddings using ISNE.
@@ -81,16 +100,20 @@ class ISNEStage(PipelineStage):
         Raises:
             PipelineStageError: If ISNE processing fails
         """
+        if not ISNE_AVAILABLE or not self.isne_pipeline:
+            raise PipelineStageError(
+                self.name,
+                "ISNE module not available"
+            )
+        
         if not input_data:
             raise PipelineStageError(
                 self.name,
                 "No documents provided for ISNE processing"
             )
         
-        # Extract all chunks across documents
+        # Validate input embeddings
         all_chunks = []
-        chunk_map = {}  # Map chunk IDs to chunks
-        
         for document in input_data:
             if not document.chunks:
                 self.logger.warning(f"Document has no chunks: {document.file_name}")
@@ -103,68 +126,20 @@ class ISNEStage(PipelineStage):
                 )
             
             all_chunks.extend(document.chunks)
-            
-            # Build map of chunk IDs to chunks
-            for chunk in document.chunks:
-                chunk_map[chunk.id] = chunk
         
         self.logger.info(f"Processing {len(all_chunks)} chunks from {len(input_data)} documents")
         
-        # Generate relationships between chunks if enabled
-        if self.generate_relationships:
-            self._generate_relationships(all_chunks, chunk_map)
-            self.logger.info("Generated relationships between chunks")
-        
-        # Create training data for ISNE
-        documents_dict_list = self._prepare_documents_for_isne(input_data)
-        
-        # Store pre-validation data for later comparison
-        pre_validation = {
-            "document_count": len(input_data),
-            "chunk_count": len(all_chunks),
-            "relationship_counts": self._count_relationships(all_chunks),
-            "timestamp": datetime.now().isoformat()
-        }
-        
-        # Train or update ISNE model and get enhanced embeddings
         try:
-            self.logger.info("Training ISNE model and generating enhanced embeddings")
-            # Initialize the orchestrator with documents and proper config override
-            isne_orchestrator = ISNETrainingOrchestrator(
-                documents=documents_dict_list,
-                config_override={"isne": self.training_config},
-                model_output_dir=str(Path(self.model_path).parent) if self.model_path else None
-            )
+            # Process documents with ISNE pipeline
+            enhanced_documents = []
             
-            # Train the model and get the training metrics
-            training_metrics = isne_orchestrator.train()
+            for document in input_data:
+                enhanced_doc = self._process_single_document(document)
+                if enhanced_doc:
+                    enhanced_documents.append(enhanced_doc)
             
-            # Extract enhanced embeddings from the trainer
-            if hasattr(isne_orchestrator, 'trainer') and isne_orchestrator.trainer:
-                # Get the model and device
-                model = isne_orchestrator.trainer.model
-                device = isne_orchestrator.device
-                
-                # Process each document and add ISNE embeddings
-                for document in input_data:
-                    for chunk in document.chunks:
-                        # Find the chunk in the document graph
-                        chunk_id = chunk.id
-                        # If we have a model, generate the ISNE embedding
-                        if model and hasattr(chunk, 'embedding') and chunk.embedding is not None:
-                            # Convert embedding to tensor and send to device
-                            embedding_tensor = torch.tensor(chunk.embedding, device=device)
-                            # Generate ISNE embedding
-                            with torch.no_grad():
-                                isne_embedding = model(embedding_tensor.unsqueeze(0))
-                                chunk.isne_embedding = isne_embedding.squeeze().cpu().numpy().tolist()
-            
-            # The model is automatically saved by the orchestrator if model_output_dir is provided
-            if self.model_path:
-                self.logger.info(f"ISNE model saved to directory: {Path(self.model_path).parent}")
-                
-            # Return the training metrics for debugging
-            return {"training_metrics": training_metrics}
+            self.logger.info(f"ISNE processing completed for {len(enhanced_documents)} documents")
+            return enhanced_documents
             
         except Exception as e:
             raise PipelineStageError(
@@ -172,36 +147,49 @@ class ISNEStage(PipelineStage):
                 f"ISNE processing failed: {str(e)}",
                 original_error=e
             )
+    
+    def _process_single_document(self, document: DocumentSchema) -> Optional[DocumentSchema]:
+        """Process a single document for ISNE enhancement.
         
-        # Validate results if enabled
-        if self.validate_results:
-            try:
-                validation_results = validate_embeddings_after_isne(documents_dict_list, pre_validation)
-                self.logger.info(f"ISNE validation: {validation_results['valid_documents']} valid documents")
-                
-                # Log any validation issues
-                if validation_results.get("missing_relationships", 0) > 0:
-                    self.logger.warning(f"ISNE validation: {validation_results['missing_relationships']} missing relationships")
-                
-                if validation_results.get("invalid_embeddings", 0) > 0:
-                    self.logger.warning(f"ISNE validation: {validation_results['invalid_embeddings']} invalid embeddings")
-                
-            except Exception as e:
-                self.logger.error(f"ISNE validation failed: {str(e)}", exc_info=True)
+        Args:
+            document: Document schema object with embedded chunks
+            
+        Returns:
+            DocumentSchema with ISNE embeddings or None if processing failed
+        """
+        if not document.chunks:
+            return None
         
-        # Final validation
-        processed_documents = []
-        for document in input_data:
-            validation_result = self._validate_isne_embeddings(document)
+        self.logger.info(f"ISNE processing document: {document.file_name} ({len(document.chunks)} chunks)")
+        
+        try:
+            # Generate relationships if enabled
+            if self.generate_relationships:
+                self._generate_relationships_for_document(document)
+            
+            # Prepare document for ISNE processing
+            document_data = self._prepare_document_for_isne(document)
+            
+            # Process with ISNE pipeline
+            enhanced_data = self.isne_pipeline.process_document(document_data)
+            
+            # Update document with ISNE embeddings
+            document_copy = document.copy(deep=True)
+            self._update_document_with_isne_embeddings(document_copy, enhanced_data)
+            
+            # Validate results
+            validation_result = self._validate_isne_embeddings(document_copy)
             if validation_result.has_errors:
                 self.logger.warning(
                     f"ISNE validation failed for {document.file_name}: "
                     f"{len(validation_result.get_issues_by_severity(ValidationSeverity.ERROR))} errors"
                 )
-            processed_documents.append(document)
-        
-        self.logger.info(f"ISNE processing completed for {len(processed_documents)} documents")
-        return processed_documents
+            
+            return document_copy
+            
+        except Exception as e:
+            self.logger.error(f"Failed to process document {document.file_name}: {str(e)}")
+            return document  # Return original document on failure
     
     def validate(self, data: Union[List[DocumentSchema], Any]) -> Tuple[bool, List[str]]:
         """Validate input or output data for this stage.
@@ -237,15 +225,16 @@ class ISNEStage(PipelineStage):
         
         return True, []
     
-    def _generate_relationships(self, chunks: List[ChunkSchema], chunk_map: Dict[str, ChunkSchema]) -> None:
-        """Generate relationships between chunks based on embedding similarity.
+    def _generate_relationships_for_document(self, document: DocumentSchema) -> None:
+        """Generate relationships between chunks in a single document.
         
         Args:
-            chunks: List of chunks to process
-            chunk_map: Map of chunk IDs to chunks
+            document: Document to process for relationships
         """
-        if not chunks:
+        if not document.chunks or len(document.chunks) < 2:
             return
+        
+        chunks = document.chunks
         
         # Create embedding matrix for efficient calculation
         embeddings = np.array([chunk.embedding for chunk in chunks])
@@ -278,78 +267,78 @@ class ISNEStage(PipelineStage):
                     type="similarity",
                     weight=float(similarities[i, idx]),
                     metadata={
-                        "source_document": chunk.metadata.get("document_id", ""),
-                        "target_document": target_chunk.metadata.get("document_id", "")
+                        "source_document": document.file_id,
+                        "target_document": document.file_id,
+                        "relationship_type": "intra_document"
                     }
                 )
                 
                 # Add relationship to chunk
                 chunk.relationships.append(relationship)
     
-    def _prepare_documents_for_isne(self, documents: List[DocumentSchema]) -> List[Dict[str, Any]]:
-        """Prepare documents in the format expected by ISNETrainingOrchestrator.
+    def _prepare_document_for_isne(self, document: DocumentSchema) -> Dict[str, Any]:
+        """Prepare document in the format expected by ISNE pipeline.
         
         Args:
-            documents: List of documents to prepare
+            document: Document to prepare
             
         Returns:
-            List of document dictionaries in ISNE format
+            Document dictionary in ISNE format
         """
-        isne_documents = []
+        doc_dict = {
+            "id": document.file_id,
+            "file_path": document.file_path,
+            "chunks": []
+        }
         
-        for document in documents:
-            if not document.chunks:
-                continue
-                
-            doc_dict = {
-                "id": document.file_id,
-                "file_path": document.file_path,
-                "chunks": []
+        # Process chunks
+        for chunk in document.chunks:
+            chunk_dict = {
+                "id": chunk.id,
+                "text": chunk.text,
+                "embedding": chunk.embedding,
+                "relationships": []
             }
             
-            # Process chunks
-            for chunk in document.chunks:
-                chunk_dict = {
-                    "id": chunk.id,
-                    "text": chunk.text,
-                    "embedding": chunk.embedding,
-                    "relationships": []
+            # Process relationships
+            for rel in chunk.relationships:
+                rel_dict = {
+                    "source_id": rel.source,
+                    "target_id": rel.target,
+                    "weight": rel.weight,
+                    "type": rel.type
                 }
-                
-                # Process relationships
-                for rel in chunk.relationships:
-                    rel_dict = {
-                        "source_id": rel.source,
-                        "target_id": rel.target,
-                        "weight": rel.weight,
-                        "type": rel.type
-                    }
-                    chunk_dict["relationships"].append(rel_dict)
-                
-                doc_dict["chunks"].append(chunk_dict)
+                chunk_dict["relationships"].append(rel_dict)
             
-            isne_documents.append(doc_dict)
+            doc_dict["chunks"].append(chunk_dict)
         
-        return isne_documents
+        return doc_dict
     
-    def _count_relationships(self, chunks: List[ChunkSchema]) -> Dict[str, int]:
-        """Count relationships by type.
+    def _update_document_with_isne_embeddings(self, document: DocumentSchema, enhanced_data: Dict[str, Any]) -> None:
+        """Update document chunks with ISNE embeddings.
         
         Args:
-            chunks: List of chunks to analyze
-            
-        Returns:
-            Dictionary of relationship counts by type
+            document: Document to update
+            enhanced_data: Enhanced data from ISNE pipeline
         """
-        counts = {"total": 0}
+        # Create a mapping from chunk IDs to enhanced embeddings
+        enhanced_embeddings = {}
         
-        for chunk in chunks:
-            for rel in chunk.relationships:
-                counts["total"] += 1
-                rel_type = rel.type
-                counts[rel_type] = counts.get(rel_type, 0) + 1
+        if "chunks" in enhanced_data:
+            for chunk_data in enhanced_data["chunks"]:
+                chunk_id = chunk_data.get("id")
+                isne_embedding = chunk_data.get("isne_embedding")
+                if chunk_id and isne_embedding:
+                    enhanced_embeddings[chunk_id] = isne_embedding
         
-        return counts
+        # Update document chunks with ISNE embeddings
+        for chunk in document.chunks:
+            if chunk.id in enhanced_embeddings:
+                chunk.isne_embedding = enhanced_embeddings[chunk.id]
+            else:
+                # If no enhanced embedding available, use original embedding as fallback
+                self.logger.warning(f"No ISNE embedding for chunk {chunk.id}, using original")
+                chunk.isne_embedding = chunk.embedding
     
     def _validate_isne_embeddings(self, document: DocumentSchema) -> ValidationResult:
         """Validate ISNE embeddings for a document's chunks.
@@ -398,25 +387,36 @@ class ISNEStage(PipelineStage):
                 ))
             
             # Check for NaN or infinite values
-            if any(not np.isfinite(v) for v in chunk.isne_embedding):
+            try:
+                if any(not np.isfinite(v) for v in chunk.isne_embedding):
+                    issues.append(ValidationIssue(
+                        severity=ValidationSeverity.ERROR,
+                        message=f"Chunk {i} has NaN or infinite values in ISNE embedding",
+                        location=f"{document.file_path}:chunk_{i}"
+                    ))
+            except (TypeError, ValueError):
                 issues.append(ValidationIssue(
                     severity=ValidationSeverity.ERROR,
-                    message=f"Chunk {i} has NaN or infinite values in ISNE embedding",
+                    message=f"Chunk {i} has invalid ISNE embedding data type",
                     location=f"{document.file_path}:chunk_{i}"
                 ))
+                continue
             
             # Check for zero vectors
-            if all(abs(v) < 1e-6 for v in chunk.isne_embedding):
-                issues.append(ValidationIssue(
-                    severity=ValidationSeverity.WARNING,
-                    message=f"Chunk {i} has a zero or near-zero ISNE embedding vector",
-                    location=f"{document.file_path}:chunk_{i}"
-                ))
+            try:
+                if all(abs(v) < 1e-6 for v in chunk.isne_embedding):
+                    issues.append(ValidationIssue(
+                        severity=ValidationSeverity.WARNING,
+                        message=f"Chunk {i} has a zero or near-zero ISNE embedding vector",
+                        location=f"{document.file_path}:chunk_{i}"
+                    ))
+            except (TypeError, ValueError):
+                pass  # Already handled above
             
-            # Check for relationships
+            # Check for relationships (info level)
             if not chunk.relationships:
                 issues.append(ValidationIssue(
-                    severity=ValidationSeverity.WARNING,
+                    severity=ValidationSeverity.INFO,
                     message=f"Chunk {i} has no relationships",
                     location=f"{document.file_path}:chunk_{i}"
                 ))

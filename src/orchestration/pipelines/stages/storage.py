@@ -13,8 +13,8 @@ from datetime import datetime
 import os
 import json
 
-from src.pipeline.stages import PipelineStage, PipelineStageError
-from src.pipeline.schema import DocumentSchema, ChunkSchema, ValidationResult, ValidationIssue, ValidationSeverity, StorageResult
+from src.orchestration.pipelines.stages.base import PipelineStage, PipelineStageError
+from src.orchestration.pipelines.schema import DocumentSchema, ChunkSchema, ValidationResult, ValidationIssue, ValidationSeverity, StorageResult
 # Import ArangoClient directly from the module file
 from src.database.arango_client import ArangoClient as ArangoClient
 from src.config.database_config import get_database_config

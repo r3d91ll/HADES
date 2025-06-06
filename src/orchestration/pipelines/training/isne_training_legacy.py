@@ -71,20 +71,14 @@ except ImportError:
 # Import ISNE module
 try:
     from src.isne.models.isne_model import ISNEModel
-    from src.isne.types.models import IngestDocument, DocumentRelation, RelationType, DocumentType
+    from src.types.isne.models import IngestDocument, DocumentRelation, RelationType, DocumentType
     from src.isne.loaders.modernbert_loader import ModernBERTLoader
     ISNE_AVAILABLE = True
 except ImportError:
     logger.warning("ISNE module not available or incomplete - ISNE enhancement will be skipped")
     ISNE_AVAILABLE = False
 
-# Explicitly import and register adapters to ensure they're available
-try:
-    from src.embedding.adapters.modernbert_adapter import ModernBERTEmbeddingAdapter
-    from src.embedding.base import register_adapter
-    register_adapter("modernbert", ModernBERTEmbeddingAdapter)
-except ImportError:
-    logger.warning("ModernBERT adapter not available")
+# Note: ModernBERT adapter import removed as it's not currently implemented
 
 
 class TextTrainingPipeline:

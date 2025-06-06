@@ -37,19 +37,16 @@ except ImportError:
     logger.warning("Document processing module not available")
 
 try:
-    from src.chunking.core import chunk_document as chunking_chunk_document
+    from src.chunking import chunk_text, chunk_code
     CHUNKING_AVAILABLE = True
 except ImportError:
     CHUNKING_AVAILABLE = False
     logger.warning("Chunking module not available")
 
 try:
-    from src.embedding.base import get_adapter, register_adapter, get_adapter_config, load_config
-    from src.embedding.adapters.modernbert_adapter import ModernBERTEmbeddingAdapter
-    # Re-register the adapter to ensure it's in the registry
-    register_adapter("modernbert", ModernBERTEmbeddingAdapter)
+    from src.embedding.base import get_adapter, register_adapter
     EMBEDDING_AVAILABLE = True
-    logger.info("Successfully registered ModernBERTEmbeddingAdapter")
+    logger.info("Embedding module available")
 except ImportError:
     EMBEDDING_AVAILABLE = False
     logger.warning("Embedding module not available")

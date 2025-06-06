@@ -1,8 +1,8 @@
 """
-Base classes for pipeline stages in HADES-PathRAG.
+Base classes for pipeline stages in the unified orchestration system.
 
-This module defines the core abstractions for pipeline stages, providing
-a consistent interface for all processing components in the pipeline.
+This module consolidates the stage-based architecture from src/pipeline/stages/base.py
+with the orchestration system's parallel processing capabilities.
 """
 
 import logging
@@ -12,6 +12,9 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from enum import Enum
 from typing import Dict, Any, Optional, List, Tuple, Union, TypeVar, Generic
+
+from src.orchestration.core.parallel_worker import WorkerPool
+from src.orchestration.core.queue.queue_manager import QueueManager
 
 logger = logging.getLogger(__name__)
 
@@ -165,25 +168,41 @@ class PipelineStageResult(Generic[T]):
 
 
 class PipelineStage(ABC, Generic[T, U]):
-    """Abstract base class for all pipeline stages.
+    """Abstract base class for all pipeline stages in the unified system.
     
-    This class defines the interface that all pipeline stages must implement,
-    providing a consistent way to execute, validate, and monitor each stage.
+    This class combines the stage-based processing from the original pipeline
+    with the parallel processing capabilities of the orchestration system.
     
     Each stage is responsible for a specific aspect of document processing,
     such as document parsing, chunking, embedding generation, or storage.
+    
+    Stages can operate in both sequential and parallel modes depending on
+    the pipeline configuration.
     """
     
-    def __init__(self, name: str, config: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self, 
+        name: str, 
+        config: Optional[Dict[str, Any]] = None,
+        enable_parallel: bool = False,
+        worker_pool: Optional[WorkerPool] = None,
+        queue_manager: Optional[QueueManager] = None
+    ):
         """Initialize pipeline stage.
         
         Args:
             name: Unique name for this pipeline stage
             config: Configuration dictionary for this stage
+            enable_parallel: Whether to enable parallel processing
+            worker_pool: Worker pool for parallel execution
+            queue_manager: Queue manager for task distribution
         """
         self.name = name
         self.config = config or {}
         self.logger = logging.getLogger(f"{__name__}.{name}")
+        self.enable_parallel = enable_parallel
+        self.worker_pool = worker_pool
+        self.queue_manager = queue_manager
     
     @abstractmethod
     def run(self, input_data: T) -> U:
@@ -217,6 +236,46 @@ class PipelineStage(ABC, Generic[T, U]):
             Tuple of (is_valid, error_messages)
         """
         pass
+    
+    def run_parallel(self, input_batch: List[T]) -> List[U]:
+        """Execute the stage on a batch of input data in parallel.
+        
+        This method leverages the orchestration system's parallel processing
+        capabilities to process multiple inputs concurrently.
+        
+        Args:
+            input_batch: List of input data items
+            
+        Returns:
+            List of processed output data items
+            
+        Raises:
+            PipelineStageError: If parallel processing is not available
+        """
+        if not self.enable_parallel or not self.worker_pool:
+            # Fall back to sequential processing
+            return [self.run(item) for item in input_batch]
+        
+        # Submit tasks to worker pool
+        futures = []
+        for item in input_batch:
+            future = self.worker_pool.submit(self.run, item)
+            futures.append(future)
+        
+        # Collect results
+        results = []
+        for future in futures:
+            try:
+                result = future.result()
+                results.append(result)
+            except Exception as e:
+                raise PipelineStageError(
+                    self.name,
+                    f"Parallel execution failed: {str(e)}",
+                    original_error=e
+                )
+        
+        return results
     
     def execute(self, input_data: T) -> PipelineStageResult[U]:
         """Execute the stage with timing, validation, and error handling.
@@ -300,3 +359,34 @@ class PipelineStage(ABC, Generic[T, U]):
                 end_time=end_time,
                 metadata=metadata
             )
+    
+    def execute_batch(self, input_batch: List[T]) -> List[PipelineStageResult[U]]:
+        """Execute the stage on a batch of input data.
+        
+        This method processes multiple inputs, optionally using parallel
+        processing if enabled.
+        
+        Args:
+            input_batch: List of input data items
+            
+        Returns:
+            List of PipelineStageResult objects
+        """
+        if self.enable_parallel and len(input_batch) > 1:
+            # Use parallel execution for better performance
+            try:
+                results = self.run_parallel(input_batch)
+                return [
+                    PipelineStageResult(
+                        stage_name=self.name,
+                        status=PipelineStageStatus.COMPLETED,
+                        data=result
+                    )
+                    for result in results
+                ]
+            except Exception as e:
+                # Fall back to sequential processing
+                self.logger.warning(f"Parallel execution failed, falling back to sequential: {str(e)}")
+        
+        # Sequential execution
+        return [self.execute(item) for item in input_batch]

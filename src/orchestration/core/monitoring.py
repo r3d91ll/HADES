@@ -10,13 +10,21 @@ import threading
 import time
 from typing import Any, Dict, List, Optional, Set
 
+from src.types.orchestration import (
+    MonitoringConfig,
+    MetricsDict,
+    ConfigDict,
+    MonitoringResult,
+    ComponentState
+)
+
 logger = logging.getLogger(__name__)
 
 
 class PipelineMonitor:
     """Monitors performance of pipeline components."""
     
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: Optional[ConfigDict] = None):
         """Initialize pipeline monitor with configuration.
         
         Args:

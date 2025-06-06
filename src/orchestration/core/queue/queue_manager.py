@@ -30,7 +30,7 @@ class QueueManager:
         
         # Queue setup - placeholder for implementation
         self.max_size = self.config.get("max_size", 100)
-        self.queue = queue.Queue(maxsize=self.max_size)
+        self.queue: queue.Queue[Any] = queue.Queue(maxsize=self.max_size)
         
         # Placeholder for full implementation
         # This will be implemented when we fully migrate the code

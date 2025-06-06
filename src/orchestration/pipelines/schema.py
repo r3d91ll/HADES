@@ -2,8 +2,7 @@
 Schema definitions for pipeline data structures.
 
 This module provides Pydantic models for validating and documenting the
-data structures used throughout the pipeline. These schemas ensure data
-consistency and provide automatic validation.
+data structures used throughout the orchestration pipeline system.
 """
 
 from datetime import datetime
@@ -178,4 +177,31 @@ class StorageResult(BaseModel):
     collections: Dict[str, int] = Field(default_factory=dict)
     execution_time: float
     errors: List[Dict[str, Any]] = Field(default_factory=list)
+    timestamp: datetime = Field(default_factory=datetime.now)
+
+
+class PipelineExecutionContext(BaseModel):
+    """Context for pipeline execution with orchestration capabilities."""
+    pipeline_name: str
+    execution_mode: str = "sequential"  # sequential, batch, parallel
+    batch_size: int = 10
+    enable_monitoring: bool = True
+    enable_alerts: bool = True
+    output_dir: Optional[str] = None
+    worker_config: Dict[str, Any] = Field(default_factory=dict)
+    queue_config: Dict[str, Any] = Field(default_factory=dict)
+    stage_configs: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
+    timestamp: datetime = Field(default_factory=datetime.now)
+
+
+class PipelineExecutionResult(BaseModel):
+    """Result of complete pipeline execution."""
+    pipeline_name: str
+    execution_context: PipelineExecutionContext
+    total_execution_time: float
+    stage_results: List[Dict[str, Any]] = Field(default_factory=list)
+    batch_stats: BatchProcessingStats = Field(default_factory=BatchProcessingStats)
+    storage_result: Optional[StorageResult] = None
+    success: bool
+    error_summary: Optional[str] = None
     timestamp: datetime = Field(default_factory=datetime.now)

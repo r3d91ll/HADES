@@ -10,13 +10,21 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
+from src.types.orchestration import (
+    WorkerPoolConfig,
+    MetricsDict,
+    ConfigDict,
+    WorkerResult,
+    ComponentState
+)
+
 logger = logging.getLogger(__name__)
 
 
 class WorkerPool:
     """Manages a pool of worker threads for parallel processing."""
     
-    def __init__(self, name: str, max_workers: int = 4, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, name: str, max_workers: int = 4, config: Optional[ConfigDict] = None):
         """Initialize worker pool with configuration.
         
         Args:
@@ -41,7 +49,7 @@ class WorkerPool:
         # Lock for thread-safe updates
         self._lock = threading.Lock()
     
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> MetricsDict:
         """Get current worker pool metrics."""
         with self._lock:
             return {

@@ -8,6 +8,17 @@ import logging
 import time
 from typing import Any, Dict, List, Optional, Union, Callable
 
+from src.types.orchestration import (
+    BasePipeline,
+    PipelineType,
+    PipelineConfig,
+    ConfigDict,
+    ResultDict,
+    PipelineState,
+    ComponentState,
+    MetricsDict
+)
+
 from src.orchestration.core.parallel_worker import WorkerPool
 from src.orchestration.core.queue.queue_manager import QueueManager
 from src.orchestration.core.monitoring import PipelineMonitor
@@ -15,17 +26,20 @@ from src.orchestration.core.monitoring import PipelineMonitor
 logger = logging.getLogger(__name__)
 
 
-class ParallelPipeline:
+class ParallelPipeline(BasePipeline):
     """Base class for parallel processing pipelines."""
     
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: Optional[ConfigDict] = None):
         """Initialize parallel pipeline with configuration.
         
         Args:
             config: Configuration options for the pipeline
         """
-        self.config = config or {}
-        self.name = self.config.get("name", "parallel_pipeline")
+        config = config or {}
+        name = config.get("name", "parallel_pipeline")
+        pipeline_type = PipelineType.PARALLEL
+        
+        super().__init__(name, pipeline_type, config)
         self.mode = self.config.get("mode", "inference")
         
         # Initialize monitoring
@@ -70,7 +84,51 @@ class ParallelPipeline:
             # Register with monitoring
             self.monitor.register_component("queue", queue_name, self.queues[queue_name])
     
-    def process_batch(self, inputs: List[Any]) -> Dict[str, Any]:
+    def run(self, **kwargs: Any) -> ResultDict:
+        """Run the pipeline (required by BasePipeline)."""
+        inputs = kwargs.get("inputs", [])
+        return self.process_batch(inputs)
+    
+    def start(self) -> bool:
+        """Start the pipeline components."""
+        try:
+            self.initialize_workers()
+            self.initialize_queues()
+            self.state = ComponentState.RUNNING
+            return True
+        except Exception as e:
+            logger.error(f"Failed to start pipeline: {e}")
+            self.state = ComponentState.ERROR
+            return False
+    
+    def stop(self) -> bool:
+        """Stop the pipeline components."""
+        try:
+            # Stop worker pools
+            for worker_pool in self.worker_pools.values():
+                if hasattr(worker_pool, 'stop'):
+                    worker_pool.stop()
+            
+            # Clear queues
+            self.queues.clear()
+            self.state = ComponentState.STOPPED
+            return True
+        except Exception as e:
+            logger.error(f"Failed to stop pipeline: {e}")
+            return False
+    
+    def get_metrics(self) -> MetricsDict:
+        """Get pipeline metrics."""
+        return {
+            "name": self.name,
+            "type": self.pipeline_type.value,
+            "state": self.state.value,
+            "worker_pools": len(self.worker_pools),
+            "queues": len(self.queues),
+            "mode": self.mode
+        }
+    
+    def process_batch(self, inputs: List[Any]) -> ResultDict:
         """Process a batch of inputs through the pipeline.
         
         Args:

@@ -1,40 +1,59 @@
 """
-Chunking stage for the HADES-PathRAG pipeline.
+Chunking stage for the unified HADES-PathRAG pipeline.
 
 This module provides a concrete implementation of the PipelineStage
 abstract base class for document chunking operations, including
 segmentation of documents into semantically meaningful chunks.
+
+This is the consolidated version that integrates with the orchestration system.
 """
 
 import logging
 from typing import Dict, Any, List, Tuple, Optional, Union
 import uuid
 
-from src.pipeline.stages import PipelineStage, PipelineStageError
-from src.pipeline.schema import DocumentSchema, ChunkSchema, ValidationResult, ValidationIssue, ValidationSeverity
+from .base import PipelineStage, PipelineStageError
+from ..schema import DocumentSchema, ChunkSchema, ValidationResult, ValidationIssue, ValidationSeverity
 
 logger = logging.getLogger(__name__)
 
+# Try to import chunking components
+try:
+    from src.chunking.registry import get_chunker
+    CHUNKING_AVAILABLE = True
+except ImportError:
+    CHUNKING_AVAILABLE = False
+    logger.warning("Chunking module not available")
+
 
 class ChunkingStage(PipelineStage):
-    """Pipeline stage for document chunking.
+    """Pipeline stage for document chunking in the unified system.
     
     This stage handles the segmentation of documents into semantically
     meaningful chunks, preparing them for embedding generation.
+    
+    Supports both sequential and parallel processing modes, and integrates
+    with the centralized chunking system.
     """
     
     def __init__(
         self,
         name: str = "chunking",
-        config: Optional[Dict[str, Any]] = None
+        config: Optional[Dict[str, Any]] = None,
+        enable_parallel: bool = False,
+        worker_pool=None,
+        queue_manager=None
     ):
         """Initialize chunking stage.
         
         Args:
             name: Name of the stage
             config: Configuration dictionary with chunking options
+            enable_parallel: Whether to enable parallel processing
+            worker_pool: Worker pool for parallel execution
+            queue_manager: Queue manager for task distribution
         """
-        super().__init__(name, config or {})
+        super().__init__(name, config or {}, enable_parallel, worker_pool, queue_manager)
         
         # Configure chunking parameters
         self.chunk_size = self.config.get("chunk_size", 500)
@@ -42,6 +61,17 @@ class ChunkingStage(PipelineStage):
         self.chunking_strategy = self.config.get("chunking_strategy", "paragraph")
         self.min_chunk_size = self.config.get("min_chunk_size", 50)
         self.max_chunk_size = self.config.get("max_chunk_size", 1000)
+        self.chunker_type = self.config.get("chunker_type", "cpu")  # cpu, chonky, etc.
+        
+        # Initialize chunker if available
+        if CHUNKING_AVAILABLE:
+            try:
+                self.chunker = get_chunker(self.chunker_type, self.config)
+            except Exception as e:
+                self.logger.warning(f"Could not initialize chunker {self.chunker_type}: {str(e)}")
+                self.chunker = None
+        else:
+            self.chunker = None
     
     def run(self, input_data: List[DocumentSchema]) -> List[DocumentSchema]:
         """Process documents by chunking them into semantic segments.
@@ -67,39 +97,102 @@ class ChunkingStage(PipelineStage):
         chunked_documents = []
         for document in input_data:
             try:
-                self.logger.info(f"Chunking document: {document.file_name}")
-                
-                # Get document text from appropriate location
-                document_text = self._extract_document_text(document)
-                
-                if not document_text:
-                    self.logger.warning(f"Document has no text content: {document.file_name}")
-                    continue
-                
-                # Chunk the document based on the selected strategy
-                chunks = self._chunk_document(document_text, document)
-                
-                # Add chunks to the document
-                document_copy = document.copy(deep=True)
-                document_copy.chunks = chunks
-                
-                # Validate chunks
-                validation_result = self._validate_chunks(document_copy)
-                if validation_result.has_errors:
-                    self.logger.warning(
-                        f"Chunk validation failed for {document.file_name}: "
-                        f"{len(validation_result.get_issues_by_severity(ValidationSeverity.ERROR))} errors"
-                    )
-                
-                chunked_documents.append(document_copy)
-                self.logger.info(f"Created {len(chunks)} chunks for document: {document.file_name}")
-                
+                chunked_doc = self._process_single_document(document)
+                if chunked_doc:
+                    chunked_documents.append(chunked_doc)
+                    
             except Exception as e:
                 self.logger.error(f"Error chunking document {document.file_name}: {str(e)}", exc_info=True)
                 # Continue processing other documents
         
         self.logger.info(f"Chunked {len(chunked_documents)} documents successfully")
         return chunked_documents
+    
+    def _process_single_document(self, document: DocumentSchema) -> Optional[DocumentSchema]:
+        """Process a single document for chunking.
+        
+        Args:
+            document: Document schema object to chunk
+            
+        Returns:
+            DocumentSchema with chunks or None if processing failed
+        """
+        self.logger.info(f"Chunking document: {document.file_name}")
+        
+        # Get document text from appropriate location
+        document_text = self._extract_document_text(document)
+        
+        if not document_text:
+            self.logger.warning(f"Document has no text content: {document.file_name}")
+            return None
+        
+        # Chunk the document based on the selected strategy
+        if self.chunker and CHUNKING_AVAILABLE:
+            # Use the centralized chunking system
+            chunks = self._chunk_with_registry(document_text, document)
+        else:
+            # Fall back to local chunking implementation
+            chunks = self._chunk_document_local(document_text, document)
+        
+        # Add chunks to the document
+        document_copy = document.copy(deep=True)
+        document_copy.chunks = chunks
+        
+        # Validate chunks
+        validation_result = self._validate_chunks(document_copy)
+        if validation_result.has_errors:
+            self.logger.warning(
+                f"Chunk validation failed for {document.file_name}: "
+                f"{len(validation_result.get_issues_by_severity(ValidationSeverity.ERROR))} errors"
+            )
+        
+        self.logger.info(f"Created {len(chunks)} chunks for document: {document.file_name}")
+        return document_copy
+    
+    def _chunk_with_registry(self, text: str, document: DocumentSchema) -> List[ChunkSchema]:
+        """Chunk document using the centralized chunking registry.
+        
+        Args:
+            text: Document text content
+            document: Document schema object for context
+            
+        Returns:
+            List of ChunkSchema objects
+        """
+        try:
+            # Prepare document for chunking
+            chunk_input = {
+                "text": text,
+                "document_id": document.file_id,
+                "file_path": document.file_path,
+                "metadata": document.metadata
+            }
+            
+            # Chunk using the registered chunker
+            chunk_results = self.chunker.chunk(chunk_input)
+            
+            # Convert to ChunkSchema objects
+            chunks = []
+            for i, chunk_result in enumerate(chunk_results):
+                chunk = ChunkSchema(
+                    id=f"{document.file_id}_chunk_{i}",
+                    text=chunk_result.get("text", ""),
+                    metadata={
+                        "index": i,
+                        "document_id": document.file_id,
+                        "document_name": document.file_name,
+                        "chunking_strategy": self.chunking_strategy,
+                        "chunker_type": self.chunker_type,
+                        **chunk_result.get("metadata", {})
+                    }
+                )
+                chunks.append(chunk)
+            
+            return chunks
+            
+        except Exception as e:
+            self.logger.warning(f"Registry chunking failed, falling back to local: {str(e)}")
+            return self._chunk_document_local(text, document)
     
     def validate(self, data: Union[List[DocumentSchema], Any]) -> Tuple[bool, List[str]]:
         """Validate input or output data for this stage.
@@ -134,9 +227,10 @@ class ChunkingStage(PipelineStage):
         Returns:
             Document text content
         """
-        # For now, we assume the document content is in the metadata
-        # In a real implementation, this would extract from appropriate location
-        if "text" in document.metadata:
+        # Check various possible locations for the document content
+        if "content" in document.metadata:
+            return document.metadata["content"]
+        elif "text" in document.metadata:
             return document.metadata["text"]
         
         # If not in metadata, check if we need to load from file
@@ -148,8 +242,8 @@ class ChunkingStage(PipelineStage):
             
         return ""
     
-    def _chunk_document(self, text: str, document: DocumentSchema) -> List[ChunkSchema]:
-        """Chunk document text into semantic segments.
+    def _chunk_document_local(self, text: str, document: DocumentSchema) -> List[ChunkSchema]:
+        """Local fallback chunking implementation.
         
         Args:
             text: Document text content
@@ -180,7 +274,8 @@ class ChunkingStage(PipelineStage):
                     "index": i,
                     "document_id": document.file_id,
                     "document_name": document.file_name,
-                    "chunking_strategy": self.chunking_strategy
+                    "chunking_strategy": self.chunking_strategy,
+                    "chunker_type": "local_fallback"
                 }
             )
             chunks.append(chunk)
@@ -188,125 +283,76 @@ class ChunkingStage(PipelineStage):
         return chunks
     
     def _chunk_by_paragraph(self, text: str) -> List[str]:
-        """Chunk text by paragraphs.
-        
-        Args:
-            text: Text to chunk
-            
-        Returns:
-            List of text chunks
-        """
-        # Split by double newlines (paragraphs)
+        """Chunk text by paragraphs."""
         paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
         
-        # Process each paragraph
         chunks = []
         current_chunk = ""
         
         for paragraph in paragraphs:
-            # If adding this paragraph would exceed max chunk size, 
-            # store the current chunk and start a new one
             if len(current_chunk) + len(paragraph) > self.max_chunk_size and current_chunk:
                 chunks.append(current_chunk)
                 current_chunk = paragraph
-            # Otherwise, add the paragraph to the current chunk
             else:
                 if current_chunk:
                     current_chunk += "\n\n" + paragraph
                 else:
                     current_chunk = paragraph
         
-        # Add the last chunk if it's not empty
         if current_chunk:
             chunks.append(current_chunk)
         
-        # Handle very short chunks by combining them
         return self._combine_short_chunks(chunks)
     
     def _chunk_by_fixed_size(self, text: str) -> List[str]:
-        """Chunk text by fixed size with overlap.
-        
-        Args:
-            text: Text to chunk
-            
-        Returns:
-            List of text chunks
-        """
+        """Chunk text by fixed size with overlap."""
         chunks = []
         text_length = len(text)
         
-        # Use a sliding window approach with the configured chunk size and overlap
         start = 0
         while start < text_length:
-            # Calculate end position (not exceeding text length)
             end = min(start + self.chunk_size, text_length)
             
-            # Try to find a good break point (space or punctuation) near the end
             if end < text_length:
-                # Look for a space within the last 20% of the chunk
                 search_start = max(start, end - int(self.chunk_size * 0.2))
                 last_space = text.rfind(' ', search_start, end)
                 
                 if last_space != -1:
-                    end = last_space + 1  # Include the space
+                    end = last_space + 1
             
-            # Add the chunk
             chunks.append(text[start:end].strip())
-            
-            # Move the start position (accounting for overlap)
             start = min(end, start + self.chunk_size - self.chunk_overlap)
         
         return chunks
     
     def _chunk_by_sentence(self, text: str) -> List[str]:
-        """Chunk text by sentences, combining into appropriate sized chunks.
-        
-        Args:
-            text: Text to chunk
-            
-        Returns:
-            List of text chunks
-        """
-        # Simple sentence splitting (this could be more sophisticated)
+        """Chunk text by sentences, combining into appropriate sized chunks."""
         sentences = []
         for paragraph in text.split("\n\n"):
-            # Split by common sentence terminators
             for sentence in paragraph.replace(". ", ".|").replace("! ", "!|").replace("? ", "?|").split("|"):
                 if sentence.strip():
                     sentences.append(sentence.strip())
         
-        # Combine sentences into chunks
         chunks = []
         current_chunk = ""
         
         for sentence in sentences:
-            # If adding this sentence would exceed max chunk size, 
-            # store the current chunk and start a new one
             if len(current_chunk) + len(sentence) > self.max_chunk_size and current_chunk:
                 chunks.append(current_chunk)
                 current_chunk = sentence
-            # Otherwise, add the sentence to the current chunk
             else:
                 if current_chunk:
                     current_chunk += " " + sentence
                 else:
                     current_chunk = sentence
         
-        # Add the last chunk if it's not empty
         if current_chunk:
             chunks.append(current_chunk)
         
         return chunks
     
     def _combine_short_chunks(self, chunks: List[str]) -> List[str]:
-        """Combine short chunks to avoid very small chunks.
-        
-        Args:
-            chunks: List of text chunks
-            
-        Returns:
-            List of combined chunks
-        """
+        """Combine short chunks to avoid very small chunks."""
         if not chunks:
             return []
         
@@ -314,18 +360,14 @@ class ChunkingStage(PipelineStage):
         current_chunk = chunks[0]
         
         for i in range(1, len(chunks)):
-            # If the current chunk is too short and adding the next chunk wouldn't make it too long
             if len(current_chunk) < self.min_chunk_size and len(current_chunk) + len(chunks[i]) <= self.max_chunk_size:
                 current_chunk += "\n\n" + chunks[i]
-            # If adding the next chunk would still be under the max size
             elif len(current_chunk) + len(chunks[i]) <= self.max_chunk_size:
                 current_chunk += "\n\n" + chunks[i]
             else:
-                # Add the current chunk and start a new one
                 combined_chunks.append(current_chunk)
                 current_chunk = chunks[i]
         
-        # Add the last chunk
         if current_chunk:
             combined_chunks.append(current_chunk)
         
@@ -355,7 +397,7 @@ class ChunkingStage(PipelineStage):
                 stage_name=self.name
             )
         
-        # Check for very small chunks
+        # Check for very small or large chunks
         for i, chunk in enumerate(document.chunks):
             if len(chunk.text) < self.min_chunk_size:
                 issues.append(ValidationIssue(
