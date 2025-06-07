@@ -28,3 +28,5 @@ PyYAML>=6.0
 loguru>=0.7.0
 typer>=0.9.0  # For CLI applications
 pytest>=7.0.0  # For testing
+
+python-arango 

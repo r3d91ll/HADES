@@ -16,7 +16,12 @@ from typing import Dict, Any, List, Optional, Union, cast
 from copy import deepcopy 
 from datetime import datetime 
 
-import black
+try:
+    import black
+    BLACK_AVAILABLE = True
+except ImportError:
+    black = None  # type: ignore
+    BLACK_AVAILABLE = False
 
 from src.docproc.adapters.base import BaseAdapter
 from src.types.docproc.adapter import (

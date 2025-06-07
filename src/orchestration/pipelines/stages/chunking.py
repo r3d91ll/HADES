@@ -66,14 +66,14 @@ class ChunkingStage(PipelineStage):
         # Initialize chunker if available
         if CHUNKING_AVAILABLE:
             try:
-                self.chunker = get_chunker(self.chunker_type, self.config)
+                self.chunker = get_chunker(self.chunker_type, **self.config)
             except Exception as e:
                 self.logger.warning(f"Could not initialize chunker {self.chunker_type}: {str(e)}")
                 self.chunker = None
         else:
             self.chunker = None
     
-    def run(self, input_data: List[DocumentSchema]) -> List[DocumentSchema]:
+    def run(self, input_data: List[DocumentSchema]) -> List[ChunkSchema]:
         """Process documents by chunking them into semantic segments.
         
         This method divides each document into chunks according to the configured
@@ -83,7 +83,7 @@ class ChunkingStage(PipelineStage):
             input_data: List of DocumentSchema objects to chunk
             
         Returns:
-            List of DocumentSchema objects with added chunks
+            List of ChunkSchema objects (flattened from all documents)
             
         Raises:
             PipelineStageError: If chunking fails
@@ -94,19 +94,48 @@ class ChunkingStage(PipelineStage):
                 "No documents provided for chunking"
             )
         
-        chunked_documents = []
+        all_chunks = []
         for document in input_data:
             try:
-                chunked_doc = self._process_single_document(document)
-                if chunked_doc:
-                    chunked_documents.append(chunked_doc)
+                chunks = self._process_single_document_to_chunks(document)
+                if chunks:
+                    all_chunks.extend(chunks)
                     
             except Exception as e:
                 self.logger.error(f"Error chunking document {document.file_name}: {str(e)}", exc_info=True)
                 # Continue processing other documents
         
-        self.logger.info(f"Chunked {len(chunked_documents)} documents successfully")
-        return chunked_documents
+        self.logger.info(f"Created {len(all_chunks)} chunks from {len(input_data)} documents")
+        return all_chunks
+    
+    def _process_single_document_to_chunks(self, document: DocumentSchema) -> List[ChunkSchema]:
+        """Process a single document and return its chunks directly.
+        
+        Args:
+            document: Document schema object to chunk
+            
+        Returns:
+            List of ChunkSchema objects
+        """
+        self.logger.info(f"Chunking document: {document.file_name}")
+        
+        # Get document text from appropriate location
+        document_text = self._extract_document_text(document)
+        
+        if not document_text:
+            self.logger.warning(f"Document has no text content: {document.file_name}")
+            return []
+        
+        # Chunk the document based on the selected strategy
+        if self.chunker and CHUNKING_AVAILABLE:
+            # Use the centralized chunking system
+            chunks = self._chunk_with_registry(document_text, document)
+        else:
+            # Fall back to local chunking implementation
+            chunks = self._chunk_document_local(document_text, document)
+        
+        self.logger.info(f"Created {len(chunks)} chunks for document: {document.file_name}")
+        return chunks
     
     def _process_single_document(self, document: DocumentSchema) -> Optional[DocumentSchema]:
         """Process a single document for chunking.
@@ -194,29 +223,36 @@ class ChunkingStage(PipelineStage):
             self.logger.warning(f"Registry chunking failed, falling back to local: {str(e)}")
             return self._chunk_document_local(text, document)
     
-    def validate(self, data: Union[List[DocumentSchema], Any]) -> Tuple[bool, List[str]]:
+    def validate(self, data: Union[List[DocumentSchema], List[ChunkSchema], Any]) -> Tuple[bool, List[str]]:
         """Validate input or output data for this stage.
         
         Args:
-            data: Data to validate (either input or output DocumentSchema objects)
+            data: Data to validate (input: DocumentSchema objects, output: ChunkSchema objects)
             
         Returns:
             Tuple of (is_valid, error_messages)
         """
-        # Validate that input is a list of DocumentSchema objects
         if not isinstance(data, list):
-            return False, ["Input must be a list of DocumentSchema objects"]
+            return False, ["Data must be a list"]
         
-        if not all(isinstance(doc, DocumentSchema) for doc in data):
-            return False, ["All items in the list must be DocumentSchema objects"]
+        if not data:
+            return False, ["Data list is empty"]
         
-        # For output validation, check that all documents have chunks
-        output_validation = all(hasattr(doc, 'chunks') and len(doc.chunks) > 0 for doc in data)
-        
-        if not output_validation:
-            return False, ["One or more documents have no chunks after processing"]
-        
-        return True, []
+        # Check if this is input validation (DocumentSchema) or output validation (ChunkSchema)
+        if all(isinstance(item, DocumentSchema) for item in data):
+            # Input validation - all items should be DocumentSchema
+            return True, []
+        elif all(isinstance(item, ChunkSchema) for item in data):
+            # Output validation - all items should be ChunkSchema with valid content
+            for i, chunk in enumerate(data):
+                if not chunk.text or len(chunk.text.strip()) == 0:
+                    return False, [f"Chunk {i} has no text content"]
+                if not chunk.id:
+                    return False, [f"Chunk {i} has no ID"]
+            return True, []
+        else:
+            # Mixed types or unknown types
+            return False, ["Data contains mixed or invalid types"]
     
     def _extract_document_text(self, document: DocumentSchema) -> str:
         """Extract text content from a document.
@@ -227,16 +263,27 @@ class ChunkingStage(PipelineStage):
         Returns:
             Document text content
         """
+        self.logger.debug(f"Extracting text from document: {document.file_name}")
+        self.logger.debug(f"Document metadata keys: {list(document.metadata.keys())}")
+        
         # Check various possible locations for the document content
         if "content" in document.metadata:
-            return document.metadata["content"]
+            content = document.metadata["content"]
+            self.logger.debug(f"Found content in metadata, length: {len(content)}")
+            return content
         elif "text" in document.metadata:
-            return document.metadata["text"]
+            content = document.metadata["text"]
+            self.logger.debug(f"Found text in metadata, length: {len(content)}")
+            return content
+        
+        self.logger.warning(f"No content found in metadata for {document.file_name}")
         
         # If not in metadata, check if we need to load from file
         try:
             with open(document.file_path, 'r', encoding='utf-8') as f:
-                return f.read()
+                content = f.read()
+                self.logger.debug(f"Read content from file, length: {len(content)}")
+                return content
         except Exception as e:
             self.logger.warning(f"Could not read document content from file: {str(e)}")
             

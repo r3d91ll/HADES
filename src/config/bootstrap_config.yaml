@@ -1,0 +1,111 @@
+---
+# ISNE Bootstrap Configuration
+# Controls the cold-start bootstrap process for initializing ISNE from a document corpus
+
+# Bootstrap process configuration
+bootstrap:
+  # Corpus settings
+  corpus:
+    input_dir: "./corpus"              # Directory containing documents to bootstrap from
+    supported_formats: [".pdf", ".py", ".md", ".txt", ".json", ".yaml"]
+    max_files: null                    # null = no limit, number = max files to process
+    
+  # Output directories
+  output:
+    base_dir: "./bootstrap-output"     # Base output directory
+    models_dir: "models"               # Subdirectory for trained models (relative to base_dir)
+    embeddings_dir: "embeddings"       # Subdirectory for embedding files
+    graphs_dir: "graphs"               # Subdirectory for graph data
+    debug_dir: "debug"                 # Subdirectory for debug outputs
+    
+  # Graph construction for cold start
+  initial_graph:
+    similarity_threshold: 0.3          # Lower threshold for cold start (more connections)
+    max_connections_per_chunk: 10      # Maximum edges per node in bootstrap graph
+    min_cluster_size: 5                # Minimum size for document clusters
+    tfidf_max_features: 5000          # Max features for initial TF-IDF similarity
+    ngram_range: [1, 2]               # N-gram range for TF-IDF
+    min_df: 2                         # Minimum document frequency
+    max_df: 0.95                      # Maximum document frequency
+    
+  # Training phases
+  training:
+    initial:
+      epochs: 100                     # Epochs for initial training
+      learning_rate: 0.001            # Learning rate for initial training
+      batch_size: 32                  # Batch size for initial training
+      
+    refinement:
+      epochs: 50                      # Epochs for refinement training
+      learning_rate: 0.0005           # Lower learning rate for refinement
+      batch_size: 32                  # Batch size for refinement
+      
+    # Model architecture for bootstrap
+    model:
+      embedding_dim: 768              # Should match your corpus embedding dimension
+      hidden_dim: 128                 # Hidden dimension for bootstrap model
+      output_dim: 64                  # Output dimension for bootstrap model
+      num_layers: 2                   # Number of ISNE layers
+      dropout: 0.1                    # Dropout rate
+      
+  # Device and performance
+  device:
+    training: "auto"                  # "auto", "cpu", "cuda", "cuda:0", etc.
+    processing: "auto"                # Device for document processing
+    
+  # Validation and quality
+  validation:
+    similarity_threshold_min: 0.2     # Minimum acceptable similarity threshold
+    embedding_quality_min: 0.8       # Minimum embedding quality score
+    graph_density_range: [0.001, 0.01]  # Acceptable graph density range
+    
+  # Adaptive training preparation
+  adaptive:
+    retrain_threshold: 0.15           # Default threshold for adaptive retraining
+    min_retrain_interval_hours: 24    # Minimum hours between retraining
+    max_incremental_updates: 1000     # Max incremental updates before forced retrain
+    
+# Processing configuration
+processing:
+  # Document processing
+  documents:
+    batch_size: 10                    # Number of documents to process in parallel
+    timeout_seconds: 300              # Timeout per document
+    
+  # Chunking
+  chunking:
+    strategy: "paragraph"             # Default chunking strategy
+    max_chunk_size: 1000             # Maximum chunk size
+    min_chunk_size: 50               # Minimum chunk size
+    overlap: 100                     # Overlap between chunks
+    
+  # Memory management
+  memory:
+    max_memory_gb: 32                # Maximum memory usage
+    chunk_processing_size: 1000      # Process in chunks to limit memory
+    clear_cache_interval: 100        # Clear caches every N documents
+
+# Logging and monitoring
+logging:
+  level: "INFO"                      # DEBUG, INFO, WARNING, ERROR
+  save_logs: true                    # Save logs to file
+  log_file: "bootstrap.log"          # Log file name (relative to output dir)
+  progress_interval: 10              # Log progress every N documents
+  
+# Debug and development
+debug:
+  save_intermediate_graphs: true     # Save graphs at each phase
+  save_embeddings_at_each_phase: true  # Save embeddings after each phase
+  validate_at_each_step: true       # Run validation after each step
+  save_detailed_metrics: true       # Save detailed performance metrics
+  
+# Integration settings
+integration:
+  # Training orchestrator settings
+  use_existing_trainer: true         # Use existing ISNETrainingOrchestrator
+  use_existing_chunker: true         # Use existing ChunkingStage
+  use_existing_docproc: true         # Use existing DocumentProcessorStage
+  
+  # Output format compatibility
+  training_orchestrator_format: true  # Save in format compatible with training orchestrator
+  adaptive_trainer_format: true      # Save in format compatible with adaptive trainer

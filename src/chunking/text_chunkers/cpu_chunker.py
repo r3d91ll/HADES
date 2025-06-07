@@ -89,8 +89,7 @@ def chunk_text_cpu(
     # Create paragraph splitter for CPU
     splitter = ParagraphSplitter(
         model_id=model_id,
-        device="cpu",
-        use_model_engine=False
+        device="cpu"
     )
     
     # Process document content
@@ -276,7 +275,7 @@ def process_content_with_cpu(
         
     else:
         # For smaller documents, process directly
-        paragraphs = splitter.split_text(content)
+        paragraphs = list(splitter(content))
         
         # Create chunks from paragraphs
         chunks = []
@@ -326,7 +325,7 @@ def _process_segment(
     logger.info(f"Processing segment {segment_idx}/{total_segments} ({len(segment_text)} chars)")
     
     # Split the segment into paragraphs
-    paragraphs = splitter.split_text(segment_text)
+    paragraphs = list(splitter(segment_text))
     # Ensure we always return a list of strings
     return [str(p) for p in paragraphs]
 

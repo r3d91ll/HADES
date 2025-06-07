@@ -158,7 +158,8 @@ class Pipeline(Generic[T, U]):
             )
             
             self.queue_manager = QueueManager(
-                max_size=self.config.queue_size
+                name=f"{self.name}_queue",
+                config={"max_size": self.config.queue_size}
             )
             
             if self.config.enable_monitoring:

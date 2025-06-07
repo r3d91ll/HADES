@@ -17,9 +17,12 @@ from src.schemas.common.base import BaseSchema
 from src.types.common import MetadataDict
 from src.types.docproc.enums import RelationshipType, AccessLevel
 
-# Import document types using TYPE_CHECKING to avoid circular imports
+# Import document types
+from src.types.docproc.document import BaseEntity
+
+# Use TYPE_CHECKING for other imports to avoid circular imports  
 if TYPE_CHECKING:
-    from src.types.docproc.document import BaseDocument, BaseEntity, BaseMetadata
+    from src.types.docproc.document import BaseDocument, BaseMetadata
 
 # Type variables for validator functions
 T = TypeVar('T')
@@ -195,3 +198,7 @@ class PythonDocument(BaseSchema):
                       f"doesn't match entities count ({entity_counts['import']})")
                 
         return self
+
+
+# Rebuild the model to resolve forward references
+PythonDocument.model_rebuild()

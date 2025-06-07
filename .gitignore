@@ -20,6 +20,8 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
+*.pyc
+**/__pycache__/
 
 # Virtual Environments
 venv/
@@ -155,3 +157,6 @@ htmlcov/
 **/*.csv.gz
 **/*.pkl.gz
 .aider*
+minimal-test/*
+test-simple/*
+test-simple

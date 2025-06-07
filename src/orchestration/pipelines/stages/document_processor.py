@@ -145,7 +145,7 @@ class DocumentProcessorStage(PipelineStage):
         
         # Extract document content using the document processor
         try:
-            document_result = self.document_processor.process_file(file_path)
+            document_result = self.document_processor.process_document(path=file_path)
             
             # Create document schema
             document = DocumentSchema(
@@ -159,7 +159,10 @@ class DocumentProcessorStage(PipelineStage):
                     "last_modified": path.stat().st_mtime,
                     "processor": self.name,
                     "content_length": len(document_result.get("content", "")),
-                    "format_detected": document_result.get("format", file_extension)
+                    "format_detected": document_result.get("format", file_extension),
+                    "content": document_result.get("content", ""),
+                    "entities": document_result.get("entities", []),
+                    "sections": document_result.get("sections", [])
                 }
             )
             

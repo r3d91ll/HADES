@@ -61,11 +61,14 @@ logger.info(f"  CUDA available according to PyTorch: {torch.cuda.is_available()}
 # Now we can simply import Docling - the environment variables will ensure
 # it uses the correct device settings without requiring complex patching
 
-# Import DocumentConverter
-from docling.document_converter import DocumentConverter
-
-# Set flag for tests
-DOCLING_AVAILABLE = True
+# Import DocumentConverter - make it optional to avoid import errors
+try:
+    from docling.document_converter import DocumentConverter
+    DOCLING_AVAILABLE = True
+except ImportError:
+    logger.warning("Docling is not installed. DoclingAdapter will not be available.")
+    DocumentConverter = None  # type: ignore
+    DOCLING_AVAILABLE = False
 
 __all__ = ["DoclingAdapter"]
 
@@ -148,6 +151,11 @@ class DoclingAdapter(BaseAdapter):
 
     def __init__(self, options: Optional[Dict[str, Any]] = None) -> None:
         """Initialize the DoclingAdapter with configuration options."""
+        if not DOCLING_AVAILABLE:
+            raise ImportError(
+                "Docling is not installed. Please install it with: pip install docling"
+            )
+        
         # Initialize base adapter - no specific format as this is a multi-format adapter
         super().__init__()
         
@@ -225,6 +233,9 @@ class DoclingAdapter(BaseAdapter):
         # Log initialization information
         logger.info(f"DoclingAdapter initialized with device={device}, gpu_available={gpu_available}")
         
+        # Set default content category (will be dynamically determined per document)
+        self.content_category = ContentCategory.TEXT
+        
         # Initialize the DocumentConverter - this will fail if Docling is not available
         # which is the desired behavior
         converter_kwargs = {}
@@ -239,6 +250,21 @@ class DoclingAdapter(BaseAdapter):
             # If DocumentConverter doesn't accept device parameter, fall back to environment variables
             logger.warning("DocumentConverter doesn't accept device parameter, using environment variables instead")
             self.converter = DocumentConverter()
+
+    def _get_content_category(self, format_name: str) -> ContentCategory:
+        """Determine content category based on document format."""
+        code_formats = {'json', 'yaml', 'xml', 'python', 'javascript', 'typescript', 'java', 'cpp', 'c', 'go', 'ruby', 'php', 'csharp', 'rust', 'swift', 'kotlin', 'scala', 'r', 'shell', 'jupyter'}
+        markup_formats = {'html', 'xml', 'markdown', 'md'}
+        data_formats = {'json', 'yaml', 'csv'}
+        
+        if format_name.lower() in code_formats:
+            return ContentCategory.CODE
+        elif format_name.lower() in markup_formats:
+            return ContentCategory.MARKUP
+        elif format_name.lower() in data_formats:
+            return ContentCategory.DATA
+        else:
+            return ContentCategory.TEXT
 
     # ------------------------------------------------------------------
     # Public API – file based processing
@@ -362,7 +388,7 @@ class DoclingAdapter(BaseAdapter):
             'path': str(path_obj),
             'filename': path_obj.name,
             'format_name': format_name,
-            'content_category': self.content_category
+            'content_category': self._get_content_category(format_name)
         })
         doc_metadata = self._build_document_metadata_from_source(
             doc, 
@@ -447,7 +473,7 @@ class DoclingAdapter(BaseAdapter):
             "content": cleaned_content, # Renamed from text_content
             "content_type": doc_metadata.get('content_type', 'text/plain'), # MIME type
             "format": format_name,  # Original document format (PDF, Markdown, etc.)
-            "content_category": self.content_category,
+            "content_category": self._get_content_category(format_name),
             "raw_content": content if current_ext_options.get('include_raw_content') else None,
             "metadata": doc_metadata,
             "entities": entities,
@@ -777,6 +803,10 @@ def _build_doc_id(path: Union[str, Path], format_name: str) -> str:
 # Register DoclingAdapter for all supported formats
 def register_docling_adapter() -> None:
     """Register DoclingAdapter for all supported formats."""
+    if not DOCLING_AVAILABLE:
+        logger.warning("Skipping DoclingAdapter registration - Docling not installed")
+        return
+        
     from .registry import register_adapter
     
     for fmt in set(EXTENSION_TO_FORMAT.values()) | {"text", "document"}:

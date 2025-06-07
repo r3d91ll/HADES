@@ -15,6 +15,7 @@ from src.types.chunking import ChunkerRegistry
 from src.chunking.code_chunkers.python_chunker import PythonCodeChunker
 from src.chunking.code_chunkers.yaml_chunker import YAMLCodeChunker
 from src.chunking.code_chunkers.json_chunker import JSONCodeChunker
+from src.chunking.text_chunkers.text_chunker_wrapper import CPUTextChunker, ChonkyTextChunker
 
 # Registry for chunkers
 _CHUNKER_REGISTRY: ChunkerRegistry = {}
@@ -63,3 +64,7 @@ def list_chunkers() -> Dict[str, Type]:
 register_chunker("python_code", PythonCodeChunker)
 register_chunker("yaml_code", YAMLCodeChunker)
 register_chunker("json_code", JSONCodeChunker)
+
+# Register text chunkers
+register_chunker("cpu", CPUTextChunker)
+register_chunker("chonky", ChonkyTextChunker)

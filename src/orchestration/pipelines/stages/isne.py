@@ -77,7 +77,13 @@ class ISNEStage(PipelineStage):
         # Initialize ISNE pipeline
         if ISNE_AVAILABLE:
             try:
-                self.isne_pipeline = ISNEPipeline(config=self.config)
+                self.isne_pipeline = ISNEPipeline(
+                    model_path=self.model_path,
+                    validate=self.validate_results,
+                    alert_threshold=self.config.get("alert_threshold", "medium"),
+                    device=self.config.get("device"),
+                    alert_dir=self.config.get("alert_dir", "./alerts")
+                )
                 self.logger.info("Initialized ISNE pipeline")
             except Exception as e:
                 self.logger.warning(f"Failed to initialize ISNE pipeline: {str(e)}")
