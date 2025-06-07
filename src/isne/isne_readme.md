@@ -144,6 +144,7 @@ results = test.simplified_isne_training(doc_list)
 ```
 
 This simplified approach:
+
 - Bypasses the complex graph construction process
 - Uses a linear projection model that preserves cosine similarities
 - Processes embeddings directly without requiring a graph structure

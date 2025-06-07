@@ -26,7 +26,7 @@ pipeline:
     cuda_visible_devices: ""  # Empty string to force CPU, comma-separated device IDs for GPU (e.g., "0,1"), or null for system default
 ```
 
-### Valid values for `cuda_visible_devices`:
+### Valid values for `cuda_visible_devices`
 
 - `""` (empty string): Force CPU-only mode
 - `"0"`: Use only the first GPU

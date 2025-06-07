@@ -6,7 +6,7 @@ The orchestration module provides a framework for building and managing parallel
 
 ## Directory Structure
 
-```
+```shell
 src/orchestration/
   ├── __init__.py
   ├── orchestration_readme.md  # This file

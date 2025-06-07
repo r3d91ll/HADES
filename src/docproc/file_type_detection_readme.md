@@ -12,7 +12,7 @@ Files are categorized into two main categories:
    - Python (.py)
    - JSON (.json)
    - YAML (.yaml, .yml)
-   - XML (.xml) 
+   - XML (.xml)
    - TOML (.toml)
 
 2. **Text Files** - Processed with docling and Chonky chunker:

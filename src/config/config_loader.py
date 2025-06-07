@@ -162,6 +162,27 @@ def get_device_config(pipeline_type: str = 'training') -> Dict[str, Any]:
     }
 
 
+def load_config(config_name: str) -> Dict[str, Any]:
+    """
+    Load a configuration file by name.
+    
+    Args:
+        config_name: Name of the config file (without .yaml extension)
+        
+    Returns:
+        Dictionary containing configuration data
+        
+    Raises:
+        FileNotFoundError: If config file doesn't exist
+        yaml.YAMLError: If config file has invalid YAML
+    """
+    config_file = CONFIG_DIR / f"{config_name}.yaml"
+    if not config_file.exists():
+        raise FileNotFoundError(f"Configuration file not found: {config_file}")
+    
+    return load_yaml_config(config_file)
+
+
 def get_component_device(component_name: str, pipeline_type: str = 'training') -> Optional[str]:
     """
     Get the device configuration for a specific component.

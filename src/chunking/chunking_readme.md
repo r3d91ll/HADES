@@ -10,15 +10,18 @@ The chunking module has been updated to ensure compatibility with mypy type chec
 - Special type handling for None values and Union types
 
 ## Overview
+
 The chunking module provides semantic document chunking capabilities for HADES-PathRAG, with support for both CPU and GPU processing paths. It uses the Chonky neural paragraph splitting model to ensure semantically coherent paragraphs.
 
 ## Components
 
 ### 1. Text Chunkers
+
 - **Chonky Chunker**: Uses the `mirth/chonky_modernbert_large_1` model for semantic paragraph chunking
 - **Support for both CPU and GPU**: Configurable via environment variables
 
 ### 2. Environment Variables
+
 - `CUDA_VISIBLE_DEVICES`: Set to empty string (`""`) to force CPU-only mode
 - `HADES_DEFAULT_DEVICE`: Set to `"cpu"` for CPU mode or `"cuda:0"` (or other GPU index) for GPU mode
 - `HADES_MODEL_MGR_SOCKET`: Path for the Haystack model manager socket
@@ -26,6 +29,7 @@ The chunking module provides semantic document chunking capabilities for HADES-P
 ## Performance Considerations
 
 ### CPU Path
+
 - **Advantages**:
   - Lower resource overhead
   - No need for GPU infrastructure
@@ -36,6 +40,7 @@ The chunking module provides semantic document chunking capabilities for HADES-P
   - Less suitable for high-throughput processing
 
 ### GPU Path
+
 - **Advantages**:
   - Significantly faster for large documents and batches
   - Better suited for production-scale processing
@@ -99,6 +104,7 @@ chunks = chunk_text(
 ## Benchmark Results
 
 The `benchmark_cpu_vs_gpu_chunking.py` script provides detailed performance comparisons between CPU and GPU chunking. Key metrics include:
+
 - Processing time
 - Number of chunks generated
 - Average chunk size (characters and tokens)

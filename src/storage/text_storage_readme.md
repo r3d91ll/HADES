@@ -84,6 +84,7 @@ async def store_document(document_json):
 ## Testing
 
 The module includes:
+
 - Unit tests for all components with 85% code coverage for the TextStorageService
 - Mock repositories for dependency isolation in testing
 - Edge case handling for empty vectors, missing chunks, etc.

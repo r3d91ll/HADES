@@ -72,8 +72,8 @@ class ISNEBootstrapper:
         # Initialize pipeline components
         self.doc_processor = DocumentProcessorStage()
         self.chunker = ChunkingStage()
-        self.isne_trainer = None
-        self.training_orchestrator = None
+        self.isne_trainer: Optional[Any] = None
+        self.training_orchestrator: Optional[Any] = None
         
     def bootstrap_full_corpus(self) -> Dict[str, Any]:
         """
@@ -307,7 +307,7 @@ class ISNEBootstrapper:
         """Convert flat list of chunks back to document format for training."""
         
         # Group chunks by source document
-        doc_chunks = {}
+        doc_chunks: Dict[str, List[Dict[str, Any]]] = {}
         for chunk in chunks:
             doc_name = chunk.get('source_document', 'unknown_document')
             if doc_name not in doc_chunks:
@@ -509,7 +509,7 @@ class ISNEBootstrapper:
             'total_embeddings': len(embeddings)
         }
     
-    def _save_graph_json(self, graph: nx.Graph, filepath: Path):
+    def _save_graph_json(self, graph: nx.Graph, filepath: Path) -> None:
         """Save NetworkX graph as JSON for debugging."""
         
         graph_data = {

@@ -16,6 +16,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.isne.bootstrap import ISNEBootstrapper
+from src.config.config_loader import load_config
 
 def setup_logging():
     """Set up logging for bootstrap test."""
@@ -43,13 +44,33 @@ def main():
     logger.info(f"Output directory: {output_dir}")
     
     try:
-        # Initialize bootstrapper
+        # Load bootstrap configuration
+        try:
+            bootstrap_config = load_config('bootstrap_config')
+            logger.info("Loaded bootstrap configuration from bootstrap_config.yaml")
+        except Exception as e:
+            logger.warning(f"Failed to load bootstrap config: {e}, using defaults")
+            bootstrap_config = {
+                'bootstrap': {
+                    'initial_graph': {
+                        'similarity_threshold': 0.3,
+                        'max_connections_per_chunk': 10,
+                        'min_cluster_size': 5
+                    }
+                }
+            }
+        
+        # Extract bootstrap parameters from config
+        bootstrap_params = bootstrap_config.get('bootstrap', {})
+        graph_config = bootstrap_params.get('initial_graph', {})
+        
+        # Initialize bootstrapper with config parameters
         bootstrapper = ISNEBootstrapper(
             corpus_dir=corpus_dir,
             output_dir=output_dir,
-            similarity_threshold=0.3,
-            max_connections_per_chunk=10,
-            min_cluster_size=5
+            similarity_threshold=graph_config.get('similarity_threshold', 0.3),
+            max_connections_per_chunk=graph_config.get('max_connections_per_chunk', 10),
+            min_cluster_size=graph_config.get('min_cluster_size', 5)
         )
         
         # Run bootstrap process

@@ -7,17 +7,20 @@ The embedding module is responsible for generating vector embeddings for documen
 ## Components
 
 ### `base.py`
+
 - Defines the core `EmbeddingAdapter` protocol and adapter registry
 - Implements the adapter factory pattern for flexibility
 - Provides adapter registration and retrieval functionality
 
 ### `adapters/cpu_adapter.py`
+
 - Implements a CPU-optimized embedding adapter
 - Uses lightweight models suitable for CPU processing
 - Based on the sentence-transformers library
 - Designed for environments where GPU resources may be limited
 
 ### `processors.py`
+
 - Provides document processing functions that add embeddings to chunks
 - Supports both single document and batch processing
 - Includes both async and sync workflows
@@ -68,7 +71,9 @@ The embedding module accepts the following configuration parameters:
 ## Input/Output Format
 
 ### Input
+
 The embedding module expects chunked documents in the following format:
+
 ```json
 {
   "id": "document_id",
@@ -91,7 +96,9 @@ The embedding module expects chunked documents in the following format:
 ```
 
 ### Output
+
 The module adds embeddings to each chunk:
+
 ```json
 {
   "id": "document_id",
@@ -123,6 +130,7 @@ The module adds embeddings to each chunk:
 ## Extension Points
 
 To add a new embedding adapter:
+
 1. Create a new adapter class in `adapters/`
 2. Implement the `EmbeddingAdapter` protocol
 3. Register the adapter in `__init__.py`
@@ -130,6 +138,7 @@ To add a new embedding adapter:
 ## Testing
 
 Run the unit tests with:
+
 ```bash
 pytest tests/unit/embedding/
 ```

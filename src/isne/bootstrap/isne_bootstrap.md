@@ -18,6 +18,7 @@ This circular dependency is what the bootstrap process resolves.
 ## Bootstrap Strategy: 7-Phase Approach
 
 ### Phase 1: Document Processing
+
 **Objective**: Convert raw documents into structured, processable chunks
 
 ```bash
@@ -26,6 +27,7 @@ python -m src.isne.bootstrap --corpus-dir ./corpus --output-dir ./bootstrap-outp
 ```
 
 **What happens**:
+
 - Documents are processed using DocProc adapters (Docling for PDFs, AST for Python code)
 - Content is extracted, validated, and prepared for chunking
 - Metadata is preserved for downstream relationship building
@@ -33,9 +35,11 @@ python -m src.isne.bootstrap --corpus-dir ./corpus --output-dir ./bootstrap-outp
 **Output**: Structured document objects with extracted content
 
 ### Phase 2: Chunking
+
 **Objective**: Segment documents into semantic units
 
 **What happens**:
+
 - Documents are chunked using appropriate strategies (paragraph-based for PDFs, AST-based for code)
 - Chunks maintain references to source documents
 - Cross-document chunking enables relationship discovery
@@ -44,9 +48,11 @@ python -m src.isne.bootstrap --corpus-dir ./corpus --output-dir ./bootstrap-outp
 **Output**: Flat list of chunks ready for relationship building
 
 ### Phase 3: Initial Graph Construction
+
 **Objective**: Create initial graph structure using text similarity
 
 **Method**: TF-IDF + Cosine Similarity
+
 ```python
 # Text similarity computation
 vectorizer = TfidfVectorizer(
@@ -60,6 +66,7 @@ similarity_matrix = cosine_similarity(tfidf_matrix)
 ```
 
 **Graph Building Rules**:
+
 - Similarity threshold: 0.3 (configurable)
 - Max connections per chunk: 10 (prevents dense graphs)
 - Bidirectional edges with similarity weights
@@ -67,9 +74,11 @@ similarity_matrix = cosine_similarity(tfidf_matrix)
 **Output**: NetworkX graph with nodes=chunks, edges=similarity relationships
 
 ### Phase 4: Initial ISNE Training
+
 **Objective**: Train ISNE model to learn neighborhood aggregation patterns
 
 **Training Configuration**:
+
 ```python
 model_config = {
     'hidden_dim': 128,
@@ -80,6 +89,7 @@ model_config = {
 ```
 
 **What the model learns**:
+
 - How to aggregate information from neighboring chunks
 - Domain-specific patterns in your corpus
 - Inductive capabilities for future unseen chunks
@@ -87,9 +97,11 @@ model_config = {
 **Output**: Trained ISNE model (`initial_isne_model.pt`)
 
 ### Phase 5: Production Embedding Generation
+
 **Objective**: Generate embeddings using trained ISNE model
 
 **Process**:
+
 - Use trained ISNE encoder on all chunks
 - Generate embeddings that capture both content and structural relationships
 - Embeddings reflect learned neighborhood patterns
@@ -97,14 +109,17 @@ model_config = {
 **Output**: NumPy array of embeddings (`production_embeddings.npy`)
 
 ### Phase 6: Refined Graph Construction
+
 **Objective**: Build improved graph using ISNE embeddings
 
 **Improvement over Phase 3**:
+
 - ISNE embeddings capture learned patterns vs. raw TF-IDF
 - Better semantic understanding of relationships
 - More meaningful connections between chunks
 
 **Process**:
+
 ```python
 # Compute similarities in ISNE embedding space
 embedding_similarities = cosine_similarity(isne_embeddings)
@@ -114,21 +129,24 @@ embedding_similarities = cosine_similarity(isne_embeddings)
 **Output**: Improved NetworkX graph (`refined_isne_graph.json`)
 
 ### Phase 7: Final Training & Production Embeddings
+
 **Objective**: Retrain ISNE on improved graph and generate final embeddings
 
 **Retraining Benefits**:
+
 - Model learns from improved graph structure
 - Better optimization for domain-specific patterns
 - Enhanced inductive capabilities
 
 **Final Output**:
+
 - Refined ISNE model (`refined_isne_model.pt`)
 - Production-ready embeddings (`final_embeddings.npy`)
 - Chunk metadata with quality metrics (`chunk_metadata.json`)
 
 ## File Structure After Bootstrap
 
-```
+```shell
 bootstrap-output/
 ├── models/
 │   ├── initial_isne_model.pt      # Phase 4: Initial trained model
@@ -148,6 +166,7 @@ bootstrap-output/
 ## Usage Instructions
 
 ### Basic Bootstrap Command
+
 ```bash
 python -m src.isne.bootstrap \
   --corpus-dir ./your-corpus \
@@ -156,6 +175,7 @@ python -m src.isne.bootstrap \
 ```
 
 ### Advanced Configuration
+
 ```python
 from src.isne.bootstrap import ISNEBootstrapper
 
@@ -171,6 +191,7 @@ results = bootstrapper.bootstrap_full_corpus()
 ```
 
 ### Loading Results into Database
+
 ```python
 import numpy as np
 import json
@@ -196,6 +217,7 @@ for i, chunk in enumerate(metadata['chunks']):
 The `bootstrap_results.json` provides comprehensive metrics:
 
 ### Corpus Statistics
+
 ```json
 {
   "corpus_stats": {
@@ -208,6 +230,7 @@ The `bootstrap_results.json` provides comprehensive metrics:
 ```
 
 ### Graph Evolution
+
 ```json
 {
   "graph_stats": {
@@ -228,6 +251,7 @@ The `bootstrap_results.json` provides comprehensive metrics:
 ```
 
 ### Training Progress
+
 ```json
 {
   "training_results": {
@@ -257,6 +281,7 @@ The bootstrap process includes automatic quality validation:
 ## Post-Bootstrap Operations
 
 ### Loading Trained Model
+
 ```python
 from src.isne.pipeline.isne_pipeline import ISNEPipeline
 
@@ -270,6 +295,7 @@ new_embeddings = isne_pipeline.encode_chunks(new_chunks)
 ```
 
 ### Adaptive Training Setup
+
 ```python
 from src.isne.adaptive_training import AdaptiveISNETrainer
 
@@ -288,16 +314,19 @@ results = trainer.process_new_chunks(new_chunks, current_graph_stats)
 ## Best Practices
 
 ### Corpus Preparation
+
 1. **Clean Documents**: Remove corrupted or irrelevant files
 2. **Balanced Content**: Ensure diverse representation of your domain
 3. **Sufficient Size**: Minimum 100 documents, ideally 300+ for robust training
 
 ### Parameter Tuning
+
 1. **Similarity Threshold**: Start with 0.3, adjust based on graph density
 2. **Max Connections**: 10 is good for most corpora, increase for dense domains
 3. **Training Epochs**: 100 initial + 50 refinement works well
 
 ### Monitoring
+
 1. **Check Graph Density**: Should be 0.001-0.01 for good balance
 2. **Validation Scores**: Should improve from initial to final training
 3. **Embedding Quality**: Overall score should be >0.8
@@ -307,19 +336,23 @@ results = trainer.process_new_chunks(new_chunks, current_graph_stats)
 ### Common Issues
 
 **Graph Too Dense**:
+
 - Reduce similarity_threshold (e.g., 0.2 → 0.4)
 - Reduce max_connections_per_chunk
 
 **Graph Too Sparse**:
+
 - Increase similarity_threshold (e.g., 0.4 → 0.2)
 - Check corpus diversity - may need more varied content
 
 **Poor Training Convergence**:
+
 - Increase training epochs
 - Adjust learning rate
 - Check graph connectivity
 
 **Low Embedding Quality**:
+
 - Review chunk quality - may be too short/long
 - Check for document processing errors
 - Consider domain-specific preprocessing
@@ -327,12 +360,14 @@ results = trainer.process_new_chunks(new_chunks, current_graph_stats)
 ### Debug Information
 
 Enable detailed logging:
+
 ```python
 import logging
 logging.basicConfig(level=logging.DEBUG)
 ```
 
 Check debug outputs in `./bootstrap-output/debug/` for:
+
 - Chunk processing logs
 - Graph construction details
 - Training metrics per epoch
@@ -345,7 +380,7 @@ The bootstrap process is designed to integrate seamlessly with the existing HADE
 ### Core Integration Points
 
 1. **Document Processing**: Uses existing `DocumentProcessorStage` and `ChunkingStage`
-2. **Training Infrastructure**: Leverages `ISNETrainingOrchestrator` and `ISNETrainer` 
+2. **Training Infrastructure**: Leverages `ISNETrainingOrchestrator` and `ISNETrainer`
 3. **Embedding Pipeline**: Compatible with HADES embedding framework
 4. **Graph Construction**: Prepares data for PathRAG graph operations
 5. **Quality Validation**: Uses HADES validation framework
@@ -372,7 +407,7 @@ self.isne_trainer = self.training_orchestrator.trainer
 
 After bootstrap, you have access to:
 
-1. **Trained ISNE Model**: `refined_isne_model.pt` 
+1. **Trained ISNE Model**: `refined_isne_model.pt`
 2. **Training Infrastructure**: Ready for `AdaptiveISNETrainer`
 3. **Production Embeddings**: `final_embeddings.npy`
 4. **Training Orchestrator**: For ongoing model updates
