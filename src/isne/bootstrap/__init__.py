@@ -1,15 +1,21 @@
 """
-ISNE Bootstrap Strategy for Cold Start Systems
+ISNE Bootstrap and Adaptive Training Package
 
-This module implements a multi-phase bootstrap approach for initializing
-ISNE from scratch with no existing graph structure.
+This package implements bootstrap and adaptive training strategies for ISNE:
 
-Strategy:
-1. Initial Graph Construction: Build graph from document corpus using text similarity
-2. Pre-training: Train ISNE model on constructed graph
-3. Production Embedding: Use trained model to embed all chunks for database
-4. Refinement: Optionally retrain with actual database structure
+1. Bootstrap Strategy: Cold start training from document corpus
+2. Adaptive Training: Intelligent retraining for dynamic knowledge graphs
+
+Main Components:
+- ISNEBootstrapper: Complete bootstrap process for cold start
+- AdaptiveISNETrainer: Smart retraining strategy
 """
+
+# Import adaptive training module
+from .adaptive_training import AdaptiveISNETrainer
+
+# Re-export for backward compatibility
+__all__ = ['ISNEBootstrapper', 'AdaptiveISNETrainer', 'bootstrap_corpus']
 
 import logging
 import json
