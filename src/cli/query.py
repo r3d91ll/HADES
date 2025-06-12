@@ -1,5 +1,5 @@
 """
-Query interface CLI for HADES-PathRAG.
+Query interface CLI for HADES.
 
 This module provides command-line tools for querying the knowledge graph.
 """
@@ -115,7 +115,7 @@ def query_documentation(query: str, db_name: str = "pathrag_docs",
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Query the HADES-PathRAG knowledge graph")
+    parser = argparse.ArgumentParser(description="Query the HADES knowledge graph")
     parser.add_argument("--query", type=str, required=True, help="Natural language query")
     parser.add_argument("--db-name", type=str, default="pathrag_docs", help="Name of the ArangoDB database")
     parser.add_argument("--top-k", type=int, default=5, help="Number of results to return")

@@ -1,5 +1,5 @@
 """
-Pipeline orchestrator for HADES-PathRAG.
+Pipeline orchestrator for HADES.
 
 This module provides stage-based pipeline orchestration with 
 parallel processing capabilities.

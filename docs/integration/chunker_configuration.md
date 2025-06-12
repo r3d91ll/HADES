@@ -1,10 +1,10 @@
 # Chunker Configuration Guide
 
-This document provides detailed information about the chunking system in HADES-PathRAG, focusing on the configuration options for both AST-based code chunking and Chonky semantic text chunking.
+This document provides detailed information about the chunking system in HADES, focusing on the configuration options for both AST-based code chunking and Chonky semantic text chunking.
 
 ## Overview
 
-HADES-PathRAG uses two primary chunking systems:
+HADES uses two primary chunking systems:
 
 1. **AST-based chunking** for code files (respects code structure)
 2. **Chonky semantic chunking** for natural language content

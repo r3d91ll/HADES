@@ -9,6 +9,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from concurrent.futures import Future
 
 from src.types.orchestration import (
     WorkerPoolConfig,
@@ -48,6 +49,35 @@ class WorkerPool:
         
         # Lock for thread-safe updates
         self._lock = threading.Lock()
+    
+    def submit(self, fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Future[Any]:
+        """Submit a task to the worker pool.
+        
+        Args:
+            fn: Function to execute
+            *args: Positional arguments for the function
+            **kwargs: Keyword arguments for the function
+            
+        Returns:
+            Future object representing the execution
+        """
+        with self._lock:
+            self.active_tasks += 1
+        
+        def wrapped_fn(*args: Any, **kwargs: Any) -> Any:
+            try:
+                result = fn(*args, **kwargs)
+                with self._lock:
+                    self.completed_tasks += 1
+                    self.active_tasks -= 1
+                return result
+            except Exception as e:
+                with self._lock:
+                    self.failed_tasks += 1
+                    self.active_tasks -= 1
+                raise e
+        
+        return self.executor.submit(wrapped_fn, *args, **kwargs)
     
     def get_metrics(self) -> MetricsDict:
         """Get current worker pool metrics."""

@@ -1,5 +1,5 @@
 """
-Database configuration types for HADES-PathRAG.
+Database configuration types for HADES.
 
 This module contains Pydantic models for database configuration structures.
 """

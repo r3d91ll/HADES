@@ -1,5 +1,5 @@
 """
-Model type definitions for HADES-PathRAG.
+Model type definitions for HADES.
 
 This module provides type definitions for model configuration and interaction.
 """

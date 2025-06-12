@@ -1,0 +1,44 @@
+# API configuration
+# Configures the HADES API server and CLI interfaces
+
+version: 1
+
+# Server configuration
+server:
+  host: "0.0.0.0"
+  port: 8080
+  workers: 4
+  timeout: 30
+  keepalive: 2
+
+# Authentication
+auth:
+  enabled: false
+  jwt_secret: null
+  token_expiry: 3600
+
+# Rate limiting
+rate_limiting:
+  enabled: true
+  requests_per_minute: 100
+  burst_size: 20
+
+# CORS settings
+cors:
+  enabled: true
+  origins: ["*"]
+  methods: ["GET", "POST", "PUT", "DELETE"]
+  headers: ["*"]
+
+# Logging
+logging:
+  level: "INFO"
+  format: "json"
+  file: null
+
+# API features
+features:
+  documentation: true
+  health_checks: true
+  metrics: true
+  request_id_tracing: true

@@ -1,0 +1,37 @@
+# Chonky chunker specific configuration
+# Advanced semantic chunking with GPU acceleration
+
+version: 1
+
+# Model settings for Chonky
+model_id: "mirth/chonky_modernbert_large_1"
+model_engine: "haystack"
+device: "cuda:0"
+
+# Advanced chunking parameters
+max_tokens: 2048
+min_tokens: 64
+overlap_tokens: 200
+semantic_chunking: true
+preserve_structure: true
+batch_size: 8
+
+# Chonky-specific features
+chunk_strategy: "semantic_boundary"
+similarity_threshold: 0.85
+coherence_scoring: true
+dynamic_boundaries: true
+
+# Context preservation
+overlap_context:
+  enabled: true
+  store_pre_context: true
+  store_post_context: true
+  max_pre_context_chars: 1000
+  max_post_context_chars: 1000
+  store_position_info: true
+
+# Performance settings
+parallel_processing: true
+memory_optimization: true
+stream_processing: false

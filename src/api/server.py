@@ -1,7 +1,7 @@
 """
-FastAPI server implementation for HADES-PathRAG.
+FastAPI server implementation for HADES.
 
-This module provides the API endpoints for interacting with the HADES-PathRAG system.
+This module provides the API endpoints for interacting with the HADES system.
 """
 
 import logging
@@ -22,8 +22,8 @@ logger = logging.getLogger(__name__)
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="HADES-PathRAG API",
-    description="Simple API for the HADES-PathRAG knowledge graph retrieval system",
+    title="HADES API",
+    description="Simple API for the HADES knowledge graph retrieval system",
     version="0.1.0",
 )
 
@@ -148,5 +148,5 @@ async def status(system: PathRAGSystem = Depends(get_pathrag_system)) -> StatusR
 
 if __name__ == "__main__":
     import uvicorn
-    logger.info("Starting HADES-PathRAG API server")
+    logger.info("Starting HADES API server")
     uvicorn.run("api.server:app", host="0.0.0.0", port=8000, reload=True)

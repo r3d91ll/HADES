@@ -1,6 +1,6 @@
 # Configuration Module
 
-This module provides utilities for loading and managing configuration files for different pipelines in the HADES-PathRAG system.
+This module provides utilities for loading and managing configuration files for different pipelines in the HADES system.
 
 ## Pipeline Configuration Files
 

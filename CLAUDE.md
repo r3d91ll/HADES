@@ -2,6 +2,96 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Development Protocols
+
+### Standard Protocol for Creating New Modules
+
+When creating a new module:
+
+1. **Create a moduleName_readme.md file** in the root of the module directory
+2. **Track all documentation** in this file for that module
+
+### Standard Protocol for Code and Documentation Review
+
+Before declaring a module complete, perform the following reviews:
+
+#### Testing Review (Testing Standard)
+
+- Unit tests all functions to a minimum **85% coverage**
+- Unit tests for all new functions
+- Integration tests for module interaction
+- Performance benchmarks for critical operations
+
+#### Code Review (Code Quality Checklist)
+
+- Run `mypy` to check for type errors
+- Ensure unit test coverage ≥ **85%**
+- Verify all functions have docstrings
+- Remove debugging print statements
+- Check for TODOs and resolve or document them
+
+#### Documentation Review (Documentation Requirements)
+
+- Module-level docstring explaining purpose and usage
+- Function/class docstrings with parameters, return types, and examples
+- Update README or relevant documentation files
+- Add usage examples for new functionality
+
+#### Organization Review (Organization Process)
+
+- Move unused/deprecated code to `dead-code/` directory
+- Consolidate duplicated functionality
+- Ensure proper imports (no circular dependencies)
+
+#### Benchmark Review (Performance Standard)
+
+- Performance benchmarks for critical operations
+- Ensure benchmarks are updated for new functionality
+
+### Standard Protocol for Directory Administration
+
+- **Test files** belong in the `test/` directory
+- **Benchmark files** belong in the `benchmark/` directory
+- **Utility scripts** not directly related to a module or code within the `src/` directory belong in the `scripts/` directory
+
+### Development Workflow Requirements
+
+#### USE GIT
+
+- Use git to track changes
+- Use git to commit changes
+- Use git to push changes
+- Use git to pull changes
+- Use git to merge changes
+- **Use feature branches**
+
+#### USE Tree-sitter MCP Server
+
+- Use tree-sitter MCP server to parse code
+- Use tree-sitter MCP server to generate documentation
+- Use tree-sitter MCP server to analyze code while troubleshooting
+- Use tree-sitter MCP server to generate code
+- **Ensure you clear the tree-sitter MCP server cache** after making changes to the code
+
+#### USE Test and Utility Directories
+
+- Use the `test/` directory to store test files
+- Use the `temp-utils/` directory to store temporary utility scripts
+
+#### TaskManager MCP Server
+
+- **Make no change without a task**
+- All work MUST be documented as a legitimate task in TaskManager
+- Making any change in this workspace REQUIRES that the work be documented and prioritized in the TaskManager MCP server
+
+### Development Philosophy
+
+**This project is in Development:**
+
+- NO backwards compatibility required
+- NO migration scripts
+- **Break fast, fix fast**
+
 ## Development Commands
 
 ### Environment Setup
@@ -76,7 +166,7 @@ python -m src.api.cli
 
 ## Architecture Overview
 
-HADES-PathRAG is an enhanced implementation of PathRAG (Path-based Retrieval Augmented Generation) that combines graph-based knowledge representation with advanced language models.
+HADES is an enhanced implementation of PathRAG (Path-based Retrieval Augmented Generation) that combines graph-based knowledge representation with advanced language models. The system is transitioning to a **config-driven modular architecture** to enable A/B testing, component swapping, and experimental workflows.
 
 ### Core System Components
 
@@ -113,6 +203,32 @@ HADES-PathRAG is an enhanced implementation of PathRAG (Path-based Retrieval Aug
 - **Batch Processing**: Efficient batch embedding generation
 - **Registry System**: Dynamic adapter registration and selection
 
+### Modular Architecture Design
+
+The system is being refactored into a config-driven modular architecture located in `src/orchestration/`:
+
+```text
+src/orchestration/
+├── components/                      # Shared, reusable components
+│   ├── base/                       # Base protocols and utilities
+│   ├── document_processing/        # Document processing components
+│   ├── chunking/                   # Chunking components
+│   ├── embedding/                  # Embedding components
+│   ├── graph_enhancement/          # Graph enhancement components
+│   └── storage/                    # Storage components
+├── pipelines/                      # Pipeline implementations
+├── config/                         # Configuration system
+└── utils/                          # Orchestration utilities
+```
+
+#### Key Features of Modular Architecture
+
+- **Component Registry System**: Dynamic component loading and registration
+- **Protocol-Based Design**: Type-safe interfaces using Python protocols
+- **Configuration-Driven**: YAML-based configuration for component selection
+- **A/B Testing Support**: Built-in support for experimental workflows
+- **Pipeline Abstraction**: Standardized pipeline execution framework
+
 ### Data Flow
 
 ```text
@@ -137,6 +253,57 @@ Graph Construction & Storage (pathrag) → Query Processing & Retrieval
 - **database_config.yaml**: ArangoDB and storage configuration  
 - **isne_config.yaml**: ISNE training and model parameters
 - **vllm_config.yaml**: vLLM server and inference settings
+
+### Pipeline Configuration Example
+
+```yaml
+# Example: data_ingestion_vllm_isne.yaml
+pipeline:
+  name: "data_ingestion_vllm_isne"
+  description: "Data ingestion with VLLM embeddings and ISNE enhancement"
+  type: "data_ingestion"
+  version: "1.0"
+  
+components:
+  document_processing:
+    type: "docling"
+    config_file: "components/docling_config.yaml"
+    params:
+      batch_size: 10
+      timeout: 300
+      
+  chunking:
+    type: "chonky"
+    config_file: "components/chonky_config.yaml"
+    params:
+      chunk_size: 512
+      overlap: 50
+      
+  embedding:
+    type: "vllm"
+    config_file: "components/vllm_config.yaml"
+    params:
+      model_name: "BAAI/bge-large-en-v1.5"
+      batch_size: 32
+
+# A/B Testing Configuration
+ab_testing:
+  enabled: true
+  experiment_id: "embedding_comparison_001"
+  variants:
+    - name: "vllm_variant"
+      weight: 50
+      description: "VLLM embeddings"
+      overrides:
+        embedding:
+          type: "vllm"
+    - name: "cpu_variant"
+      weight: 50
+      description: "CPU embeddings"
+      overrides:
+        embedding:
+          type: "cpu"
+```
 
 ### Loading Configuration
 
@@ -165,6 +332,33 @@ from src.pathrag.base import QueryParam
 
 # Query modes: "naive", "local", "global", "hybrid"
 result = rag.query(question, param=QueryParam(mode="hybrid"))
+```
+
+## Pipeline Execution Examples
+
+### Running a Pipeline with Configuration
+
+```bash
+# Run data ingestion with VLLM + ISNE
+python -m src.orchestration.pipelines.data_ingestion \
+  --config config/pipelines/data_ingestion_vllm_isne.yaml \
+  --input-dir /path/to/docs \
+  --output-dir /path/to/output
+
+# Run A/B test
+python -m src.orchestration.utils.ab_testing \
+  --config config/pipelines/ab_test_embedding_comparison.yaml \
+  --input-dir /path/to/docs \
+  --variants vllm_variant,cpu_variant
+```
+
+### Swapping Components via Configuration
+
+```yaml
+# Switch from ISNE to SageGraph
+graph_enhancement:
+  type: "sagegraph"  # Changed from "isne"
+  config_file: "components/sagegraph_config.yaml"
 ```
 
 ## Monitoring and Alerts
@@ -204,6 +398,13 @@ poetry run pytest -m integration
 poetry run pytest -m "adapters and not slow"
 ```
 
+### Coverage Requirements
+
+- **Minimum 85% unit test coverage** for all modules
+- All new functions must have unit tests
+- Integration tests for module interactions
+- Performance benchmarks for critical operations
+
 ## Type System
 
 This codebase uses comprehensive type annotations with strict mypy configuration:
@@ -242,7 +443,35 @@ This codebase uses comprehensive type annotations with strict mypy configuration
 ## Development Workflow
 
 1. **Environment**: Use Poetry for dependency management (`poetry install`)
-2. **Type Checking**: Run `poetry run mypy src/` before commits
-3. **Testing**: Use `poetry run pytest` with appropriate markers
-4. **Code Quality**: Black formatting and isort import sorting required
-5. **Branch Strategy**: Feature branches with descriptive names
+2. **Task Management**: Document all work in TaskManager MCP server
+3. **Feature Branches**: Use git feature branches for all development
+4. **Type Checking**: Run `poetry run mypy src/` before commits
+5. **Testing**: Use `poetry run pytest` with appropriate markers
+6. **Coverage**: Ensure ≥85% test coverage for all new code
+7. **Code Quality**: Black formatting and isort import sorting required
+8. **Documentation**: Update module README and docstrings
+9. **Tree-sitter**: Clear MCP server cache after code changes
+10. **Review Process**: Complete all review protocols before declaring modules complete
+
+## Component Protocol Interfaces
+
+The modular architecture uses protocol-based interfaces for type safety:
+
+```python
+# Base component protocols
+class ComponentProtocol(Protocol):
+    def configure(self, config: Dict[str, Any]) -> None: ...
+    def validate_config(self, config: Dict[str, Any]) -> bool: ...
+
+# Specific component protocols
+class DocumentProcessorProtocol(ComponentProtocol):
+    def process_documents(self, file_paths: List[str], **kwargs) -> List[Dict[str, Any]]: ...
+
+class ChunkerProtocol(ComponentProtocol):
+    def chunk_documents(self, documents: List[Dict[str, Any]], **kwargs) -> List[Dict[str, Any]]: ...
+
+class EmbedderProtocol(ComponentProtocol):
+    def generate_embeddings(self, chunks: List[Dict[str, Any]], **kwargs) -> List[Dict[str, Any]]: ...
+```
+
+This modular architecture enables flexible experimentation, A/B testing, and component swapping through configuration while maintaining type safety and performance standards.

@@ -1,0 +1,23 @@
+# CPU-optimized chunking configuration
+# Used when GPU resources are not available
+
+version: 1
+
+# Force CPU usage
+device: "cpu"
+force_cpu: true
+
+# Optimized batch sizes for CPU
+batch_size: 4
+max_tokens: 1024
+min_tokens: 64
+overlap_tokens: 100
+
+# Disable GPU-specific features
+semantic_chunking: false
+preserve_structure: true
+
+# CPU-specific model fallbacks
+model_fallbacks:
+  - "all-MiniLM-L6-v2"
+  - "sentence-transformers/all-mpnet-base-v2"

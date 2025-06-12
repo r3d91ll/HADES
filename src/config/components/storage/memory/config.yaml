@@ -1,0 +1,41 @@
+# In-memory storage configuration
+# For development and testing purposes
+
+version: 1
+
+# Memory storage settings
+backend: "memory"
+persistence: false
+
+# Graph storage
+graph_storage:
+  implementation: "networkx"
+  directed: true
+  multigraph: false
+  
+# Vector storage
+vector_storage:
+  implementation: "numpy"
+  dimension: 768
+  similarity_metric: "cosine"
+  normalize: true
+  
+# Document storage
+document_storage:
+  max_documents: 10000
+  enable_search: true
+  search_index: "text"
+  
+# Memory limits
+limits:
+  max_memory_mb: 1024
+  max_documents: 10000
+  max_chunks: 100000
+  max_embeddings: 100000
+  
+# Serialization
+serialization:
+  format: "pickle"
+  compression: "gzip"
+  backup_enabled: true
+  backup_interval: 3600

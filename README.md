@@ -1,4 +1,4 @@
-# HADES-PathRAG
+# HADES
 
 Enhanced implementation of **PathRAG: Pruning Graph-based Retrieval Augmented Generation with Relational Paths** with ArangoDB integration and **vLLM support** for high-performance local LLM inference.
 
@@ -26,8 +26,8 @@ Enhanced implementation of **PathRAG: Pruning Graph-based Retrieval Augmented Ge
 
 ```bash
 # Clone the repository
-git clone https://github.com/r3d91ll/HADES-PathRAG.git
-cd HADES-PathRAG
+git clone https://github.com/r3d91ll/HADES.git
+cd HADES
 
 # Install dependencies
 pip install -e .

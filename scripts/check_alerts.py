@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-CLI utility for checking and managing HADES-PathRAG alerts.
+CLI utility for checking and managing HADES alerts.
 
 This script provides a command-line interface for reviewing
 alerts, filtering by severity, and performing basic alert
@@ -24,7 +24,7 @@ from src.alerts import AlertManager, AlertLevel
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="HADES-PathRAG Alert Checker"
+        description="HADES Alert Checker"
     )
     
     parser.add_argument(

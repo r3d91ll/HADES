@@ -1,10 +1,10 @@
-# HADES-PathRAG Integration
+# HADES Integration
 
 This document outlines the integration of XnX notation with the BUPT-GAMMA PathRAG implementation for the HADES project.
 
 ## Overview
 
-The HADES-PathRAG integration extends the original PathRAG system with XnX notation to enable:
+The HADES integration extends the original PathRAG system with XnX notation to enable:
 
 1. **Weighted Path Tuning** - Control path traversal based on relationship strengths
 2. **Directional Control** - Specify inbound/outbound relationship traversal 
@@ -37,7 +37,7 @@ The integration consists of the following components:
 ## Directory Structure
 
 ```
-HADES-PathRAG/
+HADES/
 ├── PathRAG/                  # Original BUPT-GAMMA PathRAG
 ├── old_hades_imports/        # Components imported from original HADES
 │   ├── docs/                 # Documentation

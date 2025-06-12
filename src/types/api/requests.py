@@ -1,5 +1,5 @@
 """
-API request models for HADES-PathRAG.
+API request models for HADES.
 
 This module contains Pydantic models for API request structures.
 """

@@ -1,0 +1,86 @@
+# vLLM model engine configuration
+# Configures vLLM server for inference and embedding models
+
+version: 1
+
+# Global server settings
+server:
+  host: "localhost"
+  base_port: 8120  # Base port, actual ports are base_port + offset
+  tensor_parallel_size: 1
+  gpu_memory_utilization: 0.95
+  dtype: "float16"
+  quantization: "fp8"
+
+# Port allocation strategy
+port_allocation:
+  embedding_base: 8123
+  chunking_base: 8124
+  inference_base: 8130
+  
+# Model categories and their specific configurations
+models:
+  # Embedding models
+  embedding:
+    bge_large:
+      model_id: "BAAI/bge-large-en-v1.5"
+      port_offset: 0  # 8123
+      max_tokens: 512
+      context_window: 4096
+      truncate_input: true
+      
+  # Chunking models  
+  chunking:
+    chonky_modernbert:
+      model_id: "mirth/chonky_modernbert_large_1"
+      port_offset: 1  # 8124
+      max_tokens: 1024
+      temperature: 0.2
+      top_p: 0.9
+      top_k: 40
+      context_window: 8192
+      truncate_input: true
+      
+  # Relationship extraction
+  relationship:
+    qwen_instruct:
+      model_id: "Qwen/Qwen2.5-7B-Instruct"
+      port_offset: 2  # 8125
+      max_tokens: 1024
+      temperature: 0.1
+      top_p: 0.95
+      top_k: 50
+      context_window: 8192
+      truncate_input: true
+      
+  # Inference models
+  inference:
+    general:
+      model_id: "unsloth/Qwen3-14B"
+      port_offset: 10  # 8130
+      max_tokens: 2048
+      temperature: 0.7
+      top_p: 0.9
+      top_k: 40
+      context_window: 8192
+      truncate_input: true
+      
+    code:
+      model_id: "Qwen/Qwen2.5-72B-Coder"
+      port_offset: 11  # 8131
+      max_tokens: 4096
+      temperature: 0.2
+      top_p: 0.95
+      top_k: 50
+      context_window: 16384
+      truncate_input: true
+      
+    fast:
+      model_id: "Qwen/Qwen2.5-7B"
+      port_offset: 12  # 8132
+      max_tokens: 1024
+      temperature: 0.8
+      top_p: 0.9
+      top_k: 40
+      context_window: 8192
+      truncate_input: true

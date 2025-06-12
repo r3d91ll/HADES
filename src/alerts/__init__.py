@@ -2,7 +2,7 @@
 Alert system package.
 
 This package provides tools for generating and managing alerts
-across the HADES-PathRAG system.
+across the HADES system.
 """
 
 from src.alerts.alert_manager import AlertManager, Alert, AlertLevel

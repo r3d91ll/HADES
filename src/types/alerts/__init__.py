@@ -1,5 +1,5 @@
 """
-Alert type definitions for HADES-PathRAG.
+Alert type definitions for HADES.
 
 This package contains type definitions for the alert system,
 including alert levels, models, and data structures.

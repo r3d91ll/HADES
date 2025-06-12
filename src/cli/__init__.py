@@ -1,5 +1,5 @@
 """
-Command-line interfaces for HADES-PathRAG.
+Command-line interfaces for HADES.
 
-This package provides CLI entry points for various HADES-PathRAG functionality.
+This package provides CLI entry points for various HADES functionality.
 """

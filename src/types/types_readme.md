@@ -2,7 +2,7 @@
 
 ## Overview
 
-The types module provides centralized type definitions for the entire HADES-PathRAG system. By centralizing type definitions, we achieve:
+The types module provides centralized type definitions for the entire HADES system. By centralizing type definitions, we achieve:
 
 1. Better type safety through consistent definitions
 2. Reduced circular imports

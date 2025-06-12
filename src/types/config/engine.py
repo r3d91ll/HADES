@@ -1,5 +1,5 @@
 """
-Engine configuration types for HADES-PathRAG.
+Engine configuration types for HADES.
 
 This module contains Pydantic models for engine configuration structures.
 """

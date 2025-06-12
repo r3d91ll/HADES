@@ -1,10 +1,5 @@
-"""
-ISNE Pipeline package.
+"""ISNE pipeline implementations."""
 
-This package provides production-ready pipeline implementations for
-processing documents with ISNE embeddings.
-"""
+from .isne_pipeline import ISNEPipeline
 
-from src.isne.pipeline.isne_pipeline import ISNEPipeline
-
-__all__ = ["ISNEPipeline"]
+__all__ = ['ISNEPipeline']

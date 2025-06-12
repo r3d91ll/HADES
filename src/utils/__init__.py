@@ -1,5 +1,5 @@
 """
-Utility modules for HADES-PathRAG.
+Utility modules for HADES.
 
 This package contains various utility functions and tools used throughout the system:
 - batching: File batching utilities for parallel processing

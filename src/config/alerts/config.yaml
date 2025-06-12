@@ -1,0 +1,72 @@
+# Alert system configuration
+# Configures alerting and monitoring for HADES components
+
+version: 1
+
+# Alert levels and thresholds
+levels:
+  critical:
+    threshold: 0.95
+    escalation_time: 300  # 5 minutes
+  high:
+    threshold: 0.8
+    escalation_time: 900  # 15 minutes
+  medium:
+    threshold: 0.6
+    escalation_time: 1800  # 30 minutes
+  low:
+    threshold: 0.4
+    escalation_time: 3600  # 1 hour
+
+# Notification channels
+notifications:
+  email:
+    enabled: false
+    smtp_server: null
+    smtp_port: 587
+    recipients: []
+  
+  slack:
+    enabled: false
+    webhook_url: null
+    channel: "#alerts"
+  
+  webhook:
+    enabled: true
+    url: null
+    timeout: 10
+
+# Alert storage
+storage:
+  type: "file"  # file, database
+  path: "./alerts"
+  retention_days: 30
+  max_file_size_mb: 100
+
+# Metrics thresholds
+thresholds:
+  processing_time: 30.0  # seconds
+  error_rate: 0.05  # 5%
+  memory_usage: 0.9  # 90%
+  gpu_memory: 0.95  # 95%
+  disk_usage: 0.8  # 80%
+
+# Alert rules
+rules:
+  component_failure:
+    enabled: true
+    conditions:
+      - "component.health == false"
+    severity: "critical"
+  
+  high_error_rate:
+    enabled: true
+    conditions:
+      - "component.error_rate > 0.1"
+    severity: "high"
+  
+  slow_processing:
+    enabled: true
+    conditions:
+      - "component.avg_processing_time > 60"
+    severity: "medium"

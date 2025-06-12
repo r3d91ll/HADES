@@ -1,0 +1,68 @@
+# Bootstrap pipeline configuration
+# Configuration for initial system setup and training
+
+version: 1
+
+# Pipeline stages
+stages:
+  - name: "data_preparation"
+    enabled: true
+    config: "pipelines/bootstrap/data_preparation.yaml"
+    
+  - name: "initial_ingestion"
+    enabled: true
+    config: "pipelines/data_ingestion/config.yaml"
+    
+  - name: "isne_training"
+    enabled: true
+    config: "isne/training/config.yaml"
+    
+  - name: "validation"
+    enabled: true
+    config: "pipelines/bootstrap/validation.yaml"
+
+# Bootstrap settings
+bootstrap:
+  minimum_documents: 100
+  target_documents: 1000
+  sample_size: 500
+  
+# Data sources
+data_sources:
+  - type: "directory"
+    path: "./sample_data"
+    recursive: true
+    
+  - type: "git_repository"
+    url: null  # To be configured
+    branch: "main"
+    
+# Component configuration
+components:
+  docproc:
+    config: "docproc/core/config.yaml"
+    
+  chunking:
+    config: "chunking/core/config.yaml"
+    
+  embedding:
+    config: "embedding/core/config.yaml"
+    
+  isne:
+    config: "isne/core/config.yaml"
+    
+  storage:
+    config: "storage/arangodb/config.yaml"
+
+# Resource allocation
+resources:
+  max_parallel_stages: 2
+  memory_limit_gb: 8
+  gpu_memory_limit_gb: 4
+  
+# Monitoring
+monitoring:
+  enabled: true
+  log_level: "INFO"
+  metrics_enabled: true
+  alerts_enabled: true

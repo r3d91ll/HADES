@@ -1,8 +1,8 @@
 """
-API type definitions for HADES-PathRAG.
+API type definitions for HADES.
 
 This package contains Pydantic models for API requests, responses,
-and data structures used in the HADES-PathRAG API.
+and data structures used in the HADES API.
 """
 
 from .requests import WriteRequest, QueryRequest

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Alert System provides a centralized framework for generating, tracking, and managing alerts throughout the HADES-PathRAG system. It enables systematic reporting of validation discrepancies, data quality issues, and other critical events that might affect the integrity of the embedding pipeline.
+The Alert System provides a centralized framework for generating, tracking, and managing alerts throughout the HADES system. It enables systematic reporting of validation discrepancies, data quality issues, and other critical events that might affect the integrity of the embedding pipeline.
 
 ## Components
 

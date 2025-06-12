@@ -24,7 +24,7 @@ class ValidationIssue(BaseModel):
     severity: ValidationSeverity
     message: str
     location: Optional[str] = None
-    context: Dict[str, Any] = Field(default_factory=dict)
+    context: Dict[str, Any] = Field(default_factory=lambda: {})
 
 
 class ValidationResult(BaseModel):
@@ -62,7 +62,7 @@ class Relationship(BaseModel):
     target: str
     type: str
     weight: float = 1.0
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: Dict[str, Any] = Field(default_factory=lambda: {})
 
 
 class ChunkSchema(BaseModel):
@@ -72,11 +72,11 @@ class ChunkSchema(BaseModel):
     embedding: Optional[List[float]] = None
     isne_embedding: Optional[List[float]] = None
     relationships: List[Relationship] = Field(default_factory=list)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: Dict[str, Any] = Field(default_factory=lambda: {})
     validation: Optional[ValidationResult] = None
     
     @validator('embedding', 'isne_embedding')
-    def check_embedding_dimensions(cls, v, values):
+    def check_embedding_dimensions(cls, v: Optional[List[float]], values: Dict[str, Any]) -> Optional[List[float]]:
         """Validate embedding dimensions."""
         if v is not None and len(v) == 0:
             raise ValueError("Embedding must not be empty")
@@ -91,7 +91,7 @@ class DocumentSchema(BaseModel):
     file_type: str
     content_type: str = "text"
     chunks: List[ChunkSchema] = Field(default_factory=list)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: Dict[str, Any] = Field(default_factory=lambda: {})
     processed_at: datetime = Field(default_factory=datetime.now)
     validation: Optional[ValidationResult] = None
     
@@ -150,10 +150,10 @@ class BatchProcessingStats(BaseModel):
     chunks_with_isne: int = 0
     chunks_with_relationships: int = 0
     total_relationships: int = 0
-    processing_times: Dict[str, float] = Field(default_factory=dict)
+    processing_times: Dict[str, float] = Field(default_factory=lambda: {})
     errors: List[Dict[str, Any]] = Field(default_factory=list)
     
-    def add_document_stats(self, doc: DocumentSchema):
+    def add_document_stats(self, doc: DocumentSchema) -> None:
         """Add stats from a processed document.
         
         Args:
@@ -174,7 +174,7 @@ class StorageResult(BaseModel):
     stored_relationships: int = 0
     operation_mode: str
     database_name: str
-    collections: Dict[str, int] = Field(default_factory=dict)
+    collections: Dict[str, int] = Field(default_factory=lambda: {})
     execution_time: float
     errors: List[Dict[str, Any]] = Field(default_factory=list)
     timestamp: datetime = Field(default_factory=datetime.now)
@@ -188,9 +188,9 @@ class PipelineExecutionContext(BaseModel):
     enable_monitoring: bool = True
     enable_alerts: bool = True
     output_dir: Optional[str] = None
-    worker_config: Dict[str, Any] = Field(default_factory=dict)
-    queue_config: Dict[str, Any] = Field(default_factory=dict)
-    stage_configs: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
+    worker_config: Dict[str, Any] = Field(default_factory=lambda: {})
+    queue_config: Dict[str, Any] = Field(default_factory=lambda: {})
+    stage_configs: Dict[str, Dict[str, Any]] = Field(default_factory=lambda: {})
     timestamp: datetime = Field(default_factory=datetime.now)
 
 

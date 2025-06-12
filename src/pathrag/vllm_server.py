@@ -1,5 +1,5 @@
 """
-vLLM server manager for HADES-PathRAG.
+vLLM server manager for HADES.
 
 This module provides functionality to manage vLLM server instances,
 including starting, stopping, and health checks.

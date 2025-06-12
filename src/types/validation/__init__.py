@@ -1,5 +1,5 @@
 """
-Validation type definitions for HADES-PathRAG.
+Validation type definitions for HADES.
 
 This package contains type definitions for validation functionality,
 including validation results, document structures, and enums.

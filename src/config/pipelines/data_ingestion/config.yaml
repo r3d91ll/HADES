@@ -1,0 +1,67 @@
+# Data ingestion pipeline configuration
+# Configuration for document processing and ingestion
+
+version: 1
+
+# Pipeline stages
+stages:
+  - name: "document_processing"
+    processor: "docproc/core"
+    config: "docproc/core/config.yaml"
+    parallel: true
+    
+  - name: "chunking"
+    processor: "chunking/core" 
+    config: "chunking/core/config.yaml"
+    parallel: true
+    depends_on: ["document_processing"]
+    
+  - name: "embedding"
+    processor: "embedding/core"
+    config: "embedding/core/config.yaml"
+    parallel: true
+    depends_on: ["chunking"]
+    
+  - name: "isne_processing"
+    processor: "isne/inference"
+    config: "isne/inference/config.yaml"
+    parallel: false
+    depends_on: ["embedding"]
+    
+  - name: "storage"
+    processor: "storage/arangodb"
+    config: "storage/arangodb/config.yaml"
+    parallel: false
+    depends_on: ["isne_processing"]
+
+# Input configuration
+input:
+  source_type: "directory"  # directory, git, api, stream
+  batch_size: 10
+  max_file_size_mb: 100
+  supported_extensions: [".py", ".md", ".txt", ".json", ".yaml", ".pdf"]
+  
+# Processing settings
+processing:
+  max_workers: 4
+  timeout_per_file: 300
+  retry_failed: true
+  max_retries: 3
+  
+# Output configuration
+output:
+  enable_validation: true
+  store_intermediate: false
+  cleanup_temporary: true
+  
+# Error handling
+error_handling:
+  continue_on_error: true
+  log_errors: true
+  alert_on_failure: true
+  
+# Performance monitoring
+monitoring:
+  track_metrics: true
+  log_progress: true
+  estimate_completion: true

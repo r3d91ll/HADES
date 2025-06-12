@@ -1,0 +1,219 @@
+---
+# Bootstrap Pipeline Configuration
+# Configuration for bootstrapping HADES components from document corpus
+
+# Pipeline metadata
+pipeline:
+  name: "bootstrap_pipeline"
+  version: "2.0.0"
+  description: "Bootstrap pipeline for initializing HADES components"
+
+# Component selection for bootstrap
+components:
+  # Document processor for initial corpus processing
+  document_processor:
+    implementation: "docling"
+    fallback: "markdown"
+    enabled: true
+    config:
+      extract_tables: true
+      extract_images: false
+      ocr_enabled: true
+      max_file_size_mb: 100
+      supported_formats:
+        - ".pdf"
+        - ".py"
+        - ".md"
+        - ".txt"
+  
+  # Chunker for creating initial segments
+  chunker:
+    implementation: "cpu"
+    fallback: null
+    enabled: true
+    config:
+      strategy: "paragraph"
+      max_chunk_size: 800  # Smaller chunks for bootstrap
+      min_chunk_size: 100
+      overlap: 50
+      preserve_sentences: true
+      validate_chunks: true
+  
+  # Embedder for initial embeddings (optional - will use TF-IDF if disabled)
+  embedder:
+    implementation: "modernbert"
+    fallback: "cpu"
+    enabled: true
+    config:
+      model_name: "answerdotai/ModernBERT-base"
+      dimension: 768
+      batch_size: 16  # Smaller batch for bootstrap
+      normalize_embeddings: true
+      cache_embeddings: false  # Don't cache during bootstrap
+  
+  # Graph enhancer (ISNE) - this is what we're bootstrapping
+  graph_enhancer:
+    implementation: "isne"
+    fallback: "none"
+    enabled: true
+    config:
+      # Training configuration for bootstrap
+      training:
+        epochs: 100
+        learning_rate: 0.001
+        batch_size: 32
+        device: "auto"  # auto-detect GPU/CPU
+        early_stopping: true
+        patience: 15
+      
+      # Model architecture
+      model:
+        hidden_dim: 128
+        output_dim: 64
+        num_layers: 2
+        dropout: 0.1
+        activation: "relu"
+      
+      # Graph construction parameters
+      graph:
+        similarity_threshold: 0.3
+        max_neighbors: 10
+        edge_types:
+          - "semantic"
+          - "sequential"
+  
+  # Storage is typically disabled during bootstrap
+  storage:
+    implementation: "memory"  # Use memory storage for bootstrap
+    fallback: null
+    enabled: false
+    config:
+      mode: "create"
+
+# Bootstrap-specific parameters
+bootstrap:
+  # Graph construction parameters
+  similarity_threshold: 0.3
+  max_connections_per_chunk: 10
+  min_cluster_size: 5
+  
+  # Training phases
+  phases:
+    initial_training:
+      epochs: 100
+      learning_rate: 0.001
+    
+    refinement_training:
+      epochs: 50
+      learning_rate: 0.0005
+  
+  # Quality thresholds
+  quality:
+    min_chunks: 10
+    min_graph_density: 0.001
+    max_graph_density: 0.1
+  
+  # Output configuration
+  output:
+    save_intermediate: true
+    save_graphs: true
+    save_embeddings: true
+    save_models: true
+
+# Component-specific detailed configurations
+docproc:
+  processors:
+    pdf:
+      adapter: "docling"
+      extract_tables: true
+      ocr_enabled: true
+    python:
+      adapter: "python_ast"
+      extract_docstrings: true
+      extract_comments: true
+    markdown:
+      adapter: "markdown"
+      preserve_structure: true
+
+chunking:
+  strategies:
+    paragraph:
+      max_chunk_size: 800
+      overlap: 50
+      preserve_sentences: true
+    semantic:
+      model: "modernbert"
+      similarity_threshold: 0.7
+      max_chunk_size: 1000
+
+embedding:
+  model:
+    name: "answerdotai/ModernBERT-base"
+    dimension: 768
+    max_sequence_length: 8192
+  
+  processing:
+    batch_size: 16
+    normalize: true
+    validate_embeddings: true
+
+isne:
+  # Model configuration
+  model:
+    embedding_dim: 768  # Match embedder output
+    hidden_dim: 128
+    output_dim: 64
+    num_layers: 2
+    dropout: 0.1
+  
+  # Training configuration
+  training:
+    learning_rate: 0.001
+    batch_size: 32
+    max_epochs: 100
+    early_stopping: true
+    patience: 15
+    validation_split: 0.2
+  
+  # Graph construction
+  graph:
+    similarity_threshold: 0.3
+    max_neighbors: 10
+    min_neighbors: 2
+
+# Global settings
+global:
+  batch_size: 50  # Smaller batches for bootstrap
+  enable_validation: true
+  continue_on_errors: false  # Strict mode for bootstrap
+  max_parallel_workers: 2
+
+# Debug and monitoring
+debug:
+  enabled: true
+  save_intermediate: true
+  output_directory: "./bootstrap_debug"
+  log_level: "INFO"
+
+monitoring:
+  enable_alerts: true
+  alert_thresholds:
+    error_rate: 0.05  # Stricter error rate for bootstrap
+    processing_time: 7200  # 2 hours max
+    memory_usage: 0.8
+
+# Performance settings for bootstrap
+performance:
+  max_memory_gb: 8
+  garbage_collection_interval: 50
+  enable_caching: false  # Disable caching during bootstrap
+  cpu_limit: null
+  gpu_memory_fraction: 0.7
+
+# Error handling
+error_handling:
+  max_retries: 3
+  retry_delay: 5
+  exponential_backoff: true
+  strict_validation: true  # Strict validation for bootstrap
+  validation_on_error: true

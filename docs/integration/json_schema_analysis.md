@@ -1,4 +1,4 @@
-# JSON Schema Analysis for HADES-PathRAG Pipeline
+# JSON Schema Analysis for HADES Pipeline
 
 ## Overview
 

@@ -1,0 +1,54 @@
+# Core document processing configuration
+# Defines document processing adapters and format detection
+
+version: 1
+
+# Format detection settings
+format_detection:
+  enabled: true
+  confidence_threshold: 0.8
+  fallback_adapter: "markdown"
+
+# Adapter mapping by file extension
+adapter_mapping:
+  ".py": "python"
+  ".js": "javascript"
+  ".ts": "typescript" 
+  ".java": "java"
+  ".cpp": "cpp"
+  ".c": "c"
+  ".h": "c"
+  ".hpp": "cpp"
+  ".md": "markdown"
+  ".txt": "markdown"
+  ".json": "json"
+  ".yaml": "yaml"
+  ".yml": "yaml"
+  ".pdf": "docling"
+  ".docx": "docling"
+  ".html": "markdown"
+  ".xml": "json"
+
+# Content type mapping
+content_type_mapping:
+  "application/json": "json"
+  "application/x-yaml": "yaml"
+  "text/x-python": "python"
+  "text/javascript": "javascript"
+  "text/markdown": "markdown"
+  "text/plain": "markdown"
+  "application/pdf": "docling"
+
+# Processing settings
+processing:
+  batch_size: 10
+  max_file_size_mb: 100
+  timeout_seconds: 60
+  enable_caching: true
+  cache_size: 100
+
+# Validation settings
+validation:
+  enabled: true
+  strict_mode: false
+  validate_schema: true

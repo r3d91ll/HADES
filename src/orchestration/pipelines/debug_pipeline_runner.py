@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Debug Pipeline Runner for HADES-PathRAG
+Debug Pipeline Runner for HADES
 
 This script runs the pipeline with detailed debugging output, saving intermediate
 JSON files after each stage transformation for inspection and debugging.
@@ -20,10 +20,10 @@ project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.alerts import AlertLevel, AlertManager
-from src.orchestration.pipelines.stages.document_processor import DocumentProcessorStage
-from src.orchestration.pipelines.stages.chunking import ChunkingStage
-from src.orchestration.pipelines.stages.embedding import EmbeddingStage
-from src.orchestration.pipelines.stages.isne import ISNEStage
+from src.orchestration.pipelines.data_ingestion.stages.document_processor import DocumentProcessorStage
+from src.orchestration.pipelines.data_ingestion.stages.chunking import ChunkingStage
+from src.orchestration.pipelines.data_ingestion.stages.embedding import EmbeddingStage
+from src.orchestration.pipelines.data_ingestion.stages.isne import ISNEStage
 from src.orchestration.pipelines.schema import DocumentSchema
 
 # Configure logging
@@ -153,7 +153,7 @@ def process_single_file(file_path: Path, stages: List[Tuple[str, Any]], output_d
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Debug Pipeline Runner for HADES-PathRAG")
+    parser = argparse.ArgumentParser(description="Debug Pipeline Runner for HADES")
     parser.add_argument("-i", "--input-dir", required=True, help="Input directory containing files to process")
     parser.add_argument("-o", "--output-dir", required=True, help="Output directory for results and debug files")
     parser.add_argument("--max-files", type=int, default=None, help="Maximum number of files to process")

@@ -1,0 +1,46 @@
+# Core ISNE configuration
+# Inductive Shallow Node Embedding settings
+
+version: 1
+
+# Model architecture
+model:
+  input_dim: 768  # Must match embedding dimension
+  hidden_dims: [512, 256, 128]
+  output_dim: 128
+  num_layers: 3
+  dropout: 0.1
+  activation: "relu"
+  
+# Attention mechanism
+attention:
+  num_heads: 8
+  head_dim: 64
+  dropout: 0.1
+  use_layer_norm: true
+  
+# Training settings
+training:
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  epochs: 100
+  patience: 10
+  min_delta: 0.001
+  
+# Loss configuration
+loss:
+  feature_weight: 1.0
+  structural_weight: 0.5
+  contrastive_weight: 0.3
+  temperature: 0.1
+  
+# Graph construction
+graph:
+  edge_threshold: 0.7
+  max_neighbors: 10
+  use_semantic_edges: true
+  
+# Device settings
+device: "cuda:0"
+mixed_precision: true
+gradient_clipping: 1.0

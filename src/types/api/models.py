@@ -1,5 +1,5 @@
 """
-API data models for HADES-PathRAG.
+API data models for HADES.
 
 This module contains Pydantic models for API data structures.
 """
@@ -21,4 +21,4 @@ class QueryResult(BaseModel):
     content: str
     path: str
     confidence: float
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: Dict[str, Any] = Field(default_factory=lambda: {})

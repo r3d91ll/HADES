@@ -1,4 +1,4 @@
-"""HADES-PathRAG Integration Package
+"""HADES Integration Package
 
 This package integrates PathRAG with HADES, implementing
 XnX notation for knowledge graph relationship management.

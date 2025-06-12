@@ -1,0 +1,28 @@
+# None/Passthrough ISNE configuration
+# Configures passthrough mode that skips ISNE enhancement
+
+version: 1
+
+# Passthrough settings
+passthrough:
+  enabled: true
+  preserve_original_embeddings: true
+  add_metadata: true
+  
+# Metadata to add when passthrough is enabled
+metadata:
+  enhancement_method: "none"
+  enhancement_timestamp: true
+  original_embedding_preserved: true
+  
+# Performance settings (minimal overhead)
+performance:
+  validate_inputs: true
+  validate_outputs: true
+  log_operations: false
+  
+# Compatibility settings
+compatibility:
+  maintain_shape: true
+  preserve_dtype: true
+  copy_tensors: false

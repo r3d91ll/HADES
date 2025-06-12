@@ -1,10 +1,10 @@
-# ArangoDB Integration with HADES-PathRAG
+# ArangoDB Integration with HADES
 
-This document provides an overview of the ArangoDB integration with HADES-PathRAG, including setup instructions, configuration details, and usage examples.
+This document provides an overview of the ArangoDB integration with HADES, including setup instructions, configuration details, and usage examples.
 
 ## Overview
 
-ArangoDB is used as a storage backend for graph data in the HADES-PathRAG system. The integration uses the XnX notation for weighted path traversal and supports the following features:
+ArangoDB is used as a storage backend for graph data in the HADES system. The integration uses the XnX notation for weighted path traversal and supports the following features:
 
 - Storing nodes with embedded vector representations
 - Creating edges with weights according to XnX notation
@@ -177,4 +177,4 @@ HADES_ARANGO_DATABASE=my_test_db python -m unittest tests/db/test_arango_adapter
 
 - [ArangoDB Documentation](https://www.arangodb.com/docs/)
 - [Python-Arango API Reference](https://python-driver-for-arangodb.readthedocs.io/)
-- [HADES-PathRAG XnX Documentation](../xnx/XnX_README.md)
+- [HADES XnX Documentation](../xnx/XnX_README.md)

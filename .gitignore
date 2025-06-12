@@ -81,7 +81,7 @@ checkpoints/
 logs/
 tensorboard/
 
-# HADES-PathRAG specific
+# HADES specific
 # Add any project-specific files/dirs that shouldn't be committed
 data/raw/
 data/processed/

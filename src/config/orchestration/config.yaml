@@ -1,0 +1,55 @@
+# Orchestration configuration
+# Configures pipeline orchestration and workflow management
+
+version: 1
+
+# Orchestrator settings
+orchestrator:
+  type: "async"  # async, sync, distributed
+  max_concurrent_pipelines: 10
+  pipeline_timeout: 3600  # 1 hour
+  retry_attempts: 3
+  retry_delay: 30
+
+# Worker configuration
+workers:
+  pool_size: 8
+  queue_size: 100
+  worker_timeout: 300
+  health_check_interval: 30
+
+# Pipeline execution
+execution:
+  default_mode: "sequential"  # sequential, parallel
+  stage_timeout: 600  # 10 minutes
+  checkpoint_enabled: true
+  checkpoint_interval: 300  # 5 minutes
+
+# Resource management
+resources:
+  cpu_limit: 0.8  # 80% of available CPUs
+  memory_limit: 0.8  # 80% of available memory
+  gpu_limit: 0.9  # 90% of available GPU memory
+  disk_limit: 0.8  # 80% of available disk
+
+# Queue management
+queues:
+  default_queue: "main"
+  priority_queue: "high_priority"
+  batch_queue: "batch_processing"
+  max_queue_size: 1000
+
+# Monitoring and logging
+monitoring:
+  enabled: true
+  metrics_interval: 10
+  log_level: "INFO"
+  pipeline_stats: true
+  component_stats: true
+
+# Error handling
+error_handling:
+  fail_fast: false
+  continue_on_error: true
+  error_threshold: 0.1  # 10% error rate
+  circuit_breaker_enabled: true

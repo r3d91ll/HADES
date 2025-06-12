@@ -1,0 +1,47 @@
+# Encoder embedding configuration
+# For transformer-based embedding models (ModernBERT, CodeBERT, etc.)
+
+version: 1
+
+# Default encoder settings
+pooling_strategy: "cls"
+max_length: 8192
+normalize_embeddings: true
+batch_size: 8
+device: "cpu"
+
+# Model engine integration
+use_model_engine: true
+engine_type: "haystack"
+early_availability_check: true
+auto_start_engine: true
+max_startup_retries: 3
+
+# Available encoder models
+models:
+  modernbert:
+    model_name: "answerdotai/ModernBERT-base"
+    description: "General text encoder model"
+    max_length: 8192
+    
+  codebert:
+    model_name: "microsoft/codebert-base"
+    description: "Code-optimized encoder model"
+    max_length: 512  # Limited by RoBERTa architecture
+    
+  python_code_bert:
+    model_name: "juanwisz/modernbert-python-code-retrieval"
+    description: "Python-specific code encoder based on ModernBERT"
+    max_length: 8192
+
+# GPU configurations
+gpu_variants:
+  modernbert_gpu:
+    model_name: "answerdotai/ModernBERT-base"
+    device: "cuda:0"
+    batch_size: 16
+    
+  codebert_gpu:
+    model_name: "microsoft/codebert-base"
+    device: "cuda:0"
+    batch_size: 16

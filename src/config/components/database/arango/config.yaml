@@ -1,0 +1,77 @@
+# ArangoDB database configuration
+# Configuration for ArangoDB connection and operations
+
+version: 1
+
+# Connection settings
+connection:
+  host: "localhost"
+  port: 8529
+  username: "hades"
+  password: "hades_pathrag"
+  database: "hades_pathrag"
+  
+# SSL/TLS settings
+ssl:
+  enabled: false
+  verify_certificate: true
+  certificate_path: null
+  
+# Connection pool settings
+pool:
+  max_connections: 20
+  min_connections: 5
+  connection_timeout: 30
+  request_timeout: 60
+  
+# Retry settings
+retry:
+  max_retries: 3
+  retry_delay: 1.0
+  exponential_backoff: true
+  
+# Collection settings
+collections:
+  documents:
+    name: "documents"
+    type: "document"
+    indexes:
+      - field: "hash"
+        type: "hash"
+      - field: "metadata.created_at"
+        type: "skiplist"
+        
+  chunks:
+    name: "chunks"
+    type: "document"
+    indexes:
+      - field: "document_id"
+        type: "hash"
+      - field: "chunk_index"
+        type: "skiplist"
+        
+  embeddings:
+    name: "embeddings"
+    type: "document"
+    indexes:
+      - field: "chunk_id"
+        type: "hash"
+        
+  edges:
+    name: "edges"
+    type: "edge"
+    indexes:
+      - field: ["_from", "_to"]
+        type: "hash"
+        
+# Batch operations
+batch:
+  batch_size: 1000
+  parallel_batches: 4
+  timeout_per_batch: 300
+  
+# Performance settings
+performance:
+  cache_size_mb: 512
+  journal_size_mb: 64
+  wal_log_size_mb: 128

@@ -1,0 +1,41 @@
+# Text chunking configuration (Chonky semantic chunker)
+# Used for natural language content like markdown, PDFs, HTML
+
+version: 1
+
+# Model settings
+model_id: "mirth/chonky_modernbert_large_1"
+model_engine: "haystack"
+device: "cuda:0"
+
+# Chunking parameters
+max_tokens: 2048
+min_tokens: 64
+overlap_tokens: 200
+semantic_chunking: true
+preserve_structure: true
+batch_size: 8
+
+# Overlap context settings
+overlap_context:
+  enabled: true
+  store_pre_context: true
+  store_post_context: true
+  max_pre_context_chars: 1000
+  max_post_context_chars: 1000
+  store_position_info: true
+
+# Cache settings
+cache_with_device: true
+cache_size: 4
+
+# Model engine settings
+early_availability_check: true
+auto_start_engine: true
+max_startup_retries: 3
+
+# Advanced settings
+tokenizer_name: null
+force_reload: false
+trust_remote_code: true
+timeout: 30

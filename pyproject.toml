@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "hades-pathrag"
+name = "HADES"
 version = "0.1.0"
-description = "HADES-PathRAG integration with XnX notation"
+description = "HADES integration with XnX notation"
 authors = ["HADES Team"]
 readme = "README.md"
 packages = [

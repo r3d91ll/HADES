@@ -1,0 +1,41 @@
+# Docling document processing configuration
+# For PDF and Office document processing
+
+version: 1
+
+# Docling processor settings
+processor:
+  ocr_enabled: true
+  table_extraction: true
+  image_extraction: true
+  keep_formatting: true
+  
+# OCR settings
+ocr:
+  engine: "tesseract"
+  language: "eng"
+  confidence_threshold: 60
+  
+# Table extraction
+tables:
+  extract_headers: true
+  preserve_structure: true
+  output_format: "markdown"
+  
+# Image handling
+images:
+  extract_images: true
+  image_format: "png"
+  max_image_size: "2048x2048"
+  
+# Output formatting
+output:
+  format: "markdown"
+  preserve_links: true
+  include_metadata: true
+  
+# Performance settings
+performance:
+  max_pages: 1000
+  timeout_per_page: 30
+  memory_limit_mb: 1024

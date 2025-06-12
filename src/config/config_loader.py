@@ -1,5 +1,5 @@
 """
-Configuration loading utilities for HADES-PathRAG.
+Configuration loading utilities for HADES.
 
 This module provides functions to load various configuration files,
 including the pipeline configuration and component-specific configs.
@@ -16,8 +16,12 @@ logger = logging.getLogger(__name__)
 
 # Define the paths to the configuration files
 CONFIG_DIR = Path(__file__).parent
-TRAINING_PIPELINE_CONFIG_PATH = CONFIG_DIR / 'training_pipeline_config.yaml'
+TRAINING_PIPELINE_CONFIG_PATH = CONFIG_DIR / 'pipelines' / 'training' / 'legacy_config.yaml'
 PIPELINE_CONFIG_PATH = TRAINING_PIPELINE_CONFIG_PATH  # For backward compatibility
+
+# Fallback to old location if new structure doesn't exist yet
+if not TRAINING_PIPELINE_CONFIG_PATH.exists():
+    TRAINING_PIPELINE_CONFIG_PATH = CONFIG_DIR / 'training_pipeline_config.yaml'
 
 # Set CUDA_VISIBLE_DEVICES at module import time, before any PyTorch imports
 # This ensures GPU settings are applied early enough to affect all components
@@ -168,6 +172,8 @@ def load_config(config_name: str) -> Dict[str, Any]:
     
     Args:
         config_name: Name of the config file (without .yaml extension)
+                    Can be a simple name like 'chunker_config' for backward compatibility,
+                    or a component path like 'chunking/core/config' for new structure
         
     Returns:
         Dictionary containing configuration data
@@ -176,7 +182,36 @@ def load_config(config_name: str) -> Dict[str, Any]:
         FileNotFoundError: If config file doesn't exist
         yaml.YAMLError: If config file has invalid YAML
     """
-    config_file = CONFIG_DIR / f"{config_name}.yaml"
+    # Try new component-based structure first
+    if '/' in config_name:
+        # Component path format: 'chunking/core/config'
+        config_file = CONFIG_DIR / f"{config_name}.yaml"
+    else:
+        # Legacy format: try both old and new locations
+        legacy_file = CONFIG_DIR / f"{config_name}.yaml"
+        
+        # Map legacy names to new component paths
+        legacy_mapping = {
+            'chunker_config': 'components/chunking/core/config',
+            'embedding_config': 'components/embedding/core/config', 
+            'vllm_config': 'components/model_engine/vllm/config',
+            'model_config': 'components/model_engine/core/config',
+            'engine_config': 'components/model_engine/core/config',
+            'database_config': 'components/database/arango/config',
+            'isne_config': 'components/isne/core/config',
+            'preprocessor_config': 'components/docproc/core/config'
+        }
+        
+        if legacy_file.exists():
+            # Use legacy file if it exists
+            config_file = legacy_file
+        elif config_name in legacy_mapping:
+            # Try new component structure
+            config_file = CONFIG_DIR / f"{legacy_mapping[config_name]}.yaml"
+        else:
+            # Default to legacy location
+            config_file = legacy_file
+    
     if not config_file.exists():
         raise FileNotFoundError(f"Configuration file not found: {config_file}")
     
@@ -208,3 +243,150 @@ def get_component_device(component_name: str, pipeline_type: str = 'training') -
         return str(device_value) if device_value is not None else None
     
     return None
+
+
+def load_component_config(component: str, subcomponent: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Load configuration for a specific component.
+    
+    Args:
+        component: Component name (e.g., 'chunking', 'embedding', 'isne')
+        subcomponent: Optional subcomponent (e.g., 'core', 'text', 'vllm')
+        
+    Returns:
+        Dictionary with component configuration
+        
+    Raises:
+        FileNotFoundError: If component config doesn't exist
+    """
+    if subcomponent:
+        config_path = f"{component}/{subcomponent}/config"
+    else:
+        config_path = f"{component}/core/config"
+        
+    return load_config(config_path)
+
+
+def get_available_components() -> Dict[str, list]:
+    """
+    Get list of available components and their subcomponents.
+    
+    Returns:
+        Dictionary mapping component names to lists of subcomponents
+    """
+    components = {}
+    config_root = CONFIG_DIR
+    
+    for component_dir in config_root.iterdir():
+        if component_dir.is_dir() and not component_dir.name.startswith('.'):
+            component_name = component_dir.name
+            subcomponents = []
+            
+            for sub_dir in component_dir.iterdir():
+                if sub_dir.is_dir() and (sub_dir / 'config.yaml').exists():
+                    subcomponents.append(sub_dir.name)
+                    
+            if subcomponents:
+                components[component_name] = subcomponents
+                
+    return components
+
+
+def validate_component_config(component: str, subcomponent: Optional[str] = None) -> bool:
+    """
+    Validate that a component configuration exists and is valid.
+    
+    Args:
+        component: Component name
+        subcomponent: Optional subcomponent name
+        
+    Returns:
+        True if config is valid, False otherwise
+    """
+    try:
+        config = load_component_config(component, subcomponent)
+        return 'version' in config  # Basic validation
+    except (FileNotFoundError, yaml.YAMLError):
+        return False
+
+
+def merge_configs(*configs: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Merge multiple configuration dictionaries.
+    Later configs override earlier ones.
+    
+    Args:
+        *configs: Configuration dictionaries to merge
+        
+    Returns:
+        Merged configuration dictionary
+    """
+    merged: Dict[str, Any] = {}
+    
+    for config in configs:
+        if isinstance(config, dict):
+            for key, value in config.items():
+                if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
+                    merged[key] = merge_configs(merged[key], value)
+                else:
+                    merged[key] = value
+                    
+    return merged
+
+
+def load_pipeline_config_by_type(pipeline_type: str = 'training') -> Dict[str, Any]:
+    """
+    Load pipeline configuration by type using new component structure.
+    
+    Args:
+        pipeline_type: Type of pipeline ('training', 'data_ingestion', 'bootstrap')
+        
+    Returns:
+        Dictionary with pipeline configuration
+    """
+    try:
+        # Try new component structure first
+        return load_config(f"pipelines/{pipeline_type}/config")
+    except FileNotFoundError:
+        # Fall back to legacy pipeline loading
+        return load_pipeline_config(pipeline_type=pipeline_type)
+
+
+def get_component_config_path(component: str, subcomponent: Optional[str] = None) -> Path:
+    """
+    Get the path to a component configuration file.
+    
+    Args:
+        component: Component name
+        subcomponent: Optional subcomponent name
+        
+    Returns:
+        Path to the configuration file
+    """
+    if subcomponent:
+        return CONFIG_DIR / component / subcomponent / 'config.yaml'
+    else:
+        return CONFIG_DIR / component / 'core' / 'config.yaml'
+
+
+def list_component_configs() -> Dict[str, Dict[str, Path]]:
+    """
+    List all available component configurations.
+    
+    Returns:
+        Nested dictionary of component -> subcomponent -> config_path
+    """
+    configs: Dict[str, Dict[str, Path]] = {}
+    
+    for component_dir in CONFIG_DIR.iterdir():
+        if component_dir.is_dir() and not component_dir.name.startswith('.'):
+            component_name = component_dir.name
+            configs[component_name] = {}
+            
+            for sub_dir in component_dir.iterdir():
+                if sub_dir.is_dir():
+                    config_file = sub_dir / 'config.yaml'
+                    if config_file.exists():
+                        configs[component_name][sub_dir.name] = config_file
+                        
+    return configs

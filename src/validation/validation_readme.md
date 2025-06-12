@@ -2,7 +2,7 @@
 
 ## Overview
 
-The validation module provides tools for ensuring data consistency and quality throughout the HADES-PathRAG pipeline, with a current focus on embedding validation for the ingestion process.
+The validation module provides tools for ensuring data consistency and quality throughout the HADES pipeline, with a current focus on embedding validation for the ingestion process.
 
 ## Components
 

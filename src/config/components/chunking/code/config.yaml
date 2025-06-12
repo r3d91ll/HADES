@@ -1,0 +1,26 @@
+# Code chunking configuration (AST-based chunker)
+# Used for programming language files that can be parsed into AST
+
+version: 1
+
+# AST-based code chunker configuration
+max_tokens: 2048
+use_class_boundaries: true
+use_function_boundaries: true
+extract_imports: true
+preserve_docstrings: true
+
+# Language-specific settings
+languages:
+  python:
+    parser: "tree_sitter_python"
+    chunk_types: ["class_definition", "function_definition", "import_statement"]
+  javascript:
+    parser: "tree_sitter_javascript"
+    chunk_types: ["class_declaration", "function_declaration", "import_statement"]
+  java:
+    parser: "tree_sitter_java"
+    chunk_types: ["class_declaration", "method_declaration", "import_declaration"]
+  cpp:
+    parser: "tree_sitter_cpp"
+    chunk_types: ["class_specifier", "function_definition", "preproc_include"]

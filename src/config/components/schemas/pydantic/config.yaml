@@ -1,0 +1,36 @@
+# Pydantic schema validation configuration
+# Configures schema validation for component contracts
+
+version: 1
+
+# Validation settings
+validation:
+  strict_mode: true
+  validate_assignment: true
+  validate_default: true
+  extra_fields: "forbid"
+  
+# Error handling
+error_handling:
+  raise_on_validation_error: true
+  collect_all_errors: true
+  error_message_format: "detailed"
+  
+# Performance settings
+performance:
+  cache_compiled_validators: true
+  use_fast_validation: true
+  validate_in_parallel: false
+  
+# Schema features
+features:
+  allow_arbitrary_types: false
+  validate_all: true
+  json_schema_mode: "validation"
+  serialize_as_any: false
+  
+# Custom field types
+custom_types:
+  datetime_formats: ["iso", "timestamp"]
+  decimal_precision: 6
+  string_encoding: "utf-8"

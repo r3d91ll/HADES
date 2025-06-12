@@ -1,8 +1,8 @@
 """
-Alert management system for HADES-PathRAG.
+Alert management system for HADES.
 
 This module provides a central alert management system for detecting and 
-handling various types of alerts throughout the HADES-PathRAG system.
+handling various types of alerts throughout the HADES system.
 """
 
 import time
@@ -185,13 +185,13 @@ class AlertManager:
             msg = MIMEMultipart()
             msg["From"] = from_addr_str
             msg["To"] = ", ".join(to_addrs_list)
-            msg["Subject"] = f"HADES-PathRAG Alert: {alert.level.name} - {alert.source}"
+            msg["Subject"] = f"HADES Alert: {alert.level.name} - {alert.source}"
             
             # Create email body
             body = f"""
             <html>
             <body>
-                <h2>HADES-PathRAG Alert</h2>
+                <h2>HADES Alert</h2>
                 <p><strong>Level:</strong> {alert.level.name}</p>
                 <p><strong>Source:</strong> {alert.source}</p>
                 <p><strong>Time:</strong> {time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(alert.timestamp))}</p>

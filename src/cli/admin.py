@@ -1,5 +1,5 @@
 """
-Administrative CLI tools for HADES-PathRAG.
+Administrative CLI tools for HADES.
 
 This module provides utilities for managing and administrating
 the ArangoDB database and collections.
@@ -31,7 +31,7 @@ def setup_graph(db_name: str = "hades",
                 username: str = "root",
                 password: str = "") -> Dict[str, Any]:
     """
-    Set up standard ArangoDB graph structure for HADES-PathRAG.
+    Set up standard ArangoDB graph structure for HADES.
     
     Args:
         db_name: Name of the database
@@ -175,7 +175,7 @@ def verify_database(db_name: str, username: str = "root", password: str = "") ->
 
 
 def main_setup_graph() -> int:
-    parser = argparse.ArgumentParser(description="Set up ArangoDB graph structure for HADES-PathRAG")
+    parser = argparse.ArgumentParser(description="Set up ArangoDB graph structure for HADES")
     parser.add_argument("--db-name", type=str, default="hades", help="Database name")
     parser.add_argument("--node-collection", type=str, default="nodes", help="Node collection name")
     parser.add_argument("--edge-collection", type=str, default="edges", help="Edge collection name")

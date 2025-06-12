@@ -1,0 +1,43 @@
+scheduled_training:
+  # Daily incremental training configuration
+  incremental:
+    enabled: true
+    retrain_threshold: 0.15              # Don't auto-trigger full retrain
+    max_daily_chunks: 500                # Max chunks per daily update
+    max_daily_updates_before_full: 30    # Force full retrain after 30 daily updates
+    
+  # Weekly full retraining configuration  
+  weekly:
+    enabled: true
+    interval_days: 7                     # Run every 7 days
+    include_scope: "week"                # "week", "month", or "all"
+    
+  # Monthly comprehensive retraining
+  monthly:
+    enabled: true
+    run_on_first: true                   # Run on 1st of month
+    include_scope: "month"               # Retrain on monthly data
+    
+  # Logging and monitoring
+  logging:
+    log_level: "INFO"
+    log_retention_days: 90
+    alert_on_failure: true
+    alert_on_quality_drop: true
+    quality_threshold: 0.8               # Alert if quality drops below 80%
+    
+  # Performance settings
+  performance:
+    max_memory_gb: 16                    # Limit memory usage
+    use_gpu: true                        # Use GPU if available
+    parallel_workers: 4                  # For batch processing
+    
+  # ArangoDB integration
+  database:
+    connection_config: "database_config"  # Reference to database config
+    chunk_collection: "chunks"
+    edge_collection: "chunk_relationships"
+    metadata_fields:
+      created_date: "created_at"
+      modified_date: "updated_at"
+      source_document: "source_file"

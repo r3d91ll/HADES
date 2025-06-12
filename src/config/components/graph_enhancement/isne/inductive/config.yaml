@@ -1,0 +1,37 @@
+# Inductive ISNE configuration
+# Configures inductive shallow node embedding for new nodes
+
+version: 1
+
+# Inductive learning settings
+inductive:
+  enabled: true
+  warm_start: true
+  pretrained_model_path: null
+  freeze_base_layers: false
+  
+# Training configuration for new nodes
+training:
+  learning_rate: 0.001
+  batch_size: 64
+  max_epochs: 50
+  early_stopping_patience: 10
+  
+# Inference configuration
+inference:
+  cache_embeddings: true
+  batch_inference: true
+  max_batch_size: 128
+  
+# Model architecture for inductive components
+architecture:
+  inductive_layers: 2
+  hidden_dim: 256
+  dropout: 0.1
+  activation: "relu"
+  
+# Performance settings
+performance:
+  use_gpu: true
+  mixed_precision: true
+  gradient_checkpointing: false

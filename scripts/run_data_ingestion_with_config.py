@@ -17,7 +17,7 @@ from datetime import datetime
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.orchestration.pipelines.data_ingestion_pipeline import run_data_ingestion_pipeline
+from src.orchestration.pipelines.data_ingestion.pipeline import run_data_ingestion_pipeline
 from src.config.config_loader import load_config
 
 
@@ -72,7 +72,7 @@ def load_pipeline_config(config_file: str = None):
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description="Run HADES-PathRAG data ingestion pipeline with configuration"
+        description="Run HADES data ingestion pipeline with configuration"
     )
     
     # Input/Output arguments
@@ -235,7 +235,7 @@ def main():
         
         # Report results
         print("\n" + "="*50)
-        print("HADES-PathRAG Data Ingestion Pipeline Results")
+        print("HADES Data Ingestion Pipeline Results")
         print("="*50)
         
         print(f"Success: {'✓' if results['success'] else '✗'}")

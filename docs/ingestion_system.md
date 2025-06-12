@@ -1,6 +1,6 @@
-# HADES-PathRAG: Ingestion System
+# HADES: Ingestion System
 
-This document describes the comprehensive ingestion system for HADES-PathRAG, covering both the initial pipeline architecture and the incremental update process.
+This document describes the comprehensive ingestion system for HADES, covering both the initial pipeline architecture and the incremental update process.
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@ This section describes the end-to-end ingestion pipeline for initial processing,
 
 ## Pipeline Overview
 
-The HADES-PathRAG ingestion pipeline consists of **five** main phases:
+The HADES ingestion pipeline consists of **five** main phases:
 
 1. **Pre-Processing** – extract structure and metadata from raw files
 2. **Chunking** – create syntactic _and_ semantic chunks
@@ -288,7 +288,7 @@ graph TD
 
 ## Incremental Update Process
 
-When codebases or documentation are updated, HADES-PathRAG needs to efficiently update only the affected parts of the knowledge graph. The following diagram illustrates this process:
+When codebases or documentation are updated, HADES needs to efficiently update only the affected parts of the knowledge graph. The following diagram illustrates this process:
 
 ```mermaid
 graph TD
@@ -717,11 +717,11 @@ The storage layer is implemented with:
 
 ---
 
-This comprehensive document describes both the initial ingestion pipeline and the incremental update process for the HADES-PathRAG system. It covers the architecture, implementation, and strategies for maintaining an up-to-date knowledge graph as codebases and documentation evolve.
+This comprehensive document describes both the initial ingestion pipeline and the incremental update process for the HADES system. It covers the architecture, implementation, and strategies for maintaining an up-to-date knowledge graph as codebases and documentation evolve.
 
 ## System Interaction
 
-The HADES-PathRAG system exposes a clean API for interacting with the ingestion pipeline and knowledge graph. This API allows for:
+The HADES system exposes a clean API for interacting with the ingestion pipeline and knowledge graph. This API allows for:
 
 - Writing new data to the knowledge graph
 - Querying the knowledge graph

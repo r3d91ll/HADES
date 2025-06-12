@@ -1,0 +1,83 @@
+{
+  "test_info": {
+    "timestamp": "2025-06-11T19:14:33.209269",
+    "test_description": "Haystack model engine monitoring test",
+    "component": "haystack_model_engine"
+  },
+  "health_check": true,
+  "infrastructure_metrics": {
+    "component_name": "haystack",
+    "component_version": "1.0.0",
+    "device_allocation": "cpu",
+    "loaded_models": [
+      "sentence-transformers/all-MiniLM-L6-v2"
+    ],
+    "pipeline_type": "embedding",
+    "memory_usage": {
+      "rss_mb": 699.44,
+      "vms_mb": 4610.01
+    },
+    "gpu_info": null,
+    "pipeline_initialized": true,
+    "document_store_initialized": true,
+    "startup_time": "2025-06-12T00:14:30.313075+00:00",
+    "uptime_seconds": 1.592697
+  },
+  "performance_metrics": {
+    "component_name": "haystack",
+    "total_requests": 2,
+    "successful_requests": 2,
+    "failed_requests": 0,
+    "success_rate_percent": 100.0,
+    "requests_per_second": 0.691,
+    "average_processing_time": 0.652,
+    "total_processing_time": 1.303,
+    "last_request_time": "2025-06-12T00:14:31.905814+00:00",
+    "pipeline_initializations": 1,
+    "recent_errors": [],
+    "error_count": 0,
+    "uptime_seconds": 2.9
+  },
+  "all_metrics": {
+    "component_name": "haystack",
+    "component_version": "1.0.0",
+    "device_allocation": "cpu",
+    "loaded_models": [
+      "sentence-transformers/all-MiniLM-L6-v2"
+    ],
+    "pipeline_type": "embedding",
+    "memory_usage": {
+      "rss_mb": 775.36,
+      "vms_mb": 8604.55
+    },
+    "gpu_info": null,
+    "pipeline_initialized": true,
+    "document_store_initialized": true,
+    "startup_time": "2025-06-12T00:14:30.313075+00:00",
+    "uptime_seconds": 2.9,
+    "total_requests": 2,
+    "successful_requests": 2,
+    "failed_requests": 0,
+    "success_rate_percent": 100.0,
+    "requests_per_second": 0.691,
+    "average_processing_time": 0.652,
+    "total_processing_time": 1.303,
+    "last_request_time": "2025-06-12T00:14:31.905814+00:00",
+    "pipeline_initializations": 1,
+    "recent_errors": [],
+    "error_count": 0,
+    "last_health_check": "2025-06-12T00:14:33.209213+00:00"
+  },
+  "prometheus_metrics_sample": [
+    "# HELP hades_component_uptime_seconds Component uptime in seconds",
+    "# TYPE hades_component_uptime_seconds gauge",
+    "hades_component_uptime_seconds{component=\"haystack\"} 2.896064",
+    "# HELP hades_component_memory_rss_mb Memory RSS usage in MB",
+    "# TYPE hades_component_memory_rss_mb gauge",
+    "hades_component_memory_rss_mb{component=\"haystack\"} 775.36",
+    "# HELP hades_component_loaded_models Number of loaded models",
+    "# TYPE hades_component_loaded_models gauge",
+    "hades_component_loaded_models{component=\"haystack\"} 1",
+    "# HELP hades_component_requests_total Total number of requests"
+  ]
+}

@@ -1,0 +1,72 @@
+# ISNE training configuration
+# Training pipeline and orchestration settings
+
+version: 1
+
+# Training pipeline
+pipeline:
+  stages:
+    - "data_preparation"
+    - "graph_construction"
+    - "model_training"
+    - "validation"
+    - "model_export"
+    
+# Data preparation
+data_preparation:
+  min_documents: 100
+  train_split: 0.8
+  val_split: 0.1
+  test_split: 0.1
+  shuffle: true
+  random_seed: 42
+  
+# Graph construction
+graph_construction:
+  similarity_metric: "cosine"
+  edge_threshold: 0.7
+  max_edges_per_node: 10
+  bidirectional_edges: true
+  
+# Training loop
+training_loop:
+  batch_size: 32
+  accumulation_steps: 1
+  max_epochs: 100
+  early_stopping:
+    patience: 10
+    min_delta: 0.001
+    monitor: "val_loss"
+    
+# Optimization
+optimizer:
+  type: "adamw"
+  learning_rate: 0.001
+  weight_decay: 0.01
+  betas: [0.9, 0.999]
+  eps: 1e-8
+  
+# Learning rate scheduling
+scheduler:
+  type: "cosine"
+  warmup_steps: 1000
+  max_lr: 0.001
+  min_lr: 1e-6
+  
+# Validation
+validation:
+  frequency: 5  # Every 5 epochs
+  metrics: ["loss", "accuracy", "f1"]
+  save_best: true
+  
+# Checkpointing
+checkpointing:
+  save_every: 10
+  keep_last: 3
+  save_optimizer: true
+  
+# Logging
+logging:
+  log_every: 100
+  wandb_enabled: false
+  tensorboard_enabled: true

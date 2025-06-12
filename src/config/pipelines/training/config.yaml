@@ -1,0 +1,62 @@
+# Training pipeline configuration
+# Configuration for ISNE model training pipeline
+
+version: 1
+
+# Pipeline configuration
+pipeline:
+  name: "isne_training"
+  description: "ISNE model training pipeline"
+  version: "1.0"
+  
+# Training stages
+stages:
+  - name: "data_validation"
+    enabled: true
+    config: "pipelines/training/data_validation.yaml"
+    
+  - name: "graph_construction"
+    enabled: true
+    config: "pipelines/training/graph_construction.yaml"
+    depends_on: ["data_validation"]
+    
+  - name: "model_training"
+    enabled: true
+    config: "isne/training/config.yaml"
+    depends_on: ["graph_construction"]
+    
+  - name: "model_evaluation"
+    enabled: true
+    config: "pipelines/training/evaluation.yaml"
+    depends_on: ["model_training"]
+    
+  - name: "model_deployment"
+    enabled: true
+    config: "pipelines/training/deployment.yaml"
+    depends_on: ["model_evaluation"]
+
+# Training schedule
+schedule:
+  type: "manual"  # manual, cron, interval
+  cron_expression: null
+  interval_hours: null
+  
+# Resource requirements
+resources:
+  gpu_required: true
+  min_gpu_memory_gb: 4
+  min_system_memory_gb: 8
+  min_disk_space_gb: 10
+  
+# Device configuration
+device_config:
+  CUDA_VISIBLE_DEVICES: "0"
+  torch_backends_cudnn_benchmark: true
+  torch_backends_cudnn_deterministic: false
+  
+# Distributed training
+distributed:
+  enabled: false
+  backend: "nccl"
+  world_size: 1
+  rank: 0

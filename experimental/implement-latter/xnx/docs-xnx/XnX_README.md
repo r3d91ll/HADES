@@ -1,8 +1,8 @@
-# XnX Traversal Guide for HADES-PathRAG
+# XnX Traversal Guide for HADES
 
 ## 📖 Purpose
 
-This document explains how to use **XnX Notation** constraints during graph traversal within the HADES-PathRAG project, including **weight filtering**, **directional flow**, and **temporal filtering**.
+This document explains how to use **XnX Notation** constraints during graph traversal within the HADES project, including **weight filtering**, **directional flow**, and **temporal filtering**.
 
 ---
 

@@ -1,6 +1,6 @@
-# Docker Deployment for HADES-PathRAG
+# Docker Deployment for HADES
 
-This guide explains how to deploy HADES-PathRAG using Docker, providing a containerized solution that includes Ollama for local LLM inference and ArangoDB for knowledge graph storage.
+This guide explains how to deploy HADES using Docker, providing a containerized solution that includes Ollama for local LLM inference and ArangoDB for knowledge graph storage.
 
 ## Prerequisites
 
@@ -14,8 +14,8 @@ The easiest way to get started is with Docker Compose, which will set up the com
 
 ```bash
 # Clone the repository
-git clone https://github.com/r3d91ll/HADES-PathRAG.git
-cd HADES-PathRAG
+git clone https://github.com/r3d91ll/HADES.git
+cd HADES
 
 # Optional: Set ArangoDB password in environment
 export ARANGO_PASSWORD="your-secure-password"
@@ -29,7 +29,7 @@ docker-compose logs -f
 
 This will:
 1. Start an ArangoDB instance for graph storage
-2. Build and start HADES-PathRAG with Ollama integrated
+2. Build and start HADES with Ollama integrated
 3. Download the required LLM models automatically
 4. Expose all necessary ports for the services
 
@@ -43,18 +43,18 @@ Once the containers are running, you can access:
 
 ## Using the Docker Image Separately
 
-If you prefer to run only the HADES-PathRAG container without Docker Compose:
+If you prefer to run only the HADES container without Docker Compose:
 
 ```bash
 # Build the Docker image
-docker build -t hades-pathrag .
+docker build -t HADES .
 
 # Run the container
 docker run -p 8123:8123 -p 8765:8765 -p 11434:11434 \
   -e ARANGO_HOST=your-arango-host \
   -e ARANGO_PASSWORD=your-arango-password \
   -v $(pwd)/PathRAG_cache:/app/PathRAG_cache \
-  hades-pathrag
+  HADES
 ```
 
 ## Container Architecture
@@ -66,7 +66,7 @@ The containerized setup includes:
 │                Docker Host               │
 │                                         │
 │  ┌───────────────┐    ┌───────────────┐ │
-│  │  HADES-PathRAG │    │   ArangoDB    │ │
+│  │  HADES │    │   ArangoDB    │ │
 │  │  Container    │    │   Container   │ │
 │  │               │    │               │ │
 │  │ ┌───────────┐ │    │ ┌───────────┐ │ │
@@ -90,7 +90,7 @@ You can customize the deployment by setting environment variables:
 # Docker Compose environment variables
 ARANGO_PASSWORD: Password for ArangoDB root user
 
-# HADES-PathRAG container environment variables
+# HADES container environment variables
 ARANGO_HOST: Hostname for ArangoDB (default: arango)
 ARANGO_PORT: Port for ArangoDB (default: 8529)
 ARANGO_DB: Database name in ArangoDB (default: hades_knowledge)
@@ -114,10 +114,10 @@ You can manage Ollama models from inside the container:
 
 ```bash
 # List available models
-docker exec -it hades-pathrag_hades-pathrag_1 ollama list
+docker exec -it HADES_HADES_1 ollama list
 
 # Pull additional models
-docker exec -it hades-pathrag_hades-pathrag_1 ollama pull mistral
+docker exec -it HADES_HADES_1 ollama pull mistral
 ```
 
 ## Performance Considerations
@@ -133,7 +133,7 @@ docker exec -it hades-pathrag_hades-pathrag_1 ollama pull mistral
 
 1. **Container won't start**: Check if you have enough memory and disk space
    ```bash
-   docker-compose logs hades-pathrag
+   docker-compose logs HADES
    ```
 
 2. **Cannot connect to ArangoDB**: Ensure the database is running and the credentials are correct
@@ -144,14 +144,14 @@ docker exec -it hades-pathrag_hades-pathrag_1 ollama pull mistral
 
 3. **Models fail to download**: Check Ollama logs for network issues
    ```bash
-   docker exec -it hades-pathrag_hades-pathrag_1 curl http://localhost:11434/api/tags
+   docker exec -it HADES_HADES_1 curl http://localhost:11434/api/tags
    ```
 
 4. **Out of memory errors**: Reduce the model size or increase container memory limits
    ```bash
    # Edit docker-compose.yml to add memory limits
    services:
-     hades-pathrag:
+     HADES:
        deploy:
          resources:
            limits:
@@ -165,6 +165,6 @@ For advanced users who want to customize the Docker deployment:
 1. **Custom Ollama models**: Create a Modelfile and build custom models
 2. **ArangoDB clustering**: Set up a clustered ArangoDB deployment for high availability
 3. **Docker networking**: Configure custom Docker networks for security and isolation
-4. **Load balancing**: Set up load balancing for multiple HADES-PathRAG instances
+4. **Load balancing**: Set up load balancing for multiple HADES instances
 
 For more details on these advanced topics, refer to the Docker and ArangoDB documentation.

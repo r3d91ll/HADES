@@ -113,4 +113,4 @@ XnX notation enables several powerful applications in the HADES system:
 
 ## Next Steps
 
-For implementation details, see the [Implementation Guide](./implementation.md), which covers the technical aspects of integrating XnX notation into the HADES-PathRAG system.
+For implementation details, see the [Implementation Guide](./implementation.md), which covers the technical aspects of integrating XnX notation into the HADES system.

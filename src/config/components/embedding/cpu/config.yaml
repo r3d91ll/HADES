@@ -1,0 +1,23 @@
+# CPU embedding configuration
+# Optimized for resource-constrained environments
+
+version: 1
+
+# CPU-optimized model
+model_name: "all-MiniLM-L6-v2"
+pooling_strategy: "mean"
+device: "cpu"
+max_length: 512
+normalize_embeddings: true
+batch_size: 32
+
+# CPU-specific optimizations
+use_model_engine: false
+force_cpu: true
+low_memory_mode: true
+
+# Fallback models in order of preference
+model_fallbacks:
+  - "all-MiniLM-L6-v2"
+  - "sentence-transformers/all-mpnet-base-v2"
+  - "sentence-transformers/paraphrase-MiniLM-L6-v2"

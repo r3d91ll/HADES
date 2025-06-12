@@ -17,7 +17,7 @@ from datetime import datetime
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.isne.bootstrap import ISNEBootstrapper
+from src.orchestration.pipelines.bootstrap.modular_pipeline import run_modular_bootstrap
 from src.config.config_loader import load_config
 
 
@@ -62,7 +62,7 @@ def load_bootstrap_config(config_file: str = None):
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description="Run HADES-PathRAG ISNE bootstrap with configuration"
+        description="Run HADES ISNE bootstrap with configuration"
     )
     
     # Input/Output arguments
@@ -258,7 +258,7 @@ def main():
         
         # Report results
         print("\n" + "="*50)
-        print("HADES-PathRAG ISNE Bootstrap Results")
+        print("HADES ISNE Bootstrap Results")
         print("="*50)
         
         corpus_stats = results['corpus_stats']

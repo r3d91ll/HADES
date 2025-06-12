@@ -1,6 +1,6 @@
 # Device Utilities
 
-This module provides a standardized way to manage CPU/GPU device configuration in the HADES-PathRAG pipeline.
+This module provides a standardized way to manage CPU/GPU device configuration in the HADES pipeline.
 
 ## Overview
 

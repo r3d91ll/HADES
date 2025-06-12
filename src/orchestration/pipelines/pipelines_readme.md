@@ -85,7 +85,7 @@ results = pipeline.train(
 
 ## Integration Points
 
-The pipelines integrate with other HADES-PathRAG components:
+The pipelines integrate with other HADES components:
 
 - **Document Processing**: Uses adapters from `src/docproc`
 - **Chunking**: Leverages chunkers from `src/chunking`

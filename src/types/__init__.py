@@ -1,8 +1,8 @@
 """
-Central type definitions for HADES-PathRAG.
+Central type definitions for HADES.
 
 This module provides foundational type definitions used across
-the HADES-PathRAG codebase to ensure type consistency.
+the HADES codebase to ensure type consistency.
 """
 
 from .common import (
@@ -14,8 +14,18 @@ from .common import (
     DocumentContent,
     StorageConfig,
     EmbeddingConfig,
-    GraphConfig
+    GraphConfig,
+    BaseSchema,
+    DocumentType,
+    RelationType,
+    ProcessingStage,
+    ProcessingStatus,
+    SchemaVersion
 )
+
+# Temporarily disable document imports to fix circular dependency
+# TODO: Fix this after resolving component architecture imports
+# from .components.docproc.document import DocumentSchema, ChunkMetadata
 
 from .vllm_types import (
     VLLMServerConfigType,
@@ -69,6 +79,16 @@ __all__ = [
     "StorageConfig",
     "EmbeddingConfig",
     "GraphConfig",
+    "BaseSchema",
+    "DocumentType",
+    "RelationType", 
+    "ProcessingStage",
+    "ProcessingStatus",
+    "SchemaVersion",
+    
+    # Document types (temporarily disabled)
+    # "DocumentSchema",
+    # "ChunkMetadata",
     
     # vLLM types
     "VLLMServerConfigType",

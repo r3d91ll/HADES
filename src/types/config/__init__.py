@@ -1,8 +1,8 @@
 """
-Configuration type definitions for HADES-PathRAG.
+Configuration type definitions for HADES.
 
 This package contains Pydantic models for configuration structures
-used throughout the HADES-PathRAG system.
+used throughout the HADES system.
 """
 
 from .engine import (

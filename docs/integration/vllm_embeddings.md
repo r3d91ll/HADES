@@ -1,6 +1,6 @@
-# vLLM Integration for HADES-PathRAG
+# vLLM Integration for HADES
 
-This document outlines the integration of vLLM (Very Large Language Model) for accelerated model inference and embedding generation in HADES-PathRAG.
+This document outlines the integration of vLLM (Very Large Language Model) for accelerated model inference and embedding generation in HADES.
 
 ## Overview
 

@@ -1,0 +1,52 @@
+# Haystack model engine configuration
+# Configures Haystack engine for embedding and NLP models
+
+version: 1
+
+# Default Haystack settings
+pipeline_config:
+  max_seq_len: 8192
+  batch_size: 8
+  use_gpu: true
+  num_processes: 1
+
+# Document store settings
+document_store:
+  type: "memory"  # or "elasticsearch", "faiss", etc.
+  embedding_dim: 768
+  similarity: "cosine"
+  
+# Retriever settings
+retriever:
+  type: "embedding"
+  model_format: "sentence_transformers"
+  pooling_strategy: "cls_token"
+  
+# Model configurations
+models:
+  modernbert:
+    model_name_or_path: "answerdotai/ModernBERT-base"
+    max_seq_len: 8192
+    use_gpu: true
+    
+  codebert:
+    model_name_or_path: "microsoft/codebert-base"
+    max_seq_len: 512
+    use_gpu: true
+    
+  chunking_model:
+    model_name_or_path: "mirth/chonky_modernbert_large_1"
+    max_seq_len: 8192
+    use_gpu: true
+
+# Runtime settings
+runtime:
+  embedding:
+    server_port: 8200
+    workers: 2
+    timeout: 30
+    
+  nlp:
+    server_port: 8201
+    workers: 1
+    timeout: 60

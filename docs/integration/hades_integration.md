@@ -1,6 +1,6 @@
 # HADES Integration Guide
 
-This document outlines the recursive integration pattern where HADES-PathRAG is imported into the core HADES system, enabling self-referential knowledge management and retrieval.
+This document outlines the recursive integration pattern where HADES is imported into the core HADES system, enabling self-referential knowledge management and retrieval.
 
 ## Recursive Integration Architecture
 
@@ -10,7 +10,7 @@ This document outlines the recursive integration pattern where HADES-PathRAG is 
 │                                                           │
 │  ┌─────────────────────┐       ┌───────────────────────┐  │
 │  │                     │       │                       │  │
-│  │  Knowledge Engine   │◄─────►│  HADES-PathRAG        │  │
+│  │  Knowledge Engine   │◄─────►│  HADES        │  │
 │  │                     │       │  (Imported Module)    │  │
 │  └─────────┬───────────┘       └───────────┬───────────┘  │
 │            │                               │              │
@@ -40,17 +40,17 @@ This document outlines the recursive integration pattern where HADES-PathRAG is 
 
 ## Integration Steps
 
-### 1. Install HADES-PathRAG as a Module
+### 1. Install HADES as a Module
 
 ```bash
 # From your HADES root directory
-pip install -e /path/to/HADES-PathRAG
+pip install -e /path/to/HADES
 ```
 
 Or add to your requirements.txt:
 
 ```
--e git+https://github.com/yourusername/HADES-PathRAG.git#egg=hades-pathrag
+-e git+https://github.com/yourusername/HADES.git#egg=HADES
 ```
 
 ### 2. Import PathRAG in HADES Core
@@ -188,7 +188,7 @@ async def improve_type_inference():
 ### Monitoring the Integration
 
 ```python
-# Add monitoring to your HADES-PathRAG integration
+# Add monitoring to your HADES integration
 from hades_pathrag.monitoring import PathRAGMonitor
 
 monitor = PathRAGMonitor(

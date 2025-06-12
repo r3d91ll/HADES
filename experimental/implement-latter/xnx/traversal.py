@@ -1,5 +1,5 @@
 """
-XnX Traversal Functions for HADES-PathRAG
+XnX Traversal Functions for HADES
 
 This module provides the implementation of XnX-enhanced graph traversal functions,
 including weight filtering, directional flow, and temporal filtering as described

@@ -9,7 +9,7 @@ import logging
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 
-# Import HADES-PathRAG components
+# Import HADES components
 import logging
 
 # Dynamic imports to handle missing dependencies gracefully
@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 class PathRAGSystem:
     """
-    Core system that handles interactions with the HADES-PathRAG components.
+    Core system that handles interactions with the HADES components.
     
     This class provides a simplified interface for writing data to and querying
     the PathRAG knowledge graph. It orchestrates the pre-processing, embedding,

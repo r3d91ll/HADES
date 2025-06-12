@@ -1,5 +1,5 @@
 """
-Command line interface for running the HADES-PathRAG API server.
+Command line interface for running the HADES API server.
 """
 
 import argparse
@@ -8,6 +8,7 @@ import os
 import sys
 import uvicorn
 from pathlib import Path
+from typing import Any
 
 # Configure logging
 logging.basicConfig(
@@ -17,9 +18,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description="Run the HADES-PathRAG API server")
+    parser = argparse.ArgumentParser(description="Run the HADES API server")
     
     parser.add_argument(
         "--host", 
@@ -57,15 +58,15 @@ def parse_args():
     return parser.parse_args()
 
 
-def main():
-    """Run the HADES-PathRAG API server."""
+def main() -> None:
+    """Run the HADES API server."""
     args = parse_args()
     
     # Set log level
     log_level = getattr(logging, args.log_level.upper())
     logging.getLogger().setLevel(log_level)
     
-    logger.info(f"Starting HADES-PathRAG API server on {args.host}:{args.port}")
+    logger.info(f"Starting HADES API server on {args.host}:{args.port}")
     
     if args.config:
         config_path = Path(args.config)

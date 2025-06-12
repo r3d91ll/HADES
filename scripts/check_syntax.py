@@ -25,7 +25,7 @@ def check_syntax(file_path):
         return False
 
 if __name__ == "__main__":
-    file_path = '/home/todd/ML-Lab/Olympus/HADES-PathRAG/src/database/arango_client.py'
+    file_path = '/home/todd/ML-Lab/Olympus/HADES/src/database/arango_client.py'
     if len(sys.argv) > 1:
         file_path = sys.argv[1]
     

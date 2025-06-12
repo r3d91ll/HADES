@@ -1,0 +1,158 @@
+---
+# Modular Pipeline Configuration Example
+# Demonstrates component selection and configuration
+
+# Pipeline metadata
+pipeline:
+  name: "modular_data_ingestion"
+  version: "2.0.0"
+  description: "Modular data ingestion with configurable components"
+
+# Component selection and configuration
+components:
+  # Document processor component
+  document_processor:
+    implementation: "docling"      # Options: docling, markdown, python, json, yaml
+    fallback: "markdown"           # Fallback if primary fails
+    enabled: true
+    config:
+      extract_tables: true
+      extract_images: false
+      ocr_enabled: true
+      max_file_size_mb: 50
+  
+  # Chunking component  
+  chunker:
+    implementation: "cpu"          # Options: cpu, gpu, chonky, ast
+    fallback: null
+    enabled: true
+    config:
+      strategy: "paragraph"
+      max_chunk_size: 1000
+      min_chunk_size: 50
+      overlap: 100
+      preserve_sentences: true
+  
+  # Embedding component
+  embedder:
+    implementation: "modernbert"   # Options: cpu, vllm, modernbert, ollama
+    fallback: "cpu"
+    enabled: true
+    config:
+      model_name: "answerdotai/ModernBERT-base"
+      dimension: 768
+      batch_size: 32
+      normalize_embeddings: true
+      cache_embeddings: true
+  
+  # Graph enhancement component
+  graph_enhancer:
+    implementation: "isne"         # Options: isne, none, sagegraph
+    fallback: "none"
+    enabled: true
+    config:
+      model_path: "./models/isne_model.pt"
+      output_dim: 64
+      similarity_threshold: 0.3
+      max_neighbors: 10
+  
+  # Storage component
+  storage:
+    implementation: "arangodb"     # Options: arangodb, memory, networkx
+    fallback: "memory"
+    enabled: true
+    config:
+      database_name: "hades_pathrag"
+      mode: "create"
+      batch_size: 100
+      enable_transactions: true
+      create_indices: true
+
+# A/B Testing configurations example
+ab_test_variants:
+  variant_a:
+    embedder:
+      implementation: "modernbert"
+      config:
+        batch_size: 32
+  variant_b:
+    embedder:
+      implementation: "vllm"
+      config:
+        model: "llama-2-7b"
+        batch_size: 16
+
+# Component-specific detailed configurations
+# These are merged with the component configs above
+docproc:
+  processors:
+    pdf:
+      adapter: "docling"
+      extract_tables: true
+    python:
+      adapter: "python_ast"
+      extract_docstrings: true
+    markdown:
+      adapter: "markdown"
+      preserve_structure: true
+
+chunking:
+  strategies:
+    paragraph:
+      max_chunk_size: 1000
+      overlap: 100
+    ast:
+      target_size: 800
+      preserve_structure: true
+
+embedding:
+  model:
+    name: "answerdotai/ModernBERT-base"
+    dimension: 768
+    max_sequence_length: 8192
+  processing:
+    batch_size: 32
+    normalize: true
+
+isne:
+  model:
+    hidden_dim: 128
+    output_dim: 64
+    num_layers: 2
+    dropout: 0.1
+  graph:
+    similarity_threshold: 0.3
+    max_neighbors: 10
+
+storage:
+  database:
+    type: "arangodb"
+    name: "hades_pathrag"
+  connection:
+    host: "localhost"
+    port: 8529
+  collections:
+    documents: "documents"
+    chunks: "chunks"
+    relationships: "chunk_relationships"
+
+# Global settings
+global:
+  batch_size: 100
+  enable_validation: true
+  continue_on_errors: true
+  max_parallel_workers: 4
+
+# Debug and monitoring
+debug:
+  enabled: false
+  save_intermediate: false
+  output_directory: "./debug-output"
+  log_level: "INFO"
+
+monitoring:
+  enable_alerts: true
+  alert_thresholds:
+    error_rate: 0.1
+    processing_time: 3600
+    memory_usage: 0.8

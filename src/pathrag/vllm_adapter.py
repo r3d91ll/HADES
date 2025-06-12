@@ -1,5 +1,5 @@
 """
-vLLM adapter for HADES-PathRAG.
+vLLM adapter for HADES.
 
 This module provides adapter functions for vLLM integration,
 serving as the primary model engine implementation.

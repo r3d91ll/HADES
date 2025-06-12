@@ -1,6 +1,6 @@
 # GitHub Repository Ingestion
 
-This document explains how to use the GitHub repository ingestion functionality in HADES-PathRAG, which allows you to ingest code repositories into the PathRAG database with structured relationship mapping.
+This document explains how to use the GitHub repository ingestion functionality in HADES, which allows you to ingest code repositories into the PathRAG database with structured relationship mapping.
 
 ## Overview
 
@@ -43,7 +43,7 @@ python scripts/ingest_repo.py https://github.com/username/repo-name
 Example with custom options:
 
 ```bash
-python scripts/ingest_repo.py https://github.com/r3d91ll/HADES-PathRAG \
+python scripts/ingest_repo.py https://github.com/r3d91ll/HADES \
   --name custom-repo-name \
   --database pathrag_test \
   --output stats.json
@@ -67,7 +67,7 @@ ingestor = RepositoryIngestor(
 
 # Ingest repository
 success, message, stats = ingestor.ingest_repository(
-    repo_url="https://github.com/r3d91ll/HADES-PathRAG",
+    repo_url="https://github.com/r3d91ll/HADES",
     repo_name="custom-name",  # Optional
     base_dir="/home/todd/ML-Lab"  # Base directory for cloning
 )

@@ -1,0 +1,33 @@
+# Core model engine configuration
+# Defines the base model engine interface and factory settings
+
+version: 1
+
+# Default engine selection
+default_engine: "haystack"
+
+# Engine mapping by model type
+engine_mapping:
+  embedding: "haystack"
+  chunking: "haystack"
+  inference: "vllm"
+  completion: "vllm"
+
+# Common server settings
+server:
+  startup_timeout: 60
+  health_check_interval: 30
+  max_retries: 3
+  graceful_shutdown_timeout: 30
+
+# Engine availability checks
+availability_checks:
+  enabled: true
+  check_interval: 10
+  max_check_retries: 5
+
+# Resource management
+resource_limits:
+  max_concurrent_models: 4
+  memory_threshold: 0.85
+  gpu_memory_threshold: 0.90

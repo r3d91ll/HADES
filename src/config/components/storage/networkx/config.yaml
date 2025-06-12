@@ -1,0 +1,48 @@
+# NetworkX storage configuration
+# For graph operations using NetworkX
+
+version: 1
+
+# NetworkX settings
+backend: "networkx"
+graph_type: "DiGraph"  # DiGraph, Graph, MultiDiGraph, MultiGraph
+
+# Graph properties
+graph:
+  directed: true
+  multigraph: false
+  allow_self_loops: true
+  
+# Node attributes
+nodes:
+  default_attributes:
+    type: "document"
+    created_at: null
+    updated_at: null
+    
+# Edge attributes  
+edges:
+  default_attributes:
+    weight: 1.0
+    relationship_type: "unknown"
+    confidence: 1.0
+    
+# Algorithms
+algorithms:
+  shortest_path: "dijkstra"
+  centrality: "betweenness"
+  clustering: "triangles"
+  
+# Persistence
+persistence:
+  enabled: true
+  format: "graphml"  # graphml, gexf, gml, pickle
+  file_path: "data/graph.graphml"
+  auto_save: true
+  save_interval: 300
+  
+# Performance
+performance:
+  parallel_processing: true
+  chunk_size: 1000
+  memory_limit_mb: 512

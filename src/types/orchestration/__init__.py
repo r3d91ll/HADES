@@ -1,5 +1,5 @@
 """
-Orchestration type definitions for HADES-PathRAG.
+Orchestration type definitions for HADES.
 
 This module provides centralized type definitions for the orchestration system,
 including pipelines, workers, queues, monitors, tasks, and configurations.

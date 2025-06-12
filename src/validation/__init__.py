@@ -1,8 +1,8 @@
 """
-Validation utilities for the HADES-PathRAG system.
+Validation utilities for the HADES system.
 
 This package provides validation tools for ensuring data consistency
-and quality throughout the HADES-PathRAG pipeline.
+and quality throughout the HADES pipeline.
 """
 
 from .embedding_validator import (

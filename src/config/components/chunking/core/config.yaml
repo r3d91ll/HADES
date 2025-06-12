@@ -1,0 +1,29 @@
+# Core chunking configuration
+# Defines the base chunking interface and common settings
+
+version: 1
+
+# Default chunking settings
+defaults:
+  max_tokens: 2048
+  min_tokens: 64
+  overlap_tokens: 200
+  batch_size: 8
+
+# Chunker mapping - maps content types to chunker implementations
+chunker_mapping:
+  python: 'code'
+  javascript: 'code'
+  java: 'code'
+  cpp: 'code'
+  markdown: 'text'
+  text: 'text'
+  html: 'text'
+  pdf: 'text'
+  default: 'text'  # Fallback chunker for unknown file types
+
+# Cache settings
+cache:
+  enabled: true
+  size: 4
+  cache_with_device: true

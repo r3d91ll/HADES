@@ -1,6 +1,6 @@
 # Enhanced End-to-End Test Script Guide
 
-The `enhanced_end_to_end_test.py` script provides comprehensive testing of the HADES-PathRAG pipeline with multi-format support, debug mode, and specialized Python code processing.
+The `enhanced_end_to_end_test.py` script provides comprehensive testing of the HADES pipeline with multi-format support, debug mode, and specialized Python code processing.
 
 ## Key Features
 
@@ -123,4 +123,4 @@ Each stage produces debug files with detailed information:
 - `symbol_table_enhanced_graphs`: Enhanced graph construction using code symbols
 - `code_structure_weights`: Weight relationships based on code structure
 
-This enhanced script provides a comprehensive testing and debugging framework for the HADES-PathRAG pipeline, with specialized support for Python code analysis through AST processing.
+This enhanced script provides a comprehensive testing and debugging framework for the HADES pipeline, with specialized support for Python code analysis through AST processing.

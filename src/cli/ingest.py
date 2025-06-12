@@ -1,8 +1,8 @@
 """
-Documentation ingestion CLI for HADES-PathRAG.
+Documentation ingestion CLI for HADES.
 
 This module provides command-line interfaces for ingesting documentation
-and other content into HADES-PathRAG knowledge graph.
+and other content into HADES knowledge graph.
 """
 
 import os
@@ -14,7 +14,7 @@ from typing import Dict, List, Any, Optional, cast
 import json
 from datetime import datetime
 
-from src.pipelines.ingest.orchestrator.ingestor import RepositoryIngestor
+from src.orchestration.pipelines.ingest.orchestrator.ingestor import RepositoryIngestor
 from src.storage.arango.connection import ArangoConnection
 from src.types.common import StorageConfig, PreProcessorConfig
 from src.storage.arango.repository import ArangoRepository
@@ -106,7 +106,7 @@ def ingest_documentation(docs_dir: Path, dataset_name: Optional[str] = None,
     config = create_documentation_config(db_name=db_name)
     
     # Convert configurations to expected format for RepositoryIngestor
-    from src.pipelines.ingest.orchestrator.config import IngestionConfig
+    from src.orchestation.pipelines.ingest.orchestrator.config import IngestionConfig
     
     # Create IngestionConfig object from our configuration dictionary
     ingest_config = IngestionConfig()
@@ -173,7 +173,7 @@ def ingest_documentation(docs_dir: Path, dataset_name: Optional[str] = None,
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Ingest documentation into HADES-PathRAG")
+    parser = argparse.ArgumentParser(description="Ingest documentation into HADES")
     parser.add_argument("--docs-dir", type=str, required=True, help="Directory containing documentation files")
     parser.add_argument("--dataset-name", type=str, help="Optional name for the dataset")
     parser.add_argument("--db-name", type=str, default="pathrag_docs", help="Name of the ArangoDB database to use")

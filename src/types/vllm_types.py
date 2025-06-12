@@ -1,5 +1,5 @@
 """
-Type definitions for vLLM integration in HADES-PathRAG.
+Type definitions for vLLM integration in HADES.
 
 This module provides type annotations specific to the vLLM integration
 to ensure consistency and improve type safety.

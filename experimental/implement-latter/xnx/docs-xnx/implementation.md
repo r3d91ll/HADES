@@ -1,6 +1,6 @@
 # XnX Notation: Implementation Guide
 
-This document provides technical implementation details for integrating XnX notation into the HADES-PathRAG system.
+This document provides technical implementation details for integrating XnX notation into the HADES system.
 
 ## Architecture Overview
 
@@ -37,7 +37,7 @@ The XnX-enhanced PathRAG implementation consists of the following components:
 The XnX implementation is organized across several key files:
 
 ```
-/home/todd/ML-Lab/HADES-PathRAG/
+/home/todd/ML-Lab/HADES/
 ├── src/
 │   ├── xnx/
 │   │   ├── __init__.py

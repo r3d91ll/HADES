@@ -3,7 +3,7 @@
 Validate Configuration Files
 
 This script validates that all configuration files are properly set up
-and accessible for the HADES-PathRAG pipeline system.
+and accessible for the HADES pipeline system.
 """
 
 import sys
@@ -230,7 +230,7 @@ def main():
     logger = logging.getLogger(__name__)
     
     print("="*60)
-    print("HADES-PathRAG Configuration Validation")
+    print("HADES Configuration Validation")
     print("="*60)
     
     validation_success = True

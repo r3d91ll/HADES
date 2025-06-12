@@ -1,5 +1,5 @@
 """
-Pydantic models for the HADES-PathRAG API.
+Pydantic models for the HADES API.
 
 NOTE: All API models have been migrated to src/types/api/.
 Import directly from src.types.api instead of this module.

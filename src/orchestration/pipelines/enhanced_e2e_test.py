@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Enhanced end-to-end test of the HADES-PathRAG pipeline with multi-format support and debug mode.
+Enhanced end-to-end test of the HADES pipeline with multi-format support and debug mode.
 
 This script demonstrates the complete workflow from multi-format document processing 
 to ISNE enhancement with comprehensive debugging, validation, and alerts.
@@ -520,7 +520,7 @@ def run_enhanced_pipeline(args: argparse.Namespace) -> int:
 def main() -> int:
     """Main entry point for the enhanced end-to-end test script."""
     parser = argparse.ArgumentParser(
-        description="Enhanced end-to-end HADES-PathRAG pipeline test with multi-format support and debug mode",
+        description="Enhanced end-to-end HADES pipeline test with multi-format support and debug mode",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__
     )

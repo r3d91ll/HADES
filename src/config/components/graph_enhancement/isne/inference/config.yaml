@@ -1,0 +1,43 @@
+# ISNE inference configuration
+# Settings for using trained ISNE models for retrieval
+
+version: 1
+
+# Model loading
+model:
+  checkpoint_path: "models/isne/best_model.pt"
+  device: "cuda:0"
+  half_precision: true
+  
+# Inference settings
+inference:
+  batch_size: 64
+  max_sequence_length: 8192
+  use_cache: true
+  cache_size: 1000
+  
+# Retrieval settings
+retrieval:
+  top_k: 10
+  similarity_metric: "cosine"
+  rerank: true
+  rerank_top_k: 50
+  
+# Graph traversal
+graph_traversal:
+  max_hops: 3
+  decay_factor: 0.8
+  min_score: 0.1
+  
+# Performance optimization
+optimization:
+  enable_jit: true
+  use_fast_attention: true
+  memory_efficient: true
+  
+# Output formatting
+output:
+  include_scores: true
+  include_paths: true
+  include_metadata: true
+  max_results: 100

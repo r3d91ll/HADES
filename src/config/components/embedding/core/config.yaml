@@ -1,0 +1,32 @@
+# Core embedding configuration
+# Defines the base embedding interface and adapter selection
+
+version: 1
+
+# Default adapter to use for general content
+default_adapter: "modernbert"
+
+# Adapter selection based on content type
+content_type_mapping:
+  code: "codebert"
+  python: "python_code_bert"
+  text: "modernbert"
+  markdown: "modernbert"
+  pdf: "modernbert"
+  default: "modernbert"
+
+# Base configurations shared across adapters
+defaults:
+  max_length: 8192
+  pooling_strategy: "cls"
+  normalize_embeddings: true
+  batch_size: 8
+  device: "cpu"
+  
+# Model engine settings
+engine:
+  use_model_engine: true
+  engine_type: "haystack"
+  early_availability_check: true
+  auto_start_engine: true
+  max_startup_retries: 3
