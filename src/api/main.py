@@ -179,6 +179,10 @@ async def run_pipeline() -> Dict[str, str]:
     """Execute full RAG pipeline - placeholder endpoint."""
     return {"status": "not_implemented", "message": "Pipeline execution endpoint coming soon"}
 
+# Import and include pipeline routes
+from .pipelines import router as pipelines_router
+api_v1.include_router(pipelines_router)
+
 # Mount API v1 routes
 app.mount("/api/v1", api_v1)
 

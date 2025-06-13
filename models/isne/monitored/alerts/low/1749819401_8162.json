@@ -1,0 +1,12 @@
+{
+  "id": "1749819401_8162",
+  "message": "Monitored ISNE bootstrap pipeline started",
+  "level": "LOW",
+  "source": "pipeline_initialization",
+  "context": {
+    "input_files": 4,
+    "output_dir": "models/isne/monitored",
+    "timestamp": "20250613_075641"
+  },
+  "timestamp": 1749819401.8293145
+}

@@ -8,8 +8,9 @@ and other CPU-optimized models.
 
 import logging
 import numpy as np
+import psutil
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Import component contracts and protocols
 from src.types.components.contracts import (
@@ -70,6 +71,22 @@ class CPUEmbedder(Embedder):
         
         # Model engine will be initialized on demand
         self._model_engine_type = self._config.get('model_engine_type', 'haystack')
+        
+        # Monitoring integration - standardized stats tracking
+        self._startup_time = datetime.now(timezone.utc)
+        self._stats = {
+            "total_embeddings_created": 0,
+            "successful_embeddings": 0,
+            "failed_embeddings": 0,
+            "total_processing_time": 0.0,
+            "total_characters_processed": 0,
+            "total_tokens_processed": 0,
+            "last_processing_time": None,
+            "initialization_count": 1,
+            "errors": [],
+            "model_loads": 0,
+            "embedding_method_counts": {}  # Track usage of different embedding methods
+        }
         
         self.logger.info(f"Initialized CPU embedder with model: {self._model_name}")
     
@@ -297,9 +314,24 @@ class CPUEmbedder(Embedder):
             # Calculate processing time
             processing_time = (datetime.utcnow() - start_time).total_seconds()
             
-            # Update statistics
+            # Update statistics - both old and new tracking
             self._total_embeddings_created += len(embeddings)
             self._total_processing_time += processing_time
+            
+            # Update standardized stats
+            total_chars = sum(len(chunk.content) for chunk in input_data.chunks)
+            total_tokens = self.estimate_tokens(input_data)
+            
+            self._stats["total_embeddings_created"] += len(embeddings)
+            self._stats["successful_embeddings"] += 1
+            self._stats["total_processing_time"] += processing_time
+            self._stats["total_characters_processed"] += total_chars
+            self._stats["total_tokens_processed"] += total_tokens
+            self._stats["last_processing_time"] = datetime.now(timezone.utc).isoformat()
+            
+            # Track embedding method used
+            method_used = "model_engine" if hasattr(self._model, 'embed_texts') else "fallback"
+            self._stats["embedding_method_counts"][method_used] = self._stats["embedding_method_counts"].get(method_used, 0) + 1
             
             # Update metadata
             metadata = ComponentMetadata(
@@ -337,6 +369,18 @@ class CPUEmbedder(Embedder):
             error_msg = f"CPU embedding failed: {str(e)}"
             errors.append(error_msg)
             self.logger.error(error_msg)
+            
+            # Update error stats
+            self._stats["failed_embeddings"] += 1
+            error_entry = {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "error": error_msg
+            }
+            self._stats["errors"].append(error_entry)
+            
+            # Keep only last 50 errors to prevent memory bloat
+            if len(self._stats["errors"]) > 50:
+                self._stats["errors"] = self._stats["errors"][-50:]
             
             metadata = ComponentMetadata(
                 component_type=self.component_type,
@@ -469,6 +513,150 @@ class CPUEmbedder(Embedder):
             # Fallback estimate
             return len(input_data.chunks) * 0.1
     
+    def get_infrastructure_metrics(self) -> Dict[str, Any]:
+        """
+        Get infrastructure metrics for monitoring.
+        
+        Returns:
+            Dictionary containing infrastructure metrics
+        """
+        process = psutil.Process()
+        memory_info = process.memory_info()
+        
+        return {
+            "component_name": self.name,
+            "component_version": self.version,
+            "model_name": self._model_name,
+            "model_loaded": self._model_loaded,
+            "model_engine_type": self._model_engine_type,
+            "batch_size": self._batch_size,
+            "max_length": self._max_length,
+            "pooling_strategy": self._pooling_strategy,
+            "normalize_embeddings": self._normalize_embeddings,
+            "memory_usage": {
+                "rss_mb": memory_info.rss / 1024 / 1024,
+                "vms_mb": memory_info.vms / 1024 / 1024
+            },
+            "startup_time": self._startup_time.isoformat(),
+            "uptime_seconds": (datetime.now(timezone.utc) - self._startup_time).total_seconds()
+        }
+    
+    def get_performance_metrics(self) -> Dict[str, Any]:
+        """
+        Get performance metrics for monitoring.
+        
+        Returns:
+            Dictionary containing performance metrics
+        """
+        total_operations = self._stats["successful_embeddings"] + self._stats["failed_embeddings"]
+        success_rate = (self._stats["successful_embeddings"] / max(total_operations, 1)) * 100
+        
+        avg_processing_time = (
+            self._stats["total_processing_time"] / max(self._stats["successful_embeddings"], 1)
+        )
+        
+        uptime_seconds = (datetime.now(timezone.utc) - self._startup_time).total_seconds()
+        embeddings_per_second = self._stats["total_embeddings_created"] / max(uptime_seconds, 1)
+        
+        return {
+            "component_name": self.name,
+            "total_embeddings_created": self._stats["total_embeddings_created"],
+            "successful_operations": self._stats["successful_embeddings"],
+            "failed_operations": self._stats["failed_embeddings"],
+            "success_rate_percent": success_rate,
+            "embeddings_per_second": embeddings_per_second,
+            "average_processing_time": avg_processing_time,
+            "total_processing_time": self._stats["total_processing_time"],
+            "total_characters_processed": self._stats["total_characters_processed"],
+            "total_tokens_processed": self._stats["total_tokens_processed"],
+            "avg_chars_per_embedding": self._stats["total_characters_processed"] / max(self._stats["total_embeddings_created"], 1),
+            "avg_tokens_per_embedding": self._stats["total_tokens_processed"] / max(self._stats["total_embeddings_created"], 1),
+            "last_processing_time": self._stats["last_processing_time"],
+            "initialization_count": self._stats["initialization_count"],
+            "model_loads": self._stats["model_loads"],
+            "embedding_method_distribution": self._stats["embedding_method_counts"],
+            "recent_errors": self._stats["errors"][-10:] if self._stats["errors"] else [],
+            "error_count": len(self._stats["errors"]),
+            "uptime_seconds": uptime_seconds
+        }
+    
+    def export_metrics_prometheus(self) -> str:
+        """
+        Export metrics in Prometheus format.
+        
+        Returns:
+            String containing Prometheus metrics
+        """
+        infra_metrics = self.get_infrastructure_metrics()
+        perf_metrics = self.get_performance_metrics()
+        
+        lines = [
+            "# HELP hades_embedding_cpu_info Component information",
+            "# TYPE hades_embedding_cpu_info gauge",
+            f'hades_embedding_cpu_info{{component="{infra_metrics["component_name"]}",version="{infra_metrics["component_version"]}",model="{infra_metrics["model_name"]}",engine="{infra_metrics["model_engine_type"]}"}} 1',
+            "",
+            "# HELP hades_embedding_cpu_uptime_seconds Component uptime in seconds",
+            "# TYPE hades_embedding_cpu_uptime_seconds gauge",
+            f'hades_embedding_cpu_uptime_seconds{{component="{infra_metrics["component_name"]}"}} {infra_metrics["uptime_seconds"]:.2f}',
+            "",
+            "# HELP hades_embedding_cpu_memory_rss_bytes Resident Set Size memory usage",
+            "# TYPE hades_embedding_cpu_memory_rss_bytes gauge",
+            f'hades_embedding_cpu_memory_rss_bytes{{component="{infra_metrics["component_name"]}"}} {infra_metrics["memory_usage"]["rss_mb"] * 1024 * 1024:.0f}',
+            "",
+            "# HELP hades_embedding_cpu_memory_vms_bytes Virtual Memory Size",
+            "# TYPE hades_embedding_cpu_memory_vms_bytes gauge",
+            f'hades_embedding_cpu_memory_vms_bytes{{component="{infra_metrics["component_name"]}"}} {infra_metrics["memory_usage"]["vms_mb"] * 1024 * 1024:.0f}',
+            "",
+            "# HELP hades_embedding_cpu_embeddings_created_total Total number of embeddings created",
+            "# TYPE hades_embedding_cpu_embeddings_created_total counter",
+            f'hades_embedding_cpu_embeddings_created_total{{component="{perf_metrics["component_name"]}"}} {perf_metrics["total_embeddings_created"]}',
+            "",
+            "# HELP hades_embedding_cpu_operations_total Total embedding operations",
+            "# TYPE hades_embedding_cpu_operations_total counter",
+            f'hades_embedding_cpu_operations_total{{component="{perf_metrics["component_name"]}",status="success"}} {perf_metrics["successful_operations"]}',
+            f'hades_embedding_cpu_operations_total{{component="{perf_metrics["component_name"]}",status="failed"}} {perf_metrics["failed_operations"]}',
+            "",
+            "# HELP hades_embedding_cpu_success_rate_percent Success rate percentage",
+            "# TYPE hades_embedding_cpu_success_rate_percent gauge",
+            f'hades_embedding_cpu_success_rate_percent{{component="{perf_metrics["component_name"]}"}} {perf_metrics["success_rate_percent"]:.2f}',
+            "",
+            "# HELP hades_embedding_cpu_processing_time_seconds Total processing time",
+            "# TYPE hades_embedding_cpu_processing_time_seconds counter",
+            f'hades_embedding_cpu_processing_time_seconds{{component="{perf_metrics["component_name"]}"}} {perf_metrics["total_processing_time"]:.6f}',
+            "",
+            "# HELP hades_embedding_cpu_throughput_embeddings_per_second Current throughput",
+            "# TYPE hades_embedding_cpu_throughput_embeddings_per_second gauge",
+            f'hades_embedding_cpu_throughput_embeddings_per_second{{component="{perf_metrics["component_name"]}"}} {perf_metrics["embeddings_per_second"]:.2f}',
+            "",
+            "# HELP hades_embedding_cpu_characters_processed_total Total characters processed",
+            "# TYPE hades_embedding_cpu_characters_processed_total counter",
+            f'hades_embedding_cpu_characters_processed_total{{component="{perf_metrics["component_name"]}"}} {perf_metrics["total_characters_processed"]}',
+            "",
+            "# HELP hades_embedding_cpu_tokens_processed_total Total tokens processed",
+            "# TYPE hades_embedding_cpu_tokens_processed_total counter",
+            f'hades_embedding_cpu_tokens_processed_total{{component="{perf_metrics["component_name"]}"}} {perf_metrics["total_tokens_processed"]}',
+            "",
+            "# HELP hades_embedding_cpu_errors_total Total number of errors",
+            "# TYPE hades_embedding_cpu_errors_total counter",
+            f'hades_embedding_cpu_errors_total{{component="{perf_metrics["component_name"]}"}} {perf_metrics["error_count"]}',
+            "",
+            "# HELP hades_embedding_cpu_model_loads_total Total number of model loads",
+            "# TYPE hades_embedding_cpu_model_loads_total counter",
+            f'hades_embedding_cpu_model_loads_total{{component="{perf_metrics["component_name"]}"}} {perf_metrics["model_loads"]}',
+            ""
+        ]
+        
+        # Add method distribution metrics
+        for method, count in perf_metrics["embedding_method_distribution"].items():
+            lines.extend([
+                "# HELP hades_embedding_cpu_method_usage_total Usage count by embedding method",
+                "# TYPE hades_embedding_cpu_method_usage_total counter",
+                f'hades_embedding_cpu_method_usage_total{{component="{perf_metrics["component_name"]}",method="{method}"}} {count}',
+                ""
+            ])
+        
+        return "\n".join(lines)
+    
     def _initialize_model(self) -> None:
         """Initialize the CPU model engine."""
         try:
@@ -487,16 +675,29 @@ class CPUEmbedder(Embedder):
             
             if self._model:
                 self._model_loaded = True
+                self._stats["model_loads"] += 1
                 self.logger.info("CPU model engine initialized successfully")
             else:
                 self.logger.warning("Failed to create CPU model engine, using fallback")
                 self._model = "basic_fallback"
                 self._model_loaded = True
+                self._stats["model_loads"] += 1
             
         except Exception as e:
             self.logger.error(f"Failed to initialize CPU model engine: {e}")
             self._model = "basic_fallback"
             self._model_loaded = True
+            self._stats["model_loads"] += 1
+            
+            # Track initialization error
+            error_entry = {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "error": f"Model initialization failed: {str(e)}"
+            }
+            self._stats["errors"].append(error_entry)
+            if len(self._stats["errors"]) > 50:
+                self._stats["errors"] = self._stats["errors"][-50:]
+            
             self.logger.info("Using basic fallback embedding implementation")
     
     def _embed_texts(self, texts: List[str]) -> List[List[float]]:

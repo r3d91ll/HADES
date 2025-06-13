@@ -1,0 +1,13 @@
+{
+  "id": "1749819408_6188",
+  "message": "Monitored ISNE bootstrap pipeline completed successfully",
+  "level": "LOW",
+  "source": "pipeline_completion",
+  "context": {
+    "total_duration": 6.10499382019043,
+    "peak_memory_mb": 824.8046875,
+    "model_path": "models/isne/monitored/monitored_isne_model_20250613_075641.pth",
+    "success": true
+  },
+  "timestamp": 1749819408.0459156
+}

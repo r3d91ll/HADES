@@ -7,8 +7,9 @@ model engine (VLLM, Haystack, Ollama, etc.) for embedding models.
 """
 
 import logging
+import psutil
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Import component contracts and protocols
 from src.types.components.contracts import (
@@ -68,6 +69,23 @@ class GPUEmbedder(Embedder):
         # Initialize model engine factory
         # Model engine type will be vllm for GPU by default
         self._model_engine_type = self._config.get('model_engine_type', 'vllm')
+        
+        # Monitoring integration - standardized stats tracking
+        self._startup_time = datetime.now(timezone.utc)
+        self._stats = {
+            "total_embeddings_created": 0,
+            "successful_embeddings": 0,
+            "failed_embeddings": 0,
+            "total_processing_time": 0.0,
+            "total_characters_processed": 0,
+            "total_tokens_processed": 0,
+            "last_processing_time": None,
+            "initialization_count": 1,
+            "errors": [],
+            "engine_loads": 0,
+            "gpu_operations": 0,
+            "embedding_method_counts": {}  # Track usage of different embedding methods
+        }
         
         self.logger.info(f"Initialized GPU embedder with model: {self._model_name}")
     
@@ -200,6 +218,196 @@ class GPUEmbedder(Embedder):
             }
         }
     
+    def get_infrastructure_metrics(self) -> Dict[str, Any]:
+        """
+        Get infrastructure metrics for monitoring.
+        
+        Returns:
+            Dictionary containing infrastructure metrics
+        """
+        process = psutil.Process()
+        memory_info = process.memory_info()
+        
+        # Try to get GPU info if available
+        gpu_info = {}
+        try:
+            import GPUtil
+            gpus = GPUtil.getGPUs()
+            if gpus:
+                gpu = gpus[0]  # Use first GPU for metrics
+                gpu_info = {
+                    "gpu_id": gpu.id,
+                    "gpu_name": gpu.name,
+                    "gpu_memory_used_mb": gpu.memoryUsed,
+                    "gpu_memory_total_mb": gpu.memoryTotal,
+                    "gpu_memory_utilization_percent": (gpu.memoryUsed / gpu.memoryTotal) * 100,
+                    "gpu_utilization_percent": gpu.load * 100
+                }
+        except ImportError:
+            gpu_info = {"gpu_monitoring": "GPUtil not available"}
+        except Exception as e:
+            gpu_info = {"gpu_monitoring_error": str(e)}
+        
+        base_metrics = {
+            "component_name": self.name,
+            "component_version": self.version,
+            "model_name": self._model_name,
+            "engine_loaded": self._engine_loaded,
+            "model_engine_type": self._model_engine_type,
+            "batch_size": self._batch_size,
+            "max_length": self._max_length,
+            "normalize_embeddings": self._normalize_embeddings,
+            "memory_usage": {
+                "rss_mb": memory_info.rss / 1024 / 1024,
+                "vms_mb": memory_info.vms / 1024 / 1024
+            },
+            "startup_time": self._startup_time.isoformat(),
+            "uptime_seconds": (datetime.now(timezone.utc) - self._startup_time).total_seconds()
+        }
+        
+        # Merge GPU info
+        base_metrics.update(gpu_info)
+        return base_metrics
+    
+    def get_performance_metrics(self) -> Dict[str, Any]:
+        """
+        Get performance metrics for monitoring.
+        
+        Returns:
+            Dictionary containing performance metrics
+        """
+        total_operations = self._stats["successful_embeddings"] + self._stats["failed_embeddings"]
+        success_rate = (self._stats["successful_embeddings"] / max(total_operations, 1)) * 100
+        
+        avg_processing_time = (
+            self._stats["total_processing_time"] / max(self._stats["successful_embeddings"], 1)
+        )
+        
+        uptime_seconds = (datetime.now(timezone.utc) - self._startup_time).total_seconds()
+        embeddings_per_second = self._stats["total_embeddings_created"] / max(uptime_seconds, 1)
+        
+        return {
+            "component_name": self.name,
+            "total_embeddings_created": self._stats["total_embeddings_created"],
+            "successful_operations": self._stats["successful_embeddings"],
+            "failed_operations": self._stats["failed_embeddings"],
+            "gpu_operations": self._stats["gpu_operations"],
+            "success_rate_percent": success_rate,
+            "embeddings_per_second": embeddings_per_second,
+            "average_processing_time": avg_processing_time,
+            "total_processing_time": self._stats["total_processing_time"],
+            "total_characters_processed": self._stats["total_characters_processed"],
+            "total_tokens_processed": self._stats["total_tokens_processed"],
+            "avg_chars_per_embedding": self._stats["total_characters_processed"] / max(self._stats["total_embeddings_created"], 1),
+            "avg_tokens_per_embedding": self._stats["total_tokens_processed"] / max(self._stats["total_embeddings_created"], 1),
+            "last_processing_time": self._stats["last_processing_time"],
+            "initialization_count": self._stats["initialization_count"],
+            "engine_loads": self._stats["engine_loads"],
+            "embedding_method_distribution": self._stats["embedding_method_counts"],
+            "recent_errors": self._stats["errors"][-10:] if self._stats["errors"] else [],
+            "error_count": len(self._stats["errors"]),
+            "uptime_seconds": uptime_seconds
+        }
+    
+    def export_metrics_prometheus(self) -> str:
+        """
+        Export metrics in Prometheus format.
+        
+        Returns:
+            String containing Prometheus metrics
+        """
+        infra_metrics = self.get_infrastructure_metrics()
+        perf_metrics = self.get_performance_metrics()
+        
+        lines = [
+            "# HELP hades_embedding_gpu_info Component information",
+            "# TYPE hades_embedding_gpu_info gauge",
+            f'hades_embedding_gpu_info{{component="{infra_metrics["component_name"]}",version="{infra_metrics["component_version"]}",model="{infra_metrics["model_name"]}",engine="{infra_metrics["model_engine_type"]}"}} 1',
+            "",
+            "# HELP hades_embedding_gpu_uptime_seconds Component uptime in seconds",
+            "# TYPE hades_embedding_gpu_uptime_seconds gauge",
+            f'hades_embedding_gpu_uptime_seconds{{component="{infra_metrics["component_name"]}"}} {infra_metrics["uptime_seconds"]:.2f}',
+            "",
+            "# HELP hades_embedding_gpu_memory_rss_bytes Resident Set Size memory usage",
+            "# TYPE hades_embedding_gpu_memory_rss_bytes gauge",
+            f'hades_embedding_gpu_memory_rss_bytes{{component="{infra_metrics["component_name"]}"}} {infra_metrics["memory_usage"]["rss_mb"] * 1024 * 1024:.0f}',
+            "",
+            "# HELP hades_embedding_gpu_memory_vms_bytes Virtual Memory Size",
+            "# TYPE hades_embedding_gpu_memory_vms_bytes gauge",
+            f'hades_embedding_gpu_memory_vms_bytes{{component="{infra_metrics["component_name"]}"}} {infra_metrics["memory_usage"]["vms_mb"] * 1024 * 1024:.0f}',
+            "",
+            "# HELP hades_embedding_gpu_embeddings_created_total Total number of embeddings created",
+            "# TYPE hades_embedding_gpu_embeddings_created_total counter",
+            f'hades_embedding_gpu_embeddings_created_total{{component="{perf_metrics["component_name"]}"}} {perf_metrics["total_embeddings_created"]}',
+            "",
+            "# HELP hades_embedding_gpu_operations_total Total embedding operations",
+            "# TYPE hades_embedding_gpu_operations_total counter",
+            f'hades_embedding_gpu_operations_total{{component="{perf_metrics["component_name"]}",status="success"}} {perf_metrics["successful_operations"]}',
+            f'hades_embedding_gpu_operations_total{{component="{perf_metrics["component_name"]}",status="failed"}} {perf_metrics["failed_operations"]}',
+            f'hades_embedding_gpu_operations_total{{component="{perf_metrics["component_name"]}",status="gpu"}} {perf_metrics["gpu_operations"]}',
+            "",
+            "# HELP hades_embedding_gpu_success_rate_percent Success rate percentage",
+            "# TYPE hades_embedding_gpu_success_rate_percent gauge",
+            f'hades_embedding_gpu_success_rate_percent{{component="{perf_metrics["component_name"]}"}} {perf_metrics["success_rate_percent"]:.2f}',
+            "",
+            "# HELP hades_embedding_gpu_processing_time_seconds Total processing time",
+            "# TYPE hades_embedding_gpu_processing_time_seconds counter",
+            f'hades_embedding_gpu_processing_time_seconds{{component="{perf_metrics["component_name"]}"}} {perf_metrics["total_processing_time"]:.6f}',
+            "",
+            "# HELP hades_embedding_gpu_throughput_embeddings_per_second Current throughput",
+            "# TYPE hades_embedding_gpu_throughput_embeddings_per_second gauge",
+            f'hades_embedding_gpu_throughput_embeddings_per_second{{component="{perf_metrics["component_name"]}"}} {perf_metrics["embeddings_per_second"]:.2f}',
+            "",
+            "# HELP hades_embedding_gpu_characters_processed_total Total characters processed",
+            "# TYPE hades_embedding_gpu_characters_processed_total counter",
+            f'hades_embedding_gpu_characters_processed_total{{component="{perf_metrics["component_name"]}"}} {perf_metrics["total_characters_processed"]}',
+            "",
+            "# HELP hades_embedding_gpu_tokens_processed_total Total tokens processed",
+            "# TYPE hades_embedding_gpu_tokens_processed_total counter",
+            f'hades_embedding_gpu_tokens_processed_total{{component="{perf_metrics["component_name"]}"}} {perf_metrics["total_tokens_processed"]}',
+            "",
+            "# HELP hades_embedding_gpu_errors_total Total number of errors",
+            "# TYPE hades_embedding_gpu_errors_total counter",
+            f'hades_embedding_gpu_errors_total{{component="{perf_metrics["component_name"]}"}} {perf_metrics["error_count"]}',
+            "",
+            "# HELP hades_embedding_gpu_engine_loads_total Total number of model engine loads",
+            "# TYPE hades_embedding_gpu_engine_loads_total counter",
+            f'hades_embedding_gpu_engine_loads_total{{component="{perf_metrics["component_name"]}"}} {perf_metrics["engine_loads"]}',
+            ""
+        ]
+        
+        # Add GPU-specific metrics if available
+        if "gpu_memory_used_mb" in infra_metrics:
+            lines.extend([
+                "# HELP hades_embedding_gpu_vram_used_bytes GPU VRAM used in bytes",
+                "# TYPE hades_embedding_gpu_vram_used_bytes gauge",
+                f'hades_embedding_gpu_vram_used_bytes{{component="{infra_metrics["component_name"]}",gpu_id="{infra_metrics.get("gpu_id", "0")}"}} {infra_metrics["gpu_memory_used_mb"] * 1024 * 1024:.0f}',
+                "",
+                "# HELP hades_embedding_gpu_vram_total_bytes GPU VRAM total in bytes",
+                "# TYPE hades_embedding_gpu_vram_total_bytes gauge",
+                f'hades_embedding_gpu_vram_total_bytes{{component="{infra_metrics["component_name"]}",gpu_id="{infra_metrics.get("gpu_id", "0")}"}} {infra_metrics["gpu_memory_total_mb"] * 1024 * 1024:.0f}',
+                "",
+                "# HELP hades_embedding_gpu_utilization_percent GPU utilization percentage",
+                "# TYPE hades_embedding_gpu_utilization_percent gauge",
+                f'hades_embedding_gpu_utilization_percent{{component="{infra_metrics["component_name"]}",gpu_id="{infra_metrics.get("gpu_id", "0")}"}} {infra_metrics["gpu_utilization_percent"]:.2f}',
+                "",
+                "# HELP hades_embedding_gpu_memory_utilization_percent GPU memory utilization percentage",
+                "# TYPE hades_embedding_gpu_memory_utilization_percent gauge",
+                f'hades_embedding_gpu_memory_utilization_percent{{component="{infra_metrics["component_name"]}",gpu_id="{infra_metrics.get("gpu_id", "0")}"}} {infra_metrics["gpu_memory_utilization_percent"]:.2f}',
+                ""
+            ])
+        
+        # Add method distribution metrics
+        for method, count in perf_metrics["embedding_method_distribution"].items():
+            lines.extend([
+                "# HELP hades_embedding_gpu_method_usage_total Usage count by embedding method",
+                "# TYPE hades_embedding_gpu_method_usage_total counter",
+                f'hades_embedding_gpu_method_usage_total{{component="{perf_metrics["component_name"]}",method="{method}"}} {count}',
+                ""
+            ])
+        
+        return "\n".join(lines)
+    
     def health_check(self) -> bool:
         """
         Check if component is healthy and ready to process data.
@@ -307,9 +515,29 @@ class GPUEmbedder(Embedder):
             # Calculate processing time
             processing_time = (datetime.utcnow() - start_time).total_seconds()
             
-            # Update statistics
+            # Update statistics - both old and new tracking
             self._total_embeddings_created += len(embeddings)
             self._total_processing_time += processing_time
+            
+            # Update standardized stats
+            total_chars = sum(len(chunk.content) for chunk in input_data.chunks)
+            total_tokens = self.estimate_tokens(input_data)
+            
+            self._stats["total_embeddings_created"] += len(embeddings)
+            self._stats["successful_embeddings"] += 1
+            self._stats["total_processing_time"] += processing_time
+            self._stats["total_characters_processed"] += total_chars
+            self._stats["total_tokens_processed"] += total_tokens
+            self._stats["last_processing_time"] = datetime.now(timezone.utc).isoformat()
+            
+            # Track embedding method used
+            if self._engine_loaded:
+                self._stats["gpu_operations"] += 1
+                method_used = "gpu_engine"
+            else:
+                method_used = "fallback"
+            
+            self._stats["embedding_method_counts"][method_used] = self._stats["embedding_method_counts"].get(method_used, 0) + 1
             
             # Update metadata
             metadata = ComponentMetadata(
@@ -347,6 +575,18 @@ class GPUEmbedder(Embedder):
             error_msg = f"GPU embedding failed: {str(e)}"
             errors.append(error_msg)
             self.logger.error(error_msg)
+            
+            # Update error stats
+            self._stats["failed_embeddings"] += 1
+            error_entry = {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "error": error_msg
+            }
+            self._stats["errors"].append(error_entry)
+            
+            # Keep only last 50 errors to prevent memory bloat
+            if len(self._stats["errors"]) > 50:
+                self._stats["errors"] = self._stats["errors"][-50:]
             
             metadata = ComponentMetadata(
                 component_type=self.component_type,
@@ -499,15 +739,27 @@ class GPUEmbedder(Embedder):
             
             if self._model_engine:
                 self._engine_loaded = True
+                self._stats["engine_loads"] += 1
                 self.logger.info("GPU model engine initialized successfully")
             else:
                 self.logger.warning("Failed to create GPU model engine")
                 self._engine_loaded = False
+                self._stats["engine_loads"] += 1
             
         except Exception as e:
             self.logger.error(f"Failed to initialize GPU model engine: {e}")
             self._model_engine = None
             self._engine_loaded = False
+            self._stats["engine_loads"] += 1
+            
+            # Track initialization error
+            error_entry = {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "error": f"Model engine initialization failed: {str(e)}"
+            }
+            self._stats["errors"].append(error_entry)
+            if len(self._stats["errors"]) > 50:
+                self._stats["errors"] = self._stats["errors"][-50:]
     
     def _embed_texts_gpu(self, texts: List[str]) -> List[List[float]]:
         """Generate embeddings using GPU model engine."""
