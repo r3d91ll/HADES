@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Literal, Optional, Set, TypedDict, Union
 
 # RelationshipType is now available via RelationType from src.types.common
 # Import it instead of defining a separate enum
-from ..common import RelationType as RelationshipType
+from ...common import RelationType as RelationshipType
 
 
 class ImportSourceType(str, enum.Enum):

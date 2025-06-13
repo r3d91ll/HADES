@@ -13,8 +13,7 @@ from typing import Optional, List, Dict, Any, Union, Literal, Set, cast, Callabl
 from pydantic import Field, field_validator, model_validator, ConfigDict
 
 # Import centralized types
-from src.schemas.common.base import BaseSchema
-from src.types.common import MetadataDict
+from src.types.common import BaseSchema, MetadataDict
 from src.types.components.docproc.enums import RelationshipType, AccessLevel
 
 # Import document types

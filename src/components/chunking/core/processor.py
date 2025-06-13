@@ -7,8 +7,10 @@ chunking strategies in the new component architecture.
 """
 
 import logging
+import psutil
+import time
 from typing import Dict, Any, List, Optional, Union
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Import component contracts and protocols
 from src.types.components.contracts import (
@@ -26,6 +28,7 @@ from ..chunkers.cpu.processor import CPUChunker
 from ..chunkers.chonky.processor import ChonkyChunker
 from ..chunkers.code.processor import CodeChunker
 from ..chunkers.text.processor import TextChunker
+from ..chunkers.ast.processor import ASTAwareCodeChunker
 
 
 class CoreChunker(Chunker):
@@ -62,11 +65,26 @@ class CoreChunker(Chunker):
             'cpu': CPUChunker,
             'chonky': ChonkyChunker,
             'code': CodeChunker,
-            'text': TextChunker
+            'text': TextChunker,
+            'ast': ASTAwareCodeChunker
         }
         
         # Cache for chunker instances
         self._chunker_cache: Dict[str, Chunker] = {}
+        
+        # Monitoring and metrics tracking
+        self._stats = {
+            "total_chunks_created": 0,
+            "successful_operations": 0,
+            "failed_operations": 0,
+            "total_processing_time": 0.0,
+            "delegated_operations": 0,
+            "last_processing_time": None,
+            "initialization_count": 1,
+            "errors": [],
+            "chunker_usage": {}  # Track usage of different chunker types
+        }
+        self._startup_time = datetime.now(timezone.utc)
         
         self.logger.info(f"Initialized core chunker with default chunker: {self._default_chunker_type}")
     
@@ -100,7 +118,7 @@ class CoreChunker(Chunker):
         
         self._config.update(config)
         self._metadata.config = self._config
-        self._metadata.processed_at = datetime.utcnow()
+        self._metadata.processed_at = datetime.now(timezone.utc)
         
         # Update default chunker if specified
         if 'default_chunker' in config:
@@ -179,21 +197,150 @@ class CoreChunker(Chunker):
             self.logger.error(f"Health check failed: {e}")
             return False
     
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_infrastructure_metrics(self) -> Dict[str, Any]:
         """
-        Get component performance metrics.
+        Get infrastructure and resource inventory metrics.
+        
+        Returns:
+            Dictionary containing infrastructure metrics
+        """
+        try:
+            # Get memory usage
+            process = psutil.Process()
+            memory_info = process.memory_info()
+            
+            return {
+                "component_name": self.name,
+                "component_version": self.version,
+                "default_chunker": self._default_chunker_type,
+                "available_chunkers": list(self._chunker_types.keys()),
+                "cached_chunkers": list(self._chunker_cache.keys()),
+                "memory_usage": {
+                    "rss_mb": round(memory_info.rss / 1024 / 1024, 2),
+                    "vms_mb": round(memory_info.vms / 1024 / 1024, 2)
+                },
+                "startup_time": self._startup_time.isoformat(),
+                "uptime_seconds": (datetime.now(timezone.utc) - self._startup_time).total_seconds()
+            }
+        except Exception as e:
+            self.logger.error(f"Failed to get infrastructure metrics: {e}")
+            return {"error": str(e)}
+    
+    def get_performance_metrics(self) -> Dict[str, Any]:
+        """
+        Get runtime performance statistics.
         
         Returns:
             Dictionary containing performance metrics
         """
+        try:
+            current_time = datetime.now(timezone.utc)
+            uptime = (current_time - self._startup_time).total_seconds()
+            
+            # Calculate rates
+            operations_per_second = self._stats["successful_operations"] / max(uptime, 1.0)
+            avg_processing_time = (
+                self._stats["total_processing_time"] / max(self._stats["successful_operations"], 1)
+            )
+            success_rate = (
+                self._stats["successful_operations"] / max(self._stats["successful_operations"] + self._stats["failed_operations"], 1) * 100
+            )
+            
+            return {
+                "component_name": self.name,
+                "total_chunks_created": self._stats["total_chunks_created"],
+                "successful_operations": self._stats["successful_operations"],
+                "failed_operations": self._stats["failed_operations"],
+                "delegated_operations": self._stats["delegated_operations"],
+                "success_rate_percent": round(success_rate, 2),
+                "operations_per_second": round(operations_per_second, 3),
+                "average_processing_time": round(avg_processing_time, 3),
+                "total_processing_time": round(self._stats["total_processing_time"], 3),
+                "last_processing_time": self._stats["last_processing_time"],
+                "initialization_count": self._stats["initialization_count"],
+                "chunker_usage_distribution": self._stats["chunker_usage"],
+                "recent_errors": self._stats["errors"][-5:],  # Last 5 errors
+                "error_count": len(self._stats["errors"]),
+                "uptime_seconds": round(uptime, 2)
+            }
+        except Exception as e:
+            self.logger.error(f"Failed to get performance metrics: {e}")
+            return {"error": str(e)}
+
+    def get_metrics(self) -> Dict[str, Any]:
+        """
+        Get component performance metrics (legacy method for compatibility).
+        
+        Returns:
+            Dictionary containing performance metrics
+        """
+        # Combine infrastructure and performance metrics for compatibility
+        infra_metrics = self.get_infrastructure_metrics()
+        perf_metrics = self.get_performance_metrics()
+        
         return {
-            "component_name": self.name,
-            "component_version": self.version,
-            "default_chunker": self._default_chunker_type,
-            "available_chunkers": list(self._chunker_types.keys()),
-            "cached_chunkers": list(self._chunker_cache.keys()),
-            "last_health_check": datetime.utcnow().isoformat()
+            **infra_metrics,
+            **perf_metrics,
+            "last_health_check": datetime.now(timezone.utc).isoformat()
         }
+    
+    def export_metrics_prometheus(self) -> str:
+        """
+        Export metrics in Prometheus format.
+        
+        Returns:
+            Prometheus-compatible metrics string
+        """
+        try:
+            infra_metrics = self.get_infrastructure_metrics()
+            perf_metrics = self.get_performance_metrics()
+            
+            metrics_lines = []
+            
+            # Infrastructure metrics
+            metrics_lines.append(f"# HELP hades_component_uptime_seconds Component uptime in seconds")
+            metrics_lines.append(f"# TYPE hades_component_uptime_seconds gauge")
+            metrics_lines.append(f'hades_component_uptime_seconds{{component="core_chunker"}} {infra_metrics.get("uptime_seconds", 0)}')
+            
+            metrics_lines.append(f"# HELP hades_component_memory_rss_mb Memory RSS usage in MB")
+            metrics_lines.append(f"# TYPE hades_component_memory_rss_mb gauge")
+            memory_rss = infra_metrics.get("memory_usage", {}).get("rss_mb", 0)
+            metrics_lines.append(f'hades_component_memory_rss_mb{{component="core_chunker"}} {memory_rss}')
+            
+            # Performance metrics
+            metrics_lines.append(f"# HELP hades_component_operations_total Total number of operations")
+            metrics_lines.append(f"# TYPE hades_component_operations_total counter")
+            metrics_lines.append(f'hades_component_operations_total{{component="core_chunker"}} {perf_metrics.get("successful_operations", 0)}')
+            
+            metrics_lines.append(f"# HELP hades_component_operations_failed_total Total number of failed operations")
+            metrics_lines.append(f"# TYPE hades_component_operations_failed_total counter")
+            metrics_lines.append(f'hades_component_operations_failed_total{{component="core_chunker"}} {perf_metrics.get("failed_operations", 0)}')
+            
+            metrics_lines.append(f"# HELP hades_component_chunks_total Total number of chunks created")
+            metrics_lines.append(f"# TYPE hades_component_chunks_total counter")
+            metrics_lines.append(f'hades_component_chunks_total{{component="core_chunker"}} {perf_metrics.get("total_chunks_created", 0)}')
+            
+            metrics_lines.append(f"# HELP hades_component_success_rate_percent Success rate percentage")
+            metrics_lines.append(f"# TYPE hades_component_success_rate_percent gauge")
+            metrics_lines.append(f'hades_component_success_rate_percent{{component="core_chunker"}} {perf_metrics.get("success_rate_percent", 0)}')
+            
+            metrics_lines.append(f"# HELP hades_component_operations_per_second Operations processed per second")
+            metrics_lines.append(f"# TYPE hades_component_operations_per_second gauge")
+            metrics_lines.append(f'hades_component_operations_per_second{{component="core_chunker"}} {perf_metrics.get("operations_per_second", 0)}')
+            
+            # Chunker usage distribution metrics
+            usage_distribution = perf_metrics.get("chunker_usage_distribution", {})
+            if usage_distribution:
+                metrics_lines.append(f"# HELP hades_component_chunker_usage Number of operations by chunker type")
+                metrics_lines.append(f"# TYPE hades_component_chunker_usage counter")
+                for chunker_type, count in usage_distribution.items():
+                    metrics_lines.append(f'hades_component_chunker_usage{{component="core_chunker",chunker_type="{chunker_type}"}} {count}')
+            
+            return "\n".join(metrics_lines) + "\n"
+            
+        except Exception as e:
+            self.logger.error(f"Failed to export Prometheus metrics: {e}")
+            return f"# Error exporting metrics: {str(e)}\n"
     
     def chunk(self, input_data: ChunkingInput) -> ChunkingOutput:
         """
@@ -206,7 +353,10 @@ class CoreChunker(Chunker):
             Output data conforming to ChunkingOutput contract
         """
         try:
-            start_time = datetime.utcnow()
+            start_time = datetime.now(timezone.utc)
+            
+            # Update request statistics
+            self._stats["last_processing_time"] = start_time.isoformat()
             
             # Get chunker type from options or use default
             chunker_type = input_data.processing_options.get('chunker_type', self._default_chunker_type)
@@ -219,10 +369,20 @@ class CoreChunker(Chunker):
             # Delegate to specific chunker
             result = chunker.chunk(input_data)
             
+            # Calculate processing time and update statistics
+            processing_time = (datetime.now(timezone.utc) - start_time).total_seconds()
+            self._stats["successful_operations"] += 1
+            self._stats["delegated_operations"] += 1
+            self._stats["total_processing_time"] += processing_time
+            self._stats["total_chunks_created"] += len(result.chunks)
+            
+            # Track chunker usage
+            self._stats["chunker_usage"][chunker_type] = self._stats["chunker_usage"].get(chunker_type, 0) + 1
+            
             # Update result metadata to indicate core orchestration
             result.metadata.component_name = "core"
             result.processing_stats["delegated_to"] = chunker_type
-            result.processing_stats["core_processing_time"] = (datetime.utcnow() - start_time).total_seconds()
+            result.processing_stats["core_processing_time"] = processing_time
             
             return result
             
@@ -230,11 +390,15 @@ class CoreChunker(Chunker):
             error_msg = f"Core chunking failed: {str(e)}"
             self.logger.error(error_msg)
             
+            # Track error statistics
+            self._stats["failed_operations"] += 1
+            self._track_error(error_msg)
+            
             metadata = ComponentMetadata(
                 component_type=self.component_type,
                 component_name=self.name,
                 component_version=self.version,
-                processed_at=datetime.utcnow(),
+                processed_at=datetime.now(timezone.utc),
                 config=self._config,
                 status=ProcessingStatus.ERROR
             )
@@ -345,3 +509,14 @@ class CoreChunker(Chunker):
         except Exception as e:
             self.logger.error(f"Could not create chunker {chunker_type}: {e}")
             return None
+    
+    def _track_error(self, error_msg: str) -> None:
+        """Track an error in statistics."""
+        self._stats["errors"].append({
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "error": error_msg
+        })
+        
+        # Keep only last 50 errors to prevent memory growth
+        if len(self._stats["errors"]) > 50:
+            self._stats["errors"] = self._stats["errors"][-50:]
