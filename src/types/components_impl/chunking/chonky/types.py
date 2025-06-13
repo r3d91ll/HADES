@@ -40,7 +40,7 @@ class ChonkyChunkingConfig(BaseHADESModel):
     pin_memory: bool = Field(default=True, description="Pin memory for faster GPU transfer")
     
     @validator('device')
-    def validate_device(cls, v):
+    def validate_device(cls, v: str) -> str:
         if v not in ['cuda', 'cpu', 'auto']:
             raise ValueError("Device must be 'cuda', 'cpu', or 'auto'")
         return v

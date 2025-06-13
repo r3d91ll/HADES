@@ -12,6 +12,7 @@ import json
 import argparse
 from pathlib import Path
 from datetime import datetime
+from typing import Any, Dict, Optional, List
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
@@ -21,11 +22,11 @@ from src.isne.bootstrap import ISNEBootstrapper
 from src.config.config_loader import load_config
 
 
-def setup_logging(log_level: str = "INFO", log_file: str = None):
+def setup_logging(log_level: str = "INFO", log_file: Optional[str] = None) -> None:
     """Set up logging configuration."""
     numeric_level = getattr(logging, log_level.upper(), logging.INFO)
     
-    handlers = [logging.StreamHandler()]
+    handlers: List[logging.Handler] = [logging.StreamHandler()]
     if log_file:
         handlers.append(logging.FileHandler(log_file))
     
@@ -36,7 +37,7 @@ def setup_logging(log_level: str = "INFO", log_file: str = None):
     )
 
 
-def load_bootstrap_config(config_file: str = None):
+def load_bootstrap_config(config_file: Optional[str] = None) -> Dict[str, Any]:
     """Load bootstrap configuration from file or default."""
     try:
         if config_file:
@@ -45,7 +46,7 @@ def load_bootstrap_config(config_file: str = None):
             logger.info(f"Loading custom config from: {config_file}")
             with open(config_file) as f:
                 custom_config = json.load(f)
-            return custom_config
+            return dict(custom_config) if isinstance(custom_config, dict) else {}
         else:
             # Load default bootstrap config
             bootstrap_config = load_config('bootstrap_config')
@@ -59,7 +60,7 @@ def load_bootstrap_config(config_file: str = None):
         raise
 
 
-def main():
+def main() -> int:
     """Main entry point."""
     parser = argparse.ArgumentParser(
         description="Run HADES ISNE bootstrap with configuration"
@@ -192,7 +193,7 @@ def main():
                 logger.info("Applying configuration overrides")
                 
                 # Deep merge override config
-                def deep_merge(base, override):
+                def deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> None:
                     for key, value in override.items():
                         if key in base and isinstance(base[key], dict) and isinstance(value, dict):
                             deep_merge(base[key], value)

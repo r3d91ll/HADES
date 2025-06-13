@@ -69,7 +69,7 @@ class IngestDocument:
     id: str  # Unique identifier
     content: str  # Document content
     source: str  # Source path or identifier
-    document_type: str = "text"  # Document type (see DocumentType)
+    document_type: Union[str, DocumentType] = "text"  # Document type (see DocumentType)
     metadata: Dict[str, Any] = field(default_factory=dict)  # Additional metadata
     embedding: Optional[EmbeddingVector] = None  # Original embedding
     enhanced_embedding: Optional[EmbeddingVector] = None  # ISNE-enhanced embedding
@@ -84,7 +84,8 @@ class IngestDocument:
         # Validate document type
         try:
             # Try to convert to DocumentType enum
-            self.document_type = DocumentType(self.document_type)
+            if isinstance(self.document_type, str):
+                self.document_type = DocumentType(self.document_type)
         except ValueError:
             # If invalid, set to UNKNOWN
             self.document_type = DocumentType.UNKNOWN

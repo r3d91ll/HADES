@@ -38,7 +38,7 @@ class VLLMServerManager:
         # Register cleanup on exit
         atexit.register(self.stop_server)
         
-    async def ensure_server_running(self, model_alias: str, mode: ModelMode = "inference") -> bool:
+    async def ensure_server_running(self, model_alias: str, mode: ModelMode = ModelMode.INFERENCE) -> bool:
         """Ensure a vLLM server is running for the specified model.
         
         Args:
@@ -93,7 +93,7 @@ class VLLMServerManager:
             
             # Different model, stop current server
             logger.info(f"Stopping current server with model {self.current_model_id}")
-            self.stop_server()
+            await self.stop_server()
             
         logger.info(f"Starting vLLM server with model {model_id}")
         
@@ -142,7 +142,7 @@ class VLLMServerManager:
                 
             # If we got here, server didn't start in time
             logger.error("vLLM server failed to start in time")
-            self.stop_server()
+            await self.stop_server()
             return False
             
         except Exception as e:
@@ -217,7 +217,7 @@ class VLLMServerManager:
                 "model": "",
             }
     
-    def get_model_info(self, model_alias: str, mode: ModelMode = "inference") -> Dict[str, Any]:
+    def get_model_info(self, model_alias: str, mode: ModelMode = ModelMode.INFERENCE) -> Dict[str, Any]:
         """Get model information for a given alias.
         
         Args:

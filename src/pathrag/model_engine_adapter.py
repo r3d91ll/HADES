@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 async def model_complete(
     prompt: str, 
     model_alias: Optional[str] = None, 
-    **kwargs
+    **kwargs: Any
 ) -> str:
     """
     Complete a prompt with the specified model.
@@ -70,13 +70,14 @@ async def model_complete(
     completion_params.update(kwargs)
     
     # Use the adapter to complete the prompt
-    return await adapter.complete_async(prompt, **completion_params)
+    result = await adapter.complete_async(prompt, **completion_params)
+    return str(result)
 
 
 async def chat_complete(
     messages: List[Dict[str, str]], 
     model_alias: Optional[str] = None, 
-    **kwargs
+    **kwargs: Any
 ) -> Dict[str, Any]:
     """
     Chat completion with the specified model.
@@ -123,13 +124,16 @@ async def chat_complete(
     chat_params.update(kwargs)
     
     # Use the adapter to complete the chat
-    return await adapter.chat_complete_async(messages, **chat_params)
+    result = await adapter.chat_complete_async(messages, **chat_params)
+    if isinstance(result, dict):
+        return result
+    return {"error": "Invalid response type", "result": str(result)}
 
 
 async def embed(
     texts: List[str], 
     model_alias: Optional[str] = None, 
-    **kwargs
+    **kwargs: Any
 ) -> List[List[float]]:
     """
     Generate embeddings for texts.
@@ -168,4 +172,8 @@ async def embed(
     )
     
     # Generate embeddings
-    return adapter.get_embeddings(texts)
+    result = adapter.get_embeddings(texts)
+    if isinstance(result, list) and all(isinstance(emb, list) for emb in result):
+        return result
+    # Fallback conversion
+    return [[float(x) for x in emb] if hasattr(emb, '__iter__') else [float(emb)] for emb in result]

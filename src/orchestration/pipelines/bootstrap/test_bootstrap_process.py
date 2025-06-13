@@ -29,7 +29,7 @@ def setup_logging() -> None:
         ]
     )
 
-def main() -> None:
+def main() -> bool:
     """Run bootstrap test on small corpus."""
     setup_logging()
     logger = logging.getLogger(__name__)
