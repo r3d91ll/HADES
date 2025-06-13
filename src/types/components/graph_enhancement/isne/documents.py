@@ -122,16 +122,18 @@ class IngestDocument:
     def from_dict(cls, data: IngestDocumentDict) -> "IngestDocument":
         """Create from TypedDict format."""
         created_at = None
-        if data.get("created_at"):
-            created_at = datetime.fromisoformat(data["created_at"])
+        created_at_str = data.get("created_at")
+        if created_at_str is not None:
+            created_at = datetime.fromisoformat(created_at_str)
         
         processed_at = None
-        if data.get("processed_at"):
-            processed_at = datetime.fromisoformat(data["processed_at"])
+        processed_at_str = data.get("processed_at")
+        if processed_at_str is not None:
+            processed_at = datetime.fromisoformat(processed_at_str)
         
         return cls(
             id=data["id"],
-            content=data.get("content", ""),
+            content=data.get("content") or "",
             source=data.get("source", ""),
             document_type=data.get("document_type", "text"),
             metadata=data.get("metadata", {}),
@@ -188,8 +190,9 @@ class DocumentRelation:
     def from_dict(cls, data: DocumentRelationDict) -> "DocumentRelation":
         """Create from TypedDict format."""
         created_at = None
-        if data.get("created_at"):
-            created_at = datetime.fromisoformat(data["created_at"])
+        created_at_str = data.get("created_at")
+        if created_at_str is not None:
+            created_at = datetime.fromisoformat(created_at_str)
         
         relation_type = RelationType(data.get("relation_type", "generic"))
         

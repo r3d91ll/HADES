@@ -18,7 +18,7 @@ sys.path.insert(0, str(project_root))
 from src.isne.bootstrap import ISNEBootstrapper
 from src.config.config_loader import load_config
 
-def setup_logging():
+def setup_logging() -> None:
     """Set up logging for bootstrap test."""
     logging.basicConfig(
         level=logging.INFO,
@@ -29,7 +29,7 @@ def setup_logging():
         ]
     )
 
-def main():
+def main() -> None:
     """Run bootstrap test on small corpus."""
     setup_logging()
     logger = logging.getLogger(__name__)

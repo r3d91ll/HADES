@@ -318,6 +318,32 @@ class Embedder(BaseComponent, Protocol):
             Estimated processing time in seconds
         """
         ...
+    
+    @abstractmethod
+    def estimate_tokens(self, input_data: EmbeddingInput) -> int:
+        """
+        Estimate number of tokens that will be processed.
+
+        Args:
+            input_data: Input data to estimate for
+            
+        Returns:
+            Estimated number of tokens
+        """
+        ...
+    
+    @abstractmethod
+    def supports_model(self, model_name: str) -> bool:
+        """
+        Check if embedder supports the given model.
+
+        Args:
+            model_name: Model name to check
+            
+        Returns:
+            True if model is supported, False otherwise
+        """
+        ...
 
 # ===== Graph Enhancement Protocol =====
 

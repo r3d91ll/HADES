@@ -6,4 +6,4 @@ Types specifically for GPU-accelerated "chonky" chunking component implementatio
 
 from .types import *
 
-__all__ = []  # Will be populated as types are added
+__all__: list[str] = []  # Will be populated as types are added

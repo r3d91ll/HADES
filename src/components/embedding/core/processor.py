@@ -10,6 +10,7 @@ import logging
 import psutil
 from typing import Dict, Any, List, Optional, Union
 from datetime import datetime, timezone
+from dataclasses import dataclass, field
 
 # Import component contracts and protocols
 from src.types.components.contracts import (
@@ -26,6 +27,21 @@ from src.types.components.protocols import Embedder
 from ..cpu.processor import CPUEmbedder
 from ..gpu.processor import GPUEmbedder
 from ..encoder.processor import EncoderEmbedder
+
+
+@dataclass
+class EmbeddingStats:
+    """Typed statistics for embedding operations."""
+    total_operations: int = 0
+    successful_operations: int = 0
+    failed_operations: int = 0
+    delegated_operations: int = 0
+    total_processing_time: float = 0.0
+    total_embeddings_created: int = 0
+    last_processing_time: Optional[float] = None
+    initialization_count: int = 1
+    errors: List[Dict[str, Any]] = field(default_factory=list)
+    embedder_usage_counts: Dict[str, int] = field(default_factory=dict)
 
 
 class CoreEmbedder(Embedder):
@@ -69,18 +85,7 @@ class CoreEmbedder(Embedder):
         
         # Monitoring integration - standardized stats tracking
         self._startup_time = datetime.now(timezone.utc)
-        self._stats = {
-            "total_operations": 0,
-            "successful_operations": 0,
-            "failed_operations": 0,
-            "delegated_operations": 0,
-            "total_processing_time": 0.0,
-            "total_embeddings_created": 0,
-            "last_processing_time": None,
-            "initialization_count": 1,
-            "errors": [],
-            "embedder_usage_counts": {}  # Track usage of different embedder types
-        }
+        self._stats = EmbeddingStats()
         
         self.logger.info(f"Initialized core embedder with default embedder: {self._default_embedder_type}")
     
@@ -272,15 +277,15 @@ class CoreEmbedder(Embedder):
             result.embedding_stats["delegated_to"] = embedder_type
             
             # Update stats
-            self._stats["total_operations"] += 1
-            self._stats["successful_operations"] += 1
-            self._stats["delegated_operations"] += 1
-            self._stats["total_processing_time"] += core_processing_time
-            self._stats["total_embeddings_created"] += len(result.embeddings)
-            self._stats["last_processing_time"] = datetime.now(timezone.utc).isoformat()
+            self._stats.total_operations += 1
+            self._stats.successful_operations += 1
+            self._stats.delegated_operations += 1
+            self._stats.total_processing_time += core_processing_time
+            self._stats.total_embeddings_created += len(result.embeddings)
+            self._stats.last_processing_time = core_processing_time
             
             # Track embedder usage
-            self._stats["embedder_usage_counts"][embedder_type] = self._stats["embedder_usage_counts"].get(embedder_type, 0) + 1
+            self._stats.embedder_usage_counts[embedder_type] = self._stats.embedder_usage_counts.get(embedder_type, 0) + 1
             
             return result
             
@@ -289,17 +294,17 @@ class CoreEmbedder(Embedder):
             self.logger.error(error_msg)
             
             # Update error stats
-            self._stats["total_operations"] += 1
-            self._stats["failed_operations"] += 1
+            self._stats.total_operations += 1
+            self._stats.failed_operations += 1
             error_entry = {
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "error": error_msg
             }
-            self._stats["errors"].append(error_entry)
+            self._stats.errors.append(error_entry)
             
             # Keep only last 50 errors to prevent memory bloat
-            if len(self._stats["errors"]) > 50:
-                self._stats["errors"] = self._stats["errors"][-50:]
+            if len(self._stats.errors) > 50:
+                self._stats.errors = self._stats.errors[-50:]
             
             metadata = ComponentMetadata(
                 component_type=self.component_type,
@@ -498,11 +503,11 @@ class CoreEmbedder(Embedder):
         Returns:
             Dictionary containing performance metrics
         """
-        total_operations = self._stats["successful_operations"] + self._stats["failed_operations"]
-        success_rate = (self._stats["successful_operations"] / max(total_operations, 1)) * 100
+        total_operations = self._stats.successful_operations + self._stats.failed_operations
+        success_rate = (self._stats.successful_operations / max(total_operations, 1)) * 100
         
         avg_processing_time = (
-            self._stats["total_processing_time"] / max(self._stats["successful_operations"], 1)
+            self._stats.total_processing_time / max(self._stats.successful_operations, 1)
         )
         
         uptime_seconds = (datetime.now(timezone.utc) - self._startup_time).total_seconds()
@@ -510,19 +515,19 @@ class CoreEmbedder(Embedder):
         
         return {
             "component_name": self.name,
-            "total_embeddings_created": self._stats["total_embeddings_created"],
-            "successful_operations": self._stats["successful_operations"],
-            "failed_operations": self._stats["failed_operations"],
-            "delegated_operations": self._stats["delegated_operations"],
+            "total_embeddings_created": self._stats.total_embeddings_created,
+            "successful_operations": self._stats.successful_operations,
+            "failed_operations": self._stats.failed_operations,
+            "delegated_operations": self._stats.delegated_operations,
             "success_rate_percent": success_rate,
             "operations_per_second": operations_per_second,
             "average_processing_time": avg_processing_time,
-            "total_processing_time": self._stats["total_processing_time"],
-            "last_processing_time": self._stats["last_processing_time"],
-            "initialization_count": self._stats["initialization_count"],
-            "embedder_usage_distribution": self._stats["embedder_usage_counts"],
-            "recent_errors": self._stats["errors"][-10:] if self._stats["errors"] else [],
-            "error_count": len(self._stats["errors"]),
+            "total_processing_time": self._stats.total_processing_time,
+            "last_processing_time": self._stats.last_processing_time,
+            "initialization_count": self._stats.initialization_count,
+            "embedder_usage_distribution": self._stats.embedder_usage_counts,
+            "recent_errors": self._stats.errors[-10:] if self._stats.errors else [],
+            "error_count": len(self._stats.errors),
             "uptime_seconds": uptime_seconds
         }
     
@@ -632,8 +637,8 @@ class CoreEmbedder(Embedder):
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "error": f"Failed to create embedder {embedder_type}: {str(e)}"
             }
-            self._stats["errors"].append(error_entry)
-            if len(self._stats["errors"]) > 50:
-                self._stats["errors"] = self._stats["errors"][-50:]
+            self._stats.errors.append(error_entry)
+            if len(self._stats.errors) > 50:
+                self._stats.errors = self._stats.errors[-50:]
             
             return None
