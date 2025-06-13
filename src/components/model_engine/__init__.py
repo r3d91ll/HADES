@@ -6,12 +6,9 @@ Each implementation follows the ModelEngine protocol and provides
 swappable model serving capabilities.
 
 Available Implementations:
-- vllm: vLLM-based model serving
-- haystack: Haystack-based model serving  
-- core: Core model engine functionality
+- haystack: Haystack-based model serving (primary implementation)
 
 Example:
-    from src.components.model_engine.engines.vllm.processor import VLLMModelEngine
     from src.components.model_engine.engines.haystack.processor import HaystackModelEngine
 """
 
@@ -39,20 +36,8 @@ def list_model_engines() -> list[str]:
 def _auto_register() -> None:
     """Auto-register all model engine implementations."""
     try:
-        from .engines.vllm.processor import VLLMModelEngine
-        register_model_engine("vllm", VLLMModelEngine)
-    except ImportError:
-        pass
-    
-    try:
         from .engines.haystack.processor import HaystackModelEngine  
         register_model_engine("haystack", HaystackModelEngine)
-    except ImportError:
-        pass
-        
-    try:
-        from .core.processor import CoreModelEngine
-        register_model_engine("core", CoreModelEngine)
     except ImportError:
         pass
 

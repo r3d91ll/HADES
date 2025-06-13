@@ -160,3 +160,4 @@ htmlcov/
 minimal-test/*
 test-simple/*
 test-simple
+test-out/
