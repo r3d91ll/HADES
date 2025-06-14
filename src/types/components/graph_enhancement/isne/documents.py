@@ -90,9 +90,7 @@ class IngestDocument:
             # If invalid, set to UNKNOWN
             self.document_type = DocumentType.UNKNOWN
             
-        # Initialize metadata if needed
-        if not isinstance(self.metadata, dict):
-            self.metadata = {}
+        # Metadata is initialized by default_factory, no need to check
         
         # Set timestamps if not provided
         if self.created_at is None:

@@ -117,7 +117,7 @@ class ISNETrainingEnhancer(GraphEnhancer):
         
         self.logger.info("Updated ISNE training configuration")
     
-    def validate_config(self, config: Dict[str, Any]) -> bool:
+    def validate_config(self, config: Any) -> bool:
         """
         Validate configuration parameters.
         
@@ -629,3 +629,123 @@ class ISNETrainingEnhancer(GraphEnhancer):
             
         except Exception:
             return 0.0
+    
+    def save_model(self, path: str) -> None:
+        """
+        Save trained model to disk.
+        
+        Args:
+            path: Path to save model
+        """
+        try:
+            import json
+            
+            save_data = {
+                "component_type": "isne_training",
+                "component_name": self.name,
+                "component_version": self.version,
+                "config": self._config,
+                "training_config": self._training_config,
+                "model_config": self._model_config,
+                "is_trained": self._is_trained,
+                "training_history": self._training_history,
+                "saved_at": datetime.utcnow().isoformat()
+            }
+            
+            # Include model parameters if available
+            if self._model_parameters:
+                # Convert numpy arrays to lists for JSON serialization
+                serializable_params = {}
+                for key, value in self._model_parameters.items():
+                    if hasattr(value, 'tolist'):
+                        serializable_params[key] = value.tolist()
+                    else:
+                        serializable_params[key] = value
+                save_data["model_parameters"] = serializable_params
+            
+            with open(path, 'w') as f:
+                json.dump(save_data, f, indent=2)
+            
+            self.logger.info(f"ISNE training model saved to {path}")
+            
+        except Exception as e:
+            error_msg = f"Failed to save model: {str(e)}"
+            self.logger.error(error_msg)
+            raise IOError(error_msg) from e
+    
+    def load_model(self, path: str) -> None:
+        """
+        Load trained model from disk.
+        
+        Args:
+            path: Path to load model from
+        """
+        try:
+            import json
+            
+            with open(path, 'r') as f:
+                save_data = json.load(f)
+            
+            # Update configuration
+            if 'config' in save_data:
+                self._config.update(save_data['config'])
+                self.configure(self._config)
+            
+            # Restore training state
+            self._is_trained = save_data.get('is_trained', False)
+            self._training_history = save_data.get('training_history', [])
+            
+            # Restore model parameters if available
+            if 'model_parameters' in save_data:
+                import numpy as np
+                self._model_parameters = {}
+                for key, value in save_data['model_parameters'].items():
+                    self._model_parameters[key] = np.array(value)
+            
+            self.logger.info(f"ISNE training model loaded from {path}")
+            
+        except Exception as e:
+            error_msg = f"Failed to load model: {str(e)}"
+            self.logger.error(error_msg)
+            raise IOError(error_msg) from e
+    
+    def get_model_info(self) -> Dict[str, Any]:
+        """
+        Get information about the current model.
+        
+        Returns:
+            Dictionary containing model metadata
+        """
+        info = {
+            "model_type": "isne_training",
+            "component_name": self.name,
+            "component_version": self.version,
+            "is_trained": self._is_trained,
+            "training_epochs": len(self._training_history),
+            "dependencies_available": self._dependencies_available,
+            "training_config": self._training_config,
+            "model_config": self._model_config,
+            "total_enhancements": self._total_enhancements,
+            "avg_processing_time": (
+                self._total_processing_time / max(self._total_enhancements, 1)
+            )
+        }
+        
+        # Add training metrics if available
+        if self._training_history:
+            last_epoch = self._training_history[-1]
+            info["last_training_loss"] = last_epoch.get("loss", 0.0)
+            info["last_training_timestamp"] = last_epoch.get("timestamp")
+            info["total_training_epochs"] = last_epoch.get("epochs", 0)
+        
+        if self._model_parameters:
+            info["model_parameters_available"] = True
+            info["parameter_keys"] = list(self._model_parameters.keys())
+        else:
+            info["model_parameters_available"] = False
+        
+        return info
+    
+    def supports_incremental_training(self) -> bool:
+        """Check if the model supports incremental training."""
+        return True  # Training component supports incremental learning

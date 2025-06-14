@@ -73,7 +73,7 @@ class CoreChunker(Chunker):
         self._chunker_cache: Dict[str, Chunker] = {}
         
         # Monitoring and metrics tracking
-        self._stats = {
+        self._stats: Dict[str, Any] = {
             "total_chunks_created": 0,
             "successful_operations": 0,
             "failed_operations": 0,
@@ -129,7 +129,7 @@ class CoreChunker(Chunker):
         
         self.logger.info(f"Updated core chunker configuration")
     
-    def validate_config(self, config: Dict[str, Any]) -> bool:
+    def validate_config(self, config: Any) -> bool:
         """
         Validate configuration parameters.
         
@@ -255,17 +255,27 @@ class CoreChunker(Chunker):
                 "success_rate_percent": round(success_rate, 2),
                 "operations_per_second": round(operations_per_second, 3),
                 "average_processing_time": round(avg_processing_time, 3),
-                "total_processing_time": round(self._stats["total_processing_time"], 3),
+                "total_processing_time": round(
+                    self._get_safe_float_value("total_processing_time", 0.0), 3
+                ),
                 "last_processing_time": self._stats["last_processing_time"],
                 "initialization_count": self._stats["initialization_count"],
                 "chunker_usage_distribution": self._stats["chunker_usage"],
-                "recent_errors": self._stats["errors"][-5:],  # Last 5 errors
-                "error_count": len(self._stats["errors"]),
+                "recent_errors": self._get_recent_errors(5),  # Last 5 errors
+                "error_count": self._get_error_count(),
                 "uptime_seconds": round(uptime, 2)
             }
         except Exception as e:
             self.logger.error(f"Failed to get performance metrics: {e}")
             return {"error": str(e)}
+
+    def _get_safe_float_value(self, key: str, default: float) -> float:
+        """Safely get a float value from stats with type checking."""
+        value = self._stats.get(key, default)
+        if isinstance(value, (int, float)):
+            return float(value)
+        else:
+            return default
 
     def get_metrics(self) -> Dict[str, Any]:
         """
@@ -377,7 +387,10 @@ class CoreChunker(Chunker):
             self._stats["total_chunks_created"] += len(result.chunks)
             
             # Track chunker usage
-            self._stats["chunker_usage"][chunker_type] = self._stats["chunker_usage"].get(chunker_type, 0) + 1
+            chunker_usage = self._stats.get("chunker_usage", {})
+            if isinstance(chunker_usage, dict):
+                chunker_usage[chunker_type] = chunker_usage.get(chunker_type, 0) + 1
+                self._stats["chunker_usage"] = chunker_usage
             
             # Update result metadata to indicate core orchestration
             result.metadata.component_name = "core"
@@ -512,11 +525,33 @@ class CoreChunker(Chunker):
     
     def _track_error(self, error_msg: str) -> None:
         """Track an error in statistics."""
-        self._stats["errors"].append({
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "error": error_msg
-        })
-        
-        # Keep only last 50 errors to prevent memory growth
-        if len(self._stats["errors"]) > 50:
-            self._stats["errors"] = self._stats["errors"][-50:]
+        errors_list = self._stats.get("errors", [])
+        if isinstance(errors_list, list):
+            errors_list.append({
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "error": error_msg
+            })
+            
+            # Keep only last 50 errors to prevent memory growth
+            if len(errors_list) > 50:
+                errors_list = errors_list[-50:]
+            
+            self._stats["errors"] = errors_list
+    
+    def _get_recent_errors(self, count: int = 5) -> List[Any]:
+        """Get recent errors with proper type checking."""
+        errors_list = self._stats.get("errors", [])
+        if isinstance(errors_list, list) and len(errors_list) >= count:
+            return errors_list[-count:]
+        elif isinstance(errors_list, list):
+            return errors_list
+        else:
+            return []
+    
+    def _get_error_count(self) -> int:
+        """Get error count with proper type checking."""
+        errors_list = self._stats.get("errors", [])
+        if isinstance(errors_list, list):
+            return len(errors_list)
+        else:
+            return 0

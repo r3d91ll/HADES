@@ -129,7 +129,7 @@ class PydanticValidator(SchemaValidator):
         
         self.logger.info(f"Updated Pydantic validator configuration")
     
-    def validate_config(self, config: Dict[str, Any]) -> bool:
+    def validate_config(self, config: Any) -> bool:
         """
         Validate configuration parameters.
         
@@ -347,7 +347,7 @@ class PydanticValidator(SchemaValidator):
             "class_name": schema_class.__name__,
             "module": schema_class.__module__,
             "schema": schema_class.schema(),
-            "fields": list(schema_class.__fields__.keys())
+            "fields": list(getattr(schema_class, '__fields__', {}).keys())
         }
     
     def validate_with_legacy_system(

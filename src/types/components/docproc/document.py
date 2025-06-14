@@ -606,6 +606,9 @@ class ConsolidatedDocumentSchema(BaseSchema):
         return self.model_dump_safe()
 
 
-# Aliases for backward compatibility with src/types/documents/
+# Type aliases for backward compatibility with src/types/documents/
 ChunkMetadata = ConsolidatedChunkMetadata  # Main alias for system-wide use
-DocumentSchema = ConsolidatedDocumentSchema  # Main alias for system-wide use
+
+# Proper type alias using TypeAlias 
+from typing import TypeAlias
+# Note: DocumentSchema TypedDict already exists above, using ConsolidatedDocumentSchema directly

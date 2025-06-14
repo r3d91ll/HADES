@@ -69,7 +69,7 @@ class ASTAwareCodeChunker(Chunker):
         })
         
         # Monitoring and metrics tracking
-        self._stats = {
+        self._stats: Dict[str, Any] = {
             "total_chunks_created": 0,
             "successful_chunks": 0,
             "failed_chunks": 0,
@@ -124,7 +124,7 @@ class ASTAwareCodeChunker(Chunker):
         
         self.logger.info("Updated AST-aware code chunker configuration")
     
-    def validate_config(self, config: Dict[str, Any]) -> bool:
+    def validate_config(self, config: Any) -> bool:
         """
         Validate configuration parameters.
         
@@ -287,17 +287,35 @@ class TestClass:
             current_time = datetime.now(timezone.utc)
             uptime = (current_time - self._startup_time).total_seconds()
             
-            # Calculate rates
-            chunks_per_second = self._stats["total_chunks_created"] / max(uptime, 1.0)
-            avg_processing_time = (
-                self._stats["total_processing_time"] / max(self._stats["total_chunks_created"], 1)
-            )
-            success_rate = (
-                self._stats["successful_chunks"] / max(self._stats["total_chunks_created"], 1) * 100
-            )
-            avg_chars_per_chunk = (
-                self._stats["total_characters_processed"] / max(self._stats["total_chunks_created"], 1)
-            )
+            # Calculate rates with proper type checking
+            total_chunks_value = self._stats.get("total_chunks_created", 0)
+            if isinstance(total_chunks_value, (int, float)):
+                total_chunks = int(total_chunks_value)
+            else:
+                total_chunks = 0
+            
+            successful_chunks_value = self._stats.get("successful_chunks", 0)
+            if isinstance(successful_chunks_value, (int, float)):
+                successful_chunks = int(successful_chunks_value)
+            else:
+                successful_chunks = 0
+            
+            total_processing_time_value = self._stats.get("total_processing_time", 0.0)
+            if isinstance(total_processing_time_value, (int, float)):
+                total_processing_time = float(total_processing_time_value)
+            else:
+                total_processing_time = 0.0
+            
+            total_chars_value = self._stats.get("total_characters_processed", 0)
+            if isinstance(total_chars_value, (int, float)):
+                total_chars = int(total_chars_value)
+            else:
+                total_chars = 0
+            
+            chunks_per_second = total_chunks / max(uptime, 1.0)
+            avg_processing_time = total_processing_time / max(total_chunks, 1)
+            success_rate = successful_chunks / max(total_chunks, 1) * 100
+            avg_chars_per_chunk = total_chars / max(total_chunks, 1)
             
             return {
                 "component_name": self.name,
@@ -307,7 +325,7 @@ class TestClass:
                 "success_rate_percent": round(success_rate, 2),
                 "chunks_per_second": round(chunks_per_second, 3),
                 "average_processing_time": round(avg_processing_time, 3),
-                "total_processing_time": round(self._stats["total_processing_time"], 3),
+                "total_processing_time": round(total_processing_time, 3),
                 "total_characters_processed": self._stats["total_characters_processed"],
                 "avg_chars_per_chunk": round(avg_chars_per_chunk, 2),
                 "semantic_chunks": self._stats["semantic_chunks"],
@@ -317,8 +335,8 @@ class TestClass:
                 "last_processing_time": self._stats["last_processing_time"],
                 "initialization_count": self._stats["initialization_count"],
                 "strategy_distribution": self._stats["chunk_strategy_counts"],
-                "recent_errors": self._stats["errors"][-5:],  # Last 5 errors
-                "error_count": len(self._stats["errors"]),
+                "recent_errors": self._get_recent_errors(5),  # Last 5 errors
+                "error_count": self._get_error_count(),
                 "uptime_seconds": round(uptime, 2)
             }
         except Exception as e:
@@ -407,15 +425,37 @@ class TestClass:
             # Calculate processing time
             processing_time = (datetime.now(timezone.utc) - start_time).total_seconds()
             
-            # Update statistics
-            self._stats["total_chunks_created"] += len(chunks)
-            self._stats["successful_chunks"] += len(chunks)
-            self._stats["total_processing_time"] += processing_time
-            self._stats["total_characters_processed"] += len(input_data.text)
+            # Update statistics with type-safe operations
+            total_chunks_current = self._stats.get("total_chunks_created", 0)
+            if isinstance(total_chunks_current, int):
+                self._stats["total_chunks_created"] = total_chunks_current + len(chunks)
+            else:
+                self._stats["total_chunks_created"] = len(chunks)
+            
+            successful_chunks_current = self._stats.get("successful_chunks", 0)
+            if isinstance(successful_chunks_current, int):
+                self._stats["successful_chunks"] = successful_chunks_current + len(chunks)
+            else:
+                self._stats["successful_chunks"] = len(chunks)
+            
+            total_time_current = self._stats.get("total_processing_time", 0.0)
+            if isinstance(total_time_current, (int, float)):
+                self._stats["total_processing_time"] = float(total_time_current) + processing_time
+            else:
+                self._stats["total_processing_time"] = processing_time
+            
+            total_chars_current = self._stats.get("total_characters_processed", 0)
+            if isinstance(total_chars_current, int):
+                self._stats["total_characters_processed"] = total_chars_current + len(input_data.text)
+            else:
+                self._stats["total_characters_processed"] = len(input_data.text)
             
             # Track strategy usage
             strategy_key = self._chunk_strategy
-            self._stats["chunk_strategy_counts"][strategy_key] = self._stats["chunk_strategy_counts"].get(strategy_key, 0) + 1
+            strategy_counts = self._stats.get("chunk_strategy_counts", {})
+            if isinstance(strategy_counts, dict):
+                strategy_counts[strategy_key] = strategy_counts.get(strategy_key, 0) + 1
+                self._stats["chunk_strategy_counts"] = strategy_counts
             
             # Update metadata
             metadata = ComponentMetadata(
@@ -453,7 +493,11 @@ class TestClass:
             self.logger.error(error_msg)
             
             # Track error statistics
-            self._stats["failed_chunks"] += 1
+            failed_chunks_current = self._stats.get("failed_chunks", 0)
+            if isinstance(failed_chunks_current, int):
+                self._stats["failed_chunks"] = failed_chunks_current + 1
+            else:
+                self._stats["failed_chunks"] = 1
             self._track_error(error_msg)
             
             metadata = ComponentMetadata(
@@ -518,6 +562,11 @@ class TestClass:
     
     def _semantic_chunking(self, tree: ast.AST, text: str, input_data: ChunkingInput) -> List[TextChunk]:
         """Chunk code based on semantic boundaries (functions, classes)."""
+        # Ensure we have a Module node
+        if not isinstance(tree, ast.Module):
+            # If not a module, fall back to simple text chunking
+            return self._fallback_text_chunking(text, input_data)
+        
         chunks = []
         lines = text.split('\\n')
         chunk_id = 0
@@ -528,7 +577,11 @@ class TestClass:
             if import_chunk:
                 chunks.append(import_chunk)
                 chunk_id += 1
-                self._stats["semantic_chunks"] += 1
+                semantic_count = self._stats.get("semantic_chunks", 0)
+                if isinstance(semantic_count, int):
+                    self._stats["semantic_chunks"] = semantic_count + 1
+                else:
+                    self._stats["semantic_chunks"] = 1
         
         # Process top-level elements
         for node in tree.body:
@@ -536,13 +589,21 @@ class TestClass:
                 chunk = self._create_function_chunk(node, lines, input_data, chunk_id)
                 chunks.append(chunk)
                 chunk_id += 1
-                self._stats["function_chunks"] += 1
+                function_count = self._stats.get("function_chunks", 0)
+                if isinstance(function_count, int):
+                    self._stats["function_chunks"] = function_count + 1
+                else:
+                    self._stats["function_chunks"] = 1
                 
             elif isinstance(node, ast.ClassDef):
                 chunk = self._create_class_chunk(node, lines, input_data, chunk_id)
                 chunks.append(chunk)
                 chunk_id += 1
-                self._stats["class_chunks"] += 1
+                class_count = self._stats.get("class_chunks", 0)
+                if isinstance(class_count, int):
+                    self._stats["class_chunks"] = class_count + 1
+                else:
+                    self._stats["class_chunks"] = 1
                 
             elif isinstance(node, (ast.Import, ast.ImportFrom)):
                 # Already handled in imports chunk
@@ -550,11 +611,15 @@ class TestClass:
                 
             else:
                 # Handle other statements (module-level code)
-                chunk = self._create_statement_chunk(node, lines, input_data, chunk_id)
-                if chunk:
-                    chunks.append(chunk)
+                statement_chunk = self._create_statement_chunk(node, lines, input_data, chunk_id)
+                if statement_chunk is not None:
+                    chunks.append(statement_chunk)
                     chunk_id += 1
-                    self._stats["semantic_chunks"] += 1
+                    semantic_count = self._stats.get("semantic_chunks", 0)
+                    if isinstance(semantic_count, int):
+                        self._stats["semantic_chunks"] = semantic_count + 1
+                    else:
+                        self._stats["semantic_chunks"] = 1
         
         return chunks
     
@@ -617,7 +682,11 @@ class TestClass:
                 )
                 chunks.append(chunk)
                 chunk_id += 1
-                self._stats["fallback_chunks"] += 1
+                fallback_count = self._stats.get("fallback_chunks", 0)
+                if isinstance(fallback_count, int):
+                    self._stats["fallback_chunks"] = fallback_count + 1
+                else:
+                    self._stats["fallback_chunks"] = 1
                 
                 # Keep remaining lines for next chunk
                 current_lines = current_lines[split_point:] + [line]
@@ -648,6 +717,10 @@ class TestClass:
     
     def _extract_imports_chunk(self, tree: ast.AST, lines: List[str], input_data: ChunkingInput, chunk_id: int) -> Optional[TextChunk]:
         """Extract all import statements as a single chunk."""
+        # Ensure we have a Module node
+        if not isinstance(tree, ast.Module):
+            return None
+        
         import_lines = []
         
         for node in tree.body:
@@ -843,7 +916,11 @@ class TestClass:
                 )
                 chunks.append(chunk)
                 chunk_id += 1
-                self._stats["fallback_chunks"] += 1
+                fallback_count = self._stats.get("fallback_chunks", 0)
+                if isinstance(fallback_count, int):
+                    self._stats["fallback_chunks"] = fallback_count + 1
+                else:
+                    self._stats["fallback_chunks"] = 1
                 
                 current_lines = [line]
                 current_size = len(line)
@@ -1047,11 +1124,92 @@ class TestClass:
     
     def _track_error(self, error_msg: str) -> None:
         """Track an error in statistics."""
-        self._stats["errors"].append({
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "error": error_msg
-        })
+        errors_list = self._stats.get("errors", [])
+        if isinstance(errors_list, list):
+            errors_list.append({
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "error": error_msg
+            })
+            self._stats["errors"] = errors_list
         
         # Keep only last 50 errors to prevent memory growth
-        if len(self._stats["errors"]) > 50:
-            self._stats["errors"] = self._stats["errors"][-50:]
+        current_errors = self._stats.get("errors", [])
+        if isinstance(current_errors, list) and len(current_errors) > 50:
+            self._stats["errors"] = current_errors[-50:]
+    
+    def _get_recent_errors(self, count: int = 5) -> List[Any]:
+        """Get recent errors with proper type checking."""
+        errors_list = self._stats.get("errors", [])
+        if isinstance(errors_list, list) and len(errors_list) >= count:
+            return errors_list[-count:]
+        elif isinstance(errors_list, list):
+            return errors_list
+        else:
+            return []
+    
+    def _get_error_count(self) -> int:
+        """Get error count with proper type checking."""
+        errors_list = self._stats.get("errors", [])
+        if isinstance(errors_list, list):
+            return len(errors_list)
+        else:
+            return 0
+    
+    def _fallback_text_chunking(self, text: str, input_data: ChunkingInput) -> List[TextChunk]:
+        """Fallback text chunking when AST parsing fails."""
+        chunks = []
+        lines = text.split('\n')
+        
+        current_chunk_lines = []
+        current_size = 0
+        chunk_id = 0
+        
+        for line in lines:
+            line_size = len(line)
+            
+            # Check if adding this line would exceed chunk size
+            if current_size + line_size > self._max_chunk_size and current_chunk_lines:
+                # Create chunk from current lines
+                chunk_text = '\n'.join(current_chunk_lines)
+                chunk = TextChunk(
+                    id=f"{input_data.document_id}_chunk_{chunk_id}",
+                    text=chunk_text,
+                    start_index=0,
+                    end_index=len(chunk_text),
+                    chunk_index=chunk_id,
+                    metadata={
+                        "chunk_type": "fallback_text",
+                        "source_file": input_data.document_id,
+                        "language": "text",
+                        "method": "fallback"
+                    }
+                )
+                chunks.append(chunk)
+                chunk_id += 1
+                
+                # Start new chunk
+                current_chunk_lines = [line]
+                current_size = line_size
+            else:
+                current_chunk_lines.append(line)
+                current_size += line_size
+        
+        # Add final chunk if any lines remain
+        if current_chunk_lines:
+            chunk_text = '\n'.join(current_chunk_lines)
+            chunk = TextChunk(
+                id=f"{input_data.document_id}_chunk_{chunk_id}",
+                text=chunk_text,
+                start_index=0,
+                end_index=len(chunk_text),
+                chunk_index=chunk_id,
+                metadata={
+                    "chunk_type": "fallback_text",
+                    "source_file": input_data.document_id,
+                    "language": "text",
+                    "method": "fallback"
+                }
+            )
+            chunks.append(chunk)
+        
+        return chunks

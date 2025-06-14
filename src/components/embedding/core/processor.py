@@ -130,7 +130,7 @@ class CoreEmbedder(Embedder):
         
         self.logger.info(f"Updated core embedder configuration")
     
-    def validate_config(self, config: Dict[str, Any]) -> bool:
+    def validate_config(self, config: Any) -> bool:
         """
         Validate configuration parameters.
         
@@ -385,7 +385,7 @@ class CoreEmbedder(Embedder):
             # Try with default embedder first
             embedder = self._get_embedder(self._default_embedder_type)
             if embedder:
-                return embedder.get_embedding_dimension(model_name)
+                return embedder.embedding_dimension
             
             # Common model dimensions as fallback
             model_dims = {
@@ -503,15 +503,15 @@ class CoreEmbedder(Embedder):
         Returns:
             Dictionary containing performance metrics
         """
-        total_operations = self._stats.successful_operations + self._stats.failed_operations
-        success_rate = (self._stats.successful_operations / max(total_operations, 1)) * 100
+        total_operations = int(self._stats.successful_operations) + int(self._stats.failed_operations)
+        success_rate = (int(self._stats.successful_operations) / max(total_operations, 1)) * 100
         
         avg_processing_time = (
-            self._stats.total_processing_time / max(self._stats.successful_operations, 1)
+            float(self._stats.total_processing_time) / max(int(self._stats.successful_operations), 1)
         )
         
         uptime_seconds = (datetime.now(timezone.utc) - self._startup_time).total_seconds()
-        operations_per_second = total_operations / max(uptime_seconds, 1)
+        operations_per_second = float(total_operations) / max(uptime_seconds, 1)
         
         return {
             "component_name": self.name,

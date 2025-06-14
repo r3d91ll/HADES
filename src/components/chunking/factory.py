@@ -114,7 +114,14 @@ def register_chunking_component(
         factory_func: Optional factory function, defaults to simple constructor
     """
     if factory_func is None:
-        factory_func = lambda config: component_class(config=config)
+        # Create a safe factory function that handles different constructor signatures
+        def safe_factory(config: Optional[Dict[str, Any]]) -> Chunker:
+            try:
+                return component_class(config=config)  # type: ignore
+            except TypeError:
+                # Fallback for classes that don't accept config parameter
+                return component_class()  # type: ignore
+        factory_func = safe_factory
     
     CHUNKING_REGISTRY[name] = (component_class, factory_func)
     logger.info(f"Registered chunking component: {name}")

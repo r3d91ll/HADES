@@ -50,8 +50,8 @@ class BootstrapPipeline:
         self.embedder = EmbeddingStage(self.config.get('embedding', {}))
         
         # ISNE components
-        self.isne_pipeline = None
-        self.adaptive_trainer = None
+        self.isne_pipeline: Optional[ISNEPipeline] = None
+        self.adaptive_trainer: Optional[AdaptiveISNETrainer] = None
         
         logger.info("Bootstrap pipeline initialized")
     
@@ -166,9 +166,16 @@ class BootstrapPipeline:
         try:
             # Initialize ISNE pipeline if not already done
             if self.isne_pipeline is None:
+                # Extract ISNE config parameters
+                isne_config = self.config.get('isne', {})
+                
                 self.isne_pipeline = ISNEPipeline(
-                    config=self.config.get('isne', {}),
-                    output_dir=output_dir
+                    model_path=isne_config.get('model_path'),
+                    validate=isne_config.get('validate', True),
+                    alert_threshold=isne_config.get('alert_threshold', 'high'),
+                    device=isne_config.get('device'),
+                    alert_dir=isne_config.get('alert_dir', output_dir),
+                    alert_manager=None
                 )
             
             # Initialize adaptive trainer
@@ -182,18 +189,24 @@ class BootstrapPipeline:
             
             # Perform initial training
             logger.info("Training ISNE model from scratch")
-            training_results = self.adaptive_trainer.train_from_embeddings(
-                embeddings_data,
-                force_retrain=True  # Force full training for bootstrap
-            )
+            if self.adaptive_trainer is not None:
+                training_results = self.adaptive_trainer.train_from_embeddings(
+                    embeddings_data,
+                    force_retrain=True  # Force full training for bootstrap
+                )
+            else:
+                logger.warning("Adaptive trainer is None, skipping training")
+                training_results = {}
             
             # Save model
             model_path = Path(output_dir) / "models" / "isne_bootstrap_model.pt"
             model_path.parent.mkdir(parents=True, exist_ok=True)
             
-            if hasattr(self.isne_pipeline, 'save_model'):
+            if self.isne_pipeline is not None and hasattr(self.isne_pipeline, 'save_model'):
                 self.isne_pipeline.save_model(str(model_path))
                 logger.info(f"ISNE model saved to {model_path}")
+            else:
+                logger.warning("ISNE pipeline is None or doesn't have save_model method")
             
             return {
                 'model_trained': True,

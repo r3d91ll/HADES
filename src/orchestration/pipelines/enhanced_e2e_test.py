@@ -409,7 +409,7 @@ def run_enhanced_pipeline(args: argparse.Namespace) -> int:
                 save_debug_output(results, "final_results", debug_dir, run_id)
             
             # Save a debug summary with information about each stage
-            debug_summary = {
+            debug_summary: Dict[str, Any] = {
                 "run_id": run_id,
                 "timestamp": datetime.now().isoformat(),
                 "stages_processed": [stage_name for stage_name, _ in stages],

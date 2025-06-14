@@ -124,7 +124,7 @@ class ISNEInferenceEnhancer(GraphEnhancer):
         
         self.logger.info("Updated ISNE inference configuration")
     
-    def validate_config(self, config: Dict[str, Any]) -> bool:
+    def validate_config(self, config: Any) -> bool:
         """
         Validate configuration parameters.
         
@@ -599,3 +599,94 @@ class ISNEInferenceEnhancer(GraphEnhancer):
             
         except Exception:
             return 0.0
+    
+    def train(self, training_data: GraphEnhancementInput) -> None:
+        """
+        Train the inference model - not applicable for inference-only component.
+        
+        Args:
+            training_data: Training data (ignored)
+        """
+        self.logger.warning("Training not applicable for inference-only component")
+        pass
+    
+    def is_trained(self) -> bool:
+        """Check if the model has been trained."""
+        return self._model_loaded  # Model is "trained" if loaded
+    
+    def save_model(self, path: str) -> None:
+        """
+        Save model parameters to disk.
+        
+        Args:
+            path: Path to save model
+        """
+        try:
+            import json
+            
+            save_data = {
+                "component_type": "isne_inference",
+                "component_name": self.name,
+                "component_version": self.version,
+                "config": self._config,
+                "model_config": self._model_config,
+                "inference_config": self._inference_config,
+                "model_path": self._model_path,
+                "model_loaded": self._model_loaded,
+                "saved_at": datetime.utcnow().isoformat()
+            }
+            
+            # Include model parameters if available
+            if self._model_parameters:
+                # Convert numpy arrays to lists for JSON serialization
+                serializable_params = {}
+                for key, value in self._model_parameters.items():
+                    if hasattr(value, 'tolist'):
+                        serializable_params[key] = value.tolist()
+                    else:
+                        serializable_params[key] = value
+                save_data["model_parameters"] = serializable_params
+            
+            with open(path, 'w') as f:
+                json.dump(save_data, f, indent=2)
+            
+            self.logger.info(f"ISNE inference model saved to {path}")
+            
+        except Exception as e:
+            error_msg = f"Failed to save model: {str(e)}"
+            self.logger.error(error_msg)
+            raise IOError(error_msg) from e
+    
+    def get_model_info(self) -> Dict[str, Any]:
+        """
+        Get information about the current model.
+        
+        Returns:
+            Dictionary containing model metadata
+        """
+        info = {
+            "model_type": "isne_inference",
+            "component_name": self.name,
+            "component_version": self.version,
+            "model_loaded": self._model_loaded,
+            "model_path": self._model_path,
+            "dependencies_available": self._dependencies_available,
+            "model_config": self._model_config,
+            "inference_config": self._inference_config,
+            "total_inferences": self._total_inferences,
+            "avg_processing_time": (
+                self._total_processing_time / max(self._total_inferences, 1)
+            )
+        }
+        
+        if self._model_parameters:
+            info["model_parameters_loaded"] = True
+            info["parameter_keys"] = list(self._model_parameters.keys())
+        else:
+            info["model_parameters_loaded"] = False
+        
+        return info
+    
+    def supports_incremental_training(self) -> bool:
+        """Check if the model supports incremental training."""
+        return False  # Inference-only component doesn't support training

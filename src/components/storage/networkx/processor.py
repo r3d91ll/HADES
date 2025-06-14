@@ -110,7 +110,7 @@ class NetworkXStorage(Storage):
         
         self.logger.info("Updated NetworkX storage configuration")
     
-    def validate_config(self, config: Dict[str, Any]) -> bool:
+    def validate_config(self, config: Any) -> bool:
         """
         Validate configuration parameters.
         
@@ -338,8 +338,8 @@ class NetworkXStorage(Storage):
         Raises:
             RetrievalError: If query fails
         """
-        errors = []
-        results = []
+        errors: List[str] = []
+        results: List[RetrievalResult] = []
         
         try:
             start_time = datetime.utcnow()

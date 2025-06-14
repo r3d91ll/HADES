@@ -126,7 +126,7 @@ class EncoderEmbedder(Embedder):
         
         self.logger.info("Updated encoder embedder configuration")
     
-    def validate_config(self, config: Dict[str, Any]) -> bool:
+    def validate_config(self, config: Any) -> bool:
         """
         Validate configuration parameters.
         
@@ -268,7 +268,7 @@ class EncoderEmbedder(Embedder):
             Dictionary containing performance metrics
         """
         avg_processing_time = (
-            self._total_processing_time / max(self._total_embeddings_created, 1)
+            float(self._total_processing_time) / max(int(self._total_embeddings_created), 1)
         )
         
         metrics = {
@@ -560,11 +560,12 @@ class EncoderEmbedder(Embedder):
             self._model = AutoModel.from_pretrained(self._model_name)
             
             # Set to evaluation mode
-            self._model.eval()
-            
-            # Move to appropriate device
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-            self._model = self._model.to(device)
+            if self._model is not None:
+                self._model.eval()
+                
+                # Move to appropriate device
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+                self._model = self._model.to(device)
             
             self._model_loaded = True
             
@@ -604,7 +605,10 @@ class EncoderEmbedder(Embedder):
                 )
                 
                 # Move to model device
-                device = next(self._model.parameters()).device
+                if self._model is not None:
+                    device = next(self._model.parameters()).device
+                else:
+                    device = "cpu"
                 inputs = {k: v.to(device) for k, v in inputs.items()}
                 
                 # Generate embeddings

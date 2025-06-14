@@ -186,8 +186,8 @@ class MemoryStorage(Storage):
     
     def query(self, query_data: QueryInput) -> QueryOutput:
         """Query stored data according to the contract."""
-        results = []
-        errors = []
+        results: List[RetrievalResult] = []
+        errors: List[str] = []
         
         try:
             start_time = datetime.utcnow()

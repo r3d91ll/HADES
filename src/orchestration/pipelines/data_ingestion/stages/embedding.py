@@ -149,6 +149,8 @@ class EmbeddingStage(PipelineStage):
                 
                 # Generate embeddings using the adapter
                 try:
+                    if self.embedding_adapter is None:
+                        raise RuntimeError("Embedding adapter not initialized")
                     embeddings = self.embedding_adapter.embed_batch(texts)
                     
                     # Normalize if configured

@@ -83,7 +83,7 @@ class ArangoConnector(DatabaseConnector):
         
         self.logger.info(f"Updated ArangoDB connector configuration")
     
-    def validate_config(self, config: Dict[str, Any]) -> bool:
+    def validate_config(self, config: Any) -> bool:
         """
         Validate configuration parameters.
         
@@ -197,7 +197,7 @@ class ArangoConnector(DatabaseConnector):
             # Try a simple operation to verify connection
             # This uses the existing health check method if available
             if hasattr(self._connection, 'health_check'):
-                return self._connection.health_check()
+                return bool(self._connection.health_check())
             
             # Fallback: try to get database properties
             if hasattr(self._connection, 'sys_db'):
@@ -313,6 +313,9 @@ class ArangoConnector(DatabaseConnector):
         
         try:
             # Execute AQL query using the existing client
+            if self._connection is None:
+                raise RuntimeError("No connection available")
+                
             if hasattr(self._connection, 'execute_aql'):
                 result = self._connection.execute_aql(query, parameters or {})
             else:
@@ -333,7 +336,7 @@ class ArangoConnector(DatabaseConnector):
         Returns:
             Dictionary containing connection details
         """
-        info = {
+        info: Dict[str, Any] = {
             "component_name": self.name,
             "component_type": self.component_type.value,
             "is_connected": self._is_connected,

@@ -118,7 +118,7 @@ class ChonkyChunker(Chunker):
         
         self.logger.info("Updated chonky chunker configuration")
     
-    def validate_config(self, config: Dict[str, Any]) -> bool:
+    def validate_config(self, config: Any) -> bool:
         """
         Validate configuration parameters.
         
@@ -245,7 +245,7 @@ class ChonkyChunker(Chunker):
             Dictionary containing performance metrics
         """
         avg_processing_time = (
-            self._total_processing_time / max(self._total_chunks_created, 1)
+            float(self._total_processing_time) / max(int(self._total_chunks_created), 1)
         )
         
         metrics = {

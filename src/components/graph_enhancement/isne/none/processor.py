@@ -112,7 +112,7 @@ class NoneISNE(GraphEnhancer):
         
         self.logger.info("Updated none/passthrough ISNE configuration")
     
-    def validate_config(self, config: Dict[str, Any]) -> bool:
+    def validate_config(self, config: Any) -> bool:
         """
         Validate configuration parameters.
         

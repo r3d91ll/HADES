@@ -110,7 +110,7 @@ class CoreStorage(Storage):
         
         self.logger.info(f"Updated core storage configuration")
     
-    def validate_config(self, config: Dict[str, Any]) -> bool:
+    def validate_config(self, config: Any) -> bool:
         """
         Validate configuration parameters.
         

@@ -40,6 +40,11 @@ from src.validation.embedding_validator import (
     create_validation_summary,
     attach_validation_summary
 )
+from src.types.validation import (
+    PreValidationResult,
+    PostValidationResult,
+    ValidationSummary
+)
 from src.isne.utils.geometric_utils import create_graph_from_documents
 from src.alerts import AlertManager, AlertLevel
 
@@ -232,11 +237,12 @@ class ISNEPipeline:
         x = torch.tensor(embeddings, dtype=torch.float32)
         
         # Validate input embeddings if requested
-        validation_summary: Dict[str, Any] = {}
+        pre_validation: Optional[PreValidationResult] = None
+        validation_summary: Optional[ValidationSummary] = None
         if self.validate:
             logger.info("Validating input embeddings")
             # Use the correct function signature
-            validation_summary = validate_embeddings_before_isne(documents)
+            pre_validation = validate_embeddings_before_isne(documents)
         
         try:
             # Generate enhanced embeddings with ISNE
@@ -260,15 +266,16 @@ class ISNEPipeline:
             logger.info(f"Successfully generated {len(enhanced_embeddings_np)} enhanced embeddings")
             
             # Validate enhanced embeddings if requested
-            if self.validate:
+            if self.validate and pre_validation is not None:
                 logger.info("Validating enhanced embeddings")
-                # Use the correct function signature
-                post_validation = validate_embeddings_after_isne(documents, validation_summary)
-                # Update validation summary
-                validation_summary = create_validation_summary(validation_summary, post_validation)
+                # Use the correct function signature - validate_embeddings_after_isne expects documents and pre_validation
+                post_validation = validate_embeddings_after_isne(documents, pre_validation)
+                # Create validation summary - create_validation_summary expects pre_validation and post_validation
+                validation_summary = create_validation_summary(pre_validation, post_validation)
                 
                 # Check for discrepancies and trigger alerts if needed
-                self._check_validation_discrepancies(validation_summary)
+                if validation_summary is not None:
+                    self._check_validation_discrepancies(validation_summary)
             
             # Update documents with enhanced embeddings
             enhanced_documents = []
@@ -285,10 +292,10 @@ class ISNEPipeline:
                     enhanced_doc["embedding"] = enhanced_embeddings_np[i].tolist()
                     
                     # Add validation info to the document if available
-                    if self.validate:
+                    if self.validate and validation_summary is not None:
                         enhanced_doc["validation_info"] = {
                             "timestamp": datetime.now().isoformat(),
-                            "quality_score": validation_summary.get("quality_score", 0)
+                            "quality_score": validation_summary.get("discrepancies", {}).get("quality_score", 0)
                         }
                     
                     enhanced_documents.append(enhanced_doc)
@@ -297,11 +304,11 @@ class ISNEPipeline:
                     enhanced_documents.append(doc)
             
             # Properly attach validation summary to the enhanced documents list
-            if self.validate:
+            if self.validate and validation_summary is not None:
                 enhanced_documents = attach_validation_summary(enhanced_documents, validation_summary)
             
             # Save validation report if requested
-            if save_report and self.validate and output_dir:
+            if save_report and self.validate and output_dir and validation_summary is not None:
                 self._save_validation_report(validation_summary, output_dir)
             
             # Prepare processing stats
@@ -326,36 +333,48 @@ class ISNEPipeline:
             logger.error(error_msg)
             return [], {"status": "error", "message": error_msg}
     
-    def _check_validation_discrepancies(self, validation_summary: Dict[str, Any]) -> None:
+    def _check_validation_discrepancies(self, validation_summary: ValidationSummary) -> None:
         """
         Check validation summary for discrepancies and trigger alerts if needed.
         
         Args:
             validation_summary: Validation summary dictionary
         """
-        # Check for anomalies and trigger alerts if needed
-        anomalies = validation_summary.get("anomalies", [])
-        consistency_issues = validation_summary.get("consistency_issues", [])
+        # Check for discrepancies and trigger alerts if needed
+        discrepancies = validation_summary["discrepancies"]
+        post_validation = validation_summary["post_validation"]
         
-        if len(anomalies) > self.alert_threshold_value:
+        # Check for missing ISNE embeddings
+        missing_isne = post_validation["chunks_missing_isne"]
+        if missing_isne > self.alert_threshold_value:
             self._trigger_alert(
-                f"ISNE validation detected {len(anomalies)} anomalies in embeddings",
+                f"ISNE validation detected {missing_isne} chunks missing ISNE embeddings",
                 "high"
             )
-        elif len(anomalies) > 0:
+        elif missing_isne > 0:
             self._trigger_alert(
-                f"ISNE validation detected {len(anomalies)} anomalies in embeddings",
+                f"ISNE validation detected {missing_isne} chunks missing ISNE embeddings",
                 "medium"
             )
         
-        if len(consistency_issues) > self.alert_threshold_value:
+        # Check for chunks missing relationships
+        missing_relationships = post_validation["chunks_missing_relationships"]
+        if missing_relationships > self.alert_threshold_value:
             self._trigger_alert(
-                f"ISNE validation detected {len(consistency_issues)} consistency issues",
+                f"ISNE validation detected {missing_relationships} chunks missing relationships",
                 "high"
             )
-        elif len(consistency_issues) > 0:
+        elif missing_relationships > 0:
             self._trigger_alert(
-                f"ISNE validation detected {len(consistency_issues)} consistency issues",
+                f"ISNE validation detected {missing_relationships} chunks missing relationships",
+                "medium"
+            )
+        
+        # Check for duplicate ISNE embeddings
+        duplicate_isne = discrepancies["duplicate_isne"]
+        if duplicate_isne > 0:
+            self._trigger_alert(
+                f"ISNE validation detected {duplicate_isne} duplicate ISNE embeddings",
                 "medium"
             )
     
@@ -405,7 +424,7 @@ class ISNEPipeline:
         
         logger.info("Email alerts configured for ISNE pipeline")
     
-    def _save_validation_report(self, validation_summary: Dict[str, Any], output_dir: str) -> None:
+    def _save_validation_report(self, validation_summary: ValidationSummary, output_dir: str) -> None:
         """
         Save validation report to disk.
         

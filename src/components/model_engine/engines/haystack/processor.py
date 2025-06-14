@@ -55,13 +55,13 @@ class HaystackModelEngine(ModelEngine):
         self._model_name = self._config.get('model_name', 'sentence-transformers/all-MiniLM-L6-v2')
         
         # Haystack components (to be initialized)
-        self._document_store = None
-        self._retriever = None
-        self._reader = None
-        self._pipeline = None
+        self._document_store: Optional[Any] = None
+        self._retriever: Optional[Any] = None
+        self._reader: Optional[Any] = None
+        self._pipeline: Optional[Any] = None
         
         # Monitoring and metrics tracking
-        self._stats = {
+        self._stats: Dict[str, Any] = {
             "total_requests": 0,
             "successful_requests": 0,
             "failed_requests": 0,
@@ -122,7 +122,7 @@ class HaystackModelEngine(ModelEngine):
         
         self.logger.info(f"Updated Haystack model engine configuration")
     
-    def validate_config(self, config: Dict[str, Any]) -> bool:
+    def validate_config(self, config: Any) -> bool:
         """
         Validate configuration parameters.
         
@@ -298,8 +298,8 @@ class HaystackModelEngine(ModelEngine):
                 "total_processing_time": round(self._stats["total_processing_time"], 3),
                 "last_request_time": self._stats["last_request_time"],
                 "pipeline_initializations": self._stats["pipeline_initializations"],
-                "recent_errors": self._stats["errors"][-5:],  # Last 5 errors
-                "error_count": len(self._stats["errors"]),
+                "recent_errors": self._get_recent_errors(5),  # Last 5 errors
+                "error_count": self._get_error_count(),
                 "uptime_seconds": round(uptime, 2)
             }
         except Exception as e:
@@ -826,3 +826,21 @@ class HaystackModelEngine(ModelEngine):
         except Exception as e:
             self.logger.warning(f"Failed to get GPU info: {e}")
             return None
+    
+    def _get_recent_errors(self, count: int = 5) -> List[Any]:
+        """Get recent errors with proper type checking."""
+        errors_list = self._stats.get("errors", [])
+        if isinstance(errors_list, list) and len(errors_list) >= count:
+            return errors_list[-count:]
+        elif isinstance(errors_list, list):
+            return errors_list
+        else:
+            return []
+    
+    def _get_error_count(self) -> int:
+        """Get error count with proper type checking."""
+        errors_list = self._stats.get("errors", [])
+        if isinstance(errors_list, list):
+            return len(errors_list)
+        else:
+            return 0

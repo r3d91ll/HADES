@@ -24,6 +24,7 @@ from src.orchestration.core.pipeline_config import (
 )
 from src.orchestration.core.component_factory import ComponentFactory, get_global_registry
 from src.orchestration.pipelines.schema import DocumentSchema, ChunkSchema
+from src.orchestration.pipelines.data_ingestion.stages.base import PipelineStage
 from src.isne.training.trainer import ISNETrainer
 from src.isne.trainer.training_orchestrator import ISNETrainingOrchestrator
 from src.alerts.alert_manager import AlertManager, AlertLevel
@@ -103,13 +104,13 @@ class ModularBootstrapPipeline:
             
             # Embedding is optional but recommended for bootstrap
             if self.pipeline_config.embedder.enabled:
-                self.embedder = self.component_factory.create_component(
+                self.embedder: Optional[PipelineStage] = self.component_factory.create_component(
                     'embedder',
                     self.pipeline_config.embedder,
                     'bootstrap_embedder'
                 )
             else:
-                self.embedder = None
+                self.embedder: Optional[PipelineStage] = None
                 logger.warning("Embedder disabled - will use TF-IDF for initial embeddings")
             
             logger.info("Initialized bootstrap pipeline components")

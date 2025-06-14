@@ -134,19 +134,21 @@ async def query_pipeline(request: QueryPipelineRequest) -> QueryPipelineResponse
         stage_start = time.time()
         # TODO: Implement actual vector retrieval
         vector_results = []  # Placeholder
-        pipeline_metadata["stages_executed"].append({
-            "stage": "vector_retrieval",
-            "duration_ms": (time.time() - stage_start) * 1000,
-            "results_count": len(vector_results)
-        })
+        if isinstance(pipeline_metadata["stages_executed"], list):
+            pipeline_metadata["stages_executed"].append({
+                "stage": "vector_retrieval",
+                "duration_ms": (time.time() - stage_start) * 1000,
+                "results_count": len(vector_results)
+            })
         
         # Stage 2: Graph enhancement (if enabled)
         if request.apply_isne_enhancement:
             stage_start = time.time()
             # TODO: Implement ISNE enhancement
             enhanced_results = vector_results  # Placeholder
-            pipeline_metadata["stages_executed"].append({
-                "stage": "isne_enhancement", 
+            if isinstance(pipeline_metadata["stages_executed"], list):
+                pipeline_metadata["stages_executed"].append({
+                    "stage": "isne_enhancement", 
                 "duration_ms": (time.time() - stage_start) * 1000,
                 "enhancement_applied": True
             })
@@ -173,11 +175,12 @@ async def query_pipeline(request: QueryPipelineRequest) -> QueryPipelineResponse
                 }
             results.append(formatted_result)
         
-        pipeline_metadata["stages_executed"].append({
-            "stage": "result_formatting",
-            "duration_ms": (time.time() - stage_start) * 1000,
-            "final_results_count": len(results)
-        })
+        if isinstance(pipeline_metadata["stages_executed"], list):
+            pipeline_metadata["stages_executed"].append({
+                "stage": "result_formatting",
+                "duration_ms": (time.time() - stage_start) * 1000,
+                "final_results_count": len(results)
+            })
         
         execution_time_ms = (time.time() - start_time) * 1000
         

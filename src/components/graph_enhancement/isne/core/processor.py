@@ -117,7 +117,7 @@ class CoreISNE(GraphEnhancer):
         
         self.logger.info("Updated core ISNE configuration")
     
-    def validate_config(self, config: Dict[str, Any]) -> bool:
+    def validate_config(self, config: Any) -> bool:
         """
         Validate configuration parameters.
         
@@ -611,3 +611,100 @@ class CoreISNE(GraphEnhancer):
             
         except Exception:
             return 0.0  # Default score if calculation fails
+    
+    def train(self, training_data: GraphEnhancementInput) -> None:
+        """
+        Train the graph enhancement model.
+        
+        Args:
+            training_data: Training data conforming to GraphEnhancementInput contract
+        """
+        # Core ISNE doesn't require explicit training - uses similarity-based methods
+        self.logger.info("Core ISNE enhancement does not require training")
+        pass
+    
+    def is_trained(self) -> bool:
+        """Check if the model has been trained."""
+        return True  # Core ISNE is always ready
+    
+    def save_model(self, path: str) -> None:
+        """
+        Save trained model to disk.
+        
+        Args:
+            path: Path to save model
+        """
+        try:
+            import json
+            
+            save_data = {
+                "component_type": "core_isne",
+                "component_name": self.name,
+                "component_version": self.version,
+                "config": self._config,
+                "enhancement_method": self._enhancement_method,
+                "model_config": self._model_config,
+                "graph_config": self._graph_config,
+                "saved_at": datetime.utcnow().isoformat()
+            }
+            
+            with open(path, 'w') as f:
+                json.dump(save_data, f, indent=2)
+            
+            self.logger.info(f"Core ISNE configuration saved to {path}")
+            
+        except Exception as e:
+            error_msg = f"Failed to save model: {str(e)}"
+            self.logger.error(error_msg)
+            raise IOError(error_msg) from e
+    
+    def load_model(self, path: str) -> None:
+        """
+        Load trained model from disk.
+        
+        Args:
+            path: Path to load model from
+        """
+        try:
+            import json
+            
+            with open(path, 'r') as f:
+                save_data = json.load(f)
+            
+            # Update configuration from saved model
+            if 'config' in save_data:
+                self._config.update(save_data['config'])
+                self.configure(self._config)
+            
+            self.logger.info(f"Core ISNE configuration loaded from {path}")
+            
+        except Exception as e:
+            error_msg = f"Failed to load model: {str(e)}"
+            self.logger.error(error_msg)
+            raise IOError(error_msg) from e
+    
+    def get_model_info(self) -> Dict[str, Any]:
+        """
+        Get information about the current model.
+        
+        Returns:
+            Dictionary containing model metadata
+        """
+        return {
+            "model_type": "core_isne",
+            "component_name": self.name,
+            "component_version": self.version,
+            "enhancement_method": self._enhancement_method,
+            "graph_available": self._graph_available,
+            "pipeline_initialized": self._pipeline_initialized,
+            "model_config": self._model_config,
+            "graph_config": self._graph_config,
+            "total_enhancements": self._total_enhancements,
+            "avg_processing_time": (
+                self._total_processing_time / max(self._total_enhancements, 1)
+            )
+        }
+    
+    def supports_incremental_training(self) -> bool:
+        """Check if the model supports incremental training."""
+        return False  # Core ISNE doesn't require training

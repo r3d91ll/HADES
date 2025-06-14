@@ -56,7 +56,7 @@ class DoclingDocumentProcessor(DocumentProcessor):
         self._docling_available = self._check_docling_availability()
         
         # Monitoring and metrics tracking
-        self._stats = {
+        self._stats: Dict[str, Any] = {
             "total_documents": 0,
             "successful_documents": 0,
             "failed_documents": 0,
@@ -99,7 +99,7 @@ class DoclingDocumentProcessor(DocumentProcessor):
         self._metadata.config = self._config
         self._metadata.processed_at = datetime.now(timezone.utc)
     
-    def validate_config(self, config: Dict[str, Any]) -> bool:
+    def validate_config(self, config: Any) -> bool:
         """Validate configuration parameters."""
         return isinstance(config, dict)
     
@@ -196,12 +196,19 @@ class DoclingDocumentProcessor(DocumentProcessor):
             
             # Calculate rates
             documents_per_second = self._stats["total_documents"] / max(uptime, 1.0)
-            avg_processing_time = (
-                self._stats["total_processing_time"] / max(self._stats["total_documents"], 1)
-            )
-            success_rate = (
-                self._stats["successful_documents"] / max(self._stats["total_documents"], 1) * 100
-            )
+            total_processing_time = self._stats.get("total_processing_time", 0.0)
+            total_documents = self._stats.get("total_documents", 0)
+            successful_documents = self._stats.get("successful_documents", 0)
+            
+            if isinstance(total_processing_time, (int, float)) and isinstance(total_documents, (int, float)):
+                avg_processing_time = float(total_processing_time) / max(int(total_documents), 1)
+            else:
+                avg_processing_time = 0.0
+                
+            if isinstance(successful_documents, (int, float)) and isinstance(total_documents, (int, float)):
+                success_rate = float(successful_documents) / max(int(total_documents), 1) * 100
+            else:
+                success_rate = 0.0
             
             return {
                 "component_name": self.name,
@@ -215,8 +222,8 @@ class DoclingDocumentProcessor(DocumentProcessor):
                 "last_processing_time": self._stats["last_processing_time"],
                 "initialization_count": self._stats["initialization_count"],
                 "format_distribution": self._stats["format_counts"],
-                "recent_errors": self._stats["errors"][-5:],  # Last 5 errors
-                "error_count": len(self._stats["errors"]),
+                "recent_errors": self._get_recent_errors(5),  # Last 5 errors
+                "error_count": self._get_error_count(),
                 "uptime_seconds": round(uptime, 2)
             }
         except Exception as e:
@@ -400,7 +407,10 @@ class DoclingDocumentProcessor(DocumentProcessor):
             
             # Track format statistics
             format_key = file_ext.lstrip('.')
-            self._stats["format_counts"][format_key] = self._stats["format_counts"].get(format_key, 0) + 1
+            format_counts = self._stats.get("format_counts", {})
+            if isinstance(format_counts, dict):
+                format_counts[format_key] = format_counts.get(format_key, 0) + 1
+                self._stats["format_counts"] = format_counts
             
             # Convert to contract format
             return ProcessedDocument(
@@ -519,14 +529,36 @@ class DoclingDocumentProcessor(DocumentProcessor):
     
     def _track_error(self, error_msg: str) -> None:
         """Track an error in statistics."""
-        self._stats["errors"].append({
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "error": error_msg
-        })
-        
-        # Keep only last 50 errors to prevent memory growth
-        if len(self._stats["errors"]) > 50:
-            self._stats["errors"] = self._stats["errors"][-50:]
+        errors_list = self._stats.get("errors", [])
+        if isinstance(errors_list, list):
+            errors_list.append({
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "error": error_msg
+            })
+            
+            # Keep only last 50 errors to prevent memory growth
+            if len(errors_list) > 50:
+                errors_list = errors_list[-50:]
+            
+            self._stats["errors"] = errors_list
+    
+    def _get_recent_errors(self, count: int = 5) -> List[Any]:
+        """Get recent errors with proper type checking."""
+        errors_list = self._stats.get("errors", [])
+        if isinstance(errors_list, list) and len(errors_list) >= count:
+            return errors_list[-count:]
+        elif isinstance(errors_list, list):
+            return errors_list
+        else:
+            return []
+    
+    def _get_error_count(self) -> int:
+        """Get error count with proper type checking."""
+        errors_list = self._stats.get("errors", [])
+        if isinstance(errors_list, list):
+            return len(errors_list)
+        else:
+            return 0
     
     def _create_error_document(self, file_path: Union[str, Path], error: str) -> ProcessedDocument:
         """Create an error document."""

@@ -330,7 +330,10 @@ class AdaptiveISNETrainer:
         
         # 3. Extract results from pipeline processing
         logger.info("Processing completed")
-        all_embeddings = pipeline_result.get('enhanced_documents', [])
+        if isinstance(pipeline_result, dict):
+            all_embeddings = pipeline_result.get('enhanced_documents', [])
+        else:
+            all_embeddings = []
         
         # 4. Update state tracking
         self.last_retrain_time = datetime.now()
@@ -374,9 +377,13 @@ class AdaptiveISNETrainer:
         )
         
         # Extract relationship statistics from pipeline result
+        total_processed = 0
+        if isinstance(pipeline_result, dict):
+            total_processed = pipeline_result.get('total_chunks_processed', 0)
+        
         relationship_stats = {
             'new_relationships': len(new_chunks),  # Simplified
-            'total_relationships': pipeline_result.get('total_chunks_processed', 0)
+            'total_relationships': total_processed
         }
         
         # 3. Update tracking

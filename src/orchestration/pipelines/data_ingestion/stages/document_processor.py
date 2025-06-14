@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 try:
     from src.components.docproc.factory import create_docproc_component
     from src.types.components.contracts import DocumentProcessingInput
+    from src.types.components.protocols import DocumentProcessor
     DOCPROC_AVAILABLE = True
 except ImportError:
     DOCPROC_AVAILABLE = False
@@ -63,9 +64,9 @@ class DocumentProcessorStage(PipelineStage):
         if DOCPROC_AVAILABLE:
             processor_config = self.config.get("processor_config", {})
             component_type = self.config.get("component_type", "core")  # default to core component
-            self.document_processor = create_docproc_component(component_type, config=processor_config)
+            self.document_processor: Optional[DocumentProcessor] = create_docproc_component(component_type, config=processor_config)
         else:
-            self.document_processor = None
+            self.document_processor: Optional[DocumentProcessor] = None
             self.logger.warning("Document processor not available, stage will be disabled")
         
         # Configure file type handling

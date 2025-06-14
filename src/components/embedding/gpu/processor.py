@@ -59,7 +59,7 @@ class GPUEmbedder(Embedder):
         self._normalize_embeddings = self._config.get('normalize_embeddings', True)
         
         # Model engine components
-        self._model_engine = None
+        self._model_engine: Optional[Any] = None
         self._engine_loaded = False
         
         # Performance tracking
@@ -72,7 +72,7 @@ class GPUEmbedder(Embedder):
         
         # Monitoring integration - standardized stats tracking
         self._startup_time = datetime.now(timezone.utc)
-        self._stats = {
+        self._stats: Dict[str, Any] = {
             "total_embeddings_created": 0,
             "successful_embeddings": 0,
             "failed_embeddings": 0,
@@ -136,7 +136,7 @@ class GPUEmbedder(Embedder):
         
         self.logger.info("Updated GPU embedder configuration")
     
-    def validate_config(self, config: Dict[str, Any]) -> bool:
+    def validate_config(self, config: Any) -> bool:
         """
         Validate configuration parameters.
         
@@ -276,15 +276,15 @@ class GPUEmbedder(Embedder):
         Returns:
             Dictionary containing performance metrics
         """
-        total_operations = self._stats["successful_embeddings"] + self._stats["failed_embeddings"]
-        success_rate = (self._stats["successful_embeddings"] / max(total_operations, 1)) * 100
+        total_operations = int(self._stats["successful_embeddings"]) + int(self._stats["failed_embeddings"])
+        success_rate = (int(self._stats["successful_embeddings"]) / max(total_operations, 1)) * 100
         
         avg_processing_time = (
-            self._stats["total_processing_time"] / max(self._stats["successful_embeddings"], 1)
+            float(self._stats["total_processing_time"]) / max(int(self._stats["successful_embeddings"]), 1)
         )
         
         uptime_seconds = (datetime.now(timezone.utc) - self._startup_time).total_seconds()
-        embeddings_per_second = self._stats["total_embeddings_created"] / max(uptime_seconds, 1)
+        embeddings_per_second = int(self._stats["total_embeddings_created"]) / max(uptime_seconds, 1)
         
         return {
             "component_name": self.name,
@@ -298,14 +298,14 @@ class GPUEmbedder(Embedder):
             "total_processing_time": self._stats["total_processing_time"],
             "total_characters_processed": self._stats["total_characters_processed"],
             "total_tokens_processed": self._stats["total_tokens_processed"],
-            "avg_chars_per_embedding": self._stats["total_characters_processed"] / max(self._stats["total_embeddings_created"], 1),
-            "avg_tokens_per_embedding": self._stats["total_tokens_processed"] / max(self._stats["total_embeddings_created"], 1),
+            "avg_chars_per_embedding": int(self._stats["total_characters_processed"]) / max(int(self._stats["total_embeddings_created"]), 1),
+            "avg_tokens_per_embedding": int(self._stats["total_tokens_processed"]) / max(int(self._stats["total_embeddings_created"]), 1),
             "last_processing_time": self._stats["last_processing_time"],
             "initialization_count": self._stats["initialization_count"],
             "engine_loads": self._stats["engine_loads"],
             "embedding_method_distribution": self._stats["embedding_method_counts"],
-            "recent_errors": self._stats["errors"][-10:] if self._stats["errors"] else [],
-            "error_count": len(self._stats["errors"]),
+            "recent_errors": self._get_recent_errors(10),
+            "error_count": self._get_error_count(),
             "uptime_seconds": uptime_seconds
         }
     
@@ -532,12 +532,17 @@ class GPUEmbedder(Embedder):
             
             # Track embedding method used
             if self._engine_loaded:
-                self._stats["gpu_operations"] += 1
+                gpu_ops = self._stats.get("gpu_operations", 0)
+                if isinstance(gpu_ops, (int, float)):
+                    self._stats["gpu_operations"] = int(gpu_ops) + 1
                 method_used = "gpu_engine"
             else:
                 method_used = "fallback"
             
-            self._stats["embedding_method_counts"][method_used] = self._stats["embedding_method_counts"].get(method_used, 0) + 1
+            method_counts = self._stats.get("embedding_method_counts", {})
+            if isinstance(method_counts, dict):
+                method_counts[method_used] = method_counts.get(method_used, 0) + 1
+                self._stats["embedding_method_counts"] = method_counts
             
             # Update metadata
             metadata = ComponentMetadata(
@@ -577,16 +582,23 @@ class GPUEmbedder(Embedder):
             self.logger.error(error_msg)
             
             # Update error stats
-            self._stats["failed_embeddings"] += 1
+            failed_embeddings = self._stats.get("failed_embeddings", 0)
+            if isinstance(failed_embeddings, (int, float)):
+                self._stats["failed_embeddings"] = int(failed_embeddings) + 1
+            
             error_entry = {
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "error": error_msg
             }
-            self._stats["errors"].append(error_entry)
-            
-            # Keep only last 50 errors to prevent memory bloat
-            if len(self._stats["errors"]) > 50:
-                self._stats["errors"] = self._stats["errors"][-50:]
+            errors_list = self._stats.get("errors", [])
+            if isinstance(errors_list, list):
+                errors_list.append(error_entry)
+                
+                # Keep only last 50 errors to prevent memory bloat
+                if len(errors_list) > 50:
+                    errors_list = errors_list[-50:]
+                    
+                self._stats["errors"] = errors_list
             
             metadata = ComponentMetadata(
                 component_type=self.component_type,
@@ -739,27 +751,36 @@ class GPUEmbedder(Embedder):
             
             if self._model_engine:
                 self._engine_loaded = True
-                self._stats["engine_loads"] += 1
+                engine_loads = self._stats.get("engine_loads", 0)
+                if isinstance(engine_loads, (int, float)):
+                    self._stats["engine_loads"] = int(engine_loads) + 1
                 self.logger.info("GPU model engine initialized successfully")
             else:
                 self.logger.warning("Failed to create GPU model engine")
                 self._engine_loaded = False
-                self._stats["engine_loads"] += 1
+                engine_loads = self._stats.get("engine_loads", 0)
+                if isinstance(engine_loads, (int, float)):
+                    self._stats["engine_loads"] = int(engine_loads) + 1
             
         except Exception as e:
             self.logger.error(f"Failed to initialize GPU model engine: {e}")
             self._model_engine = None
             self._engine_loaded = False
-            self._stats["engine_loads"] += 1
+            engine_loads = self._stats.get("engine_loads", 0)
+            if isinstance(engine_loads, (int, float)):
+                self._stats["engine_loads"] = int(engine_loads) + 1
             
             # Track initialization error
             error_entry = {
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "error": f"Model engine initialization failed: {str(e)}"
             }
-            self._stats["errors"].append(error_entry)
-            if len(self._stats["errors"]) > 50:
-                self._stats["errors"] = self._stats["errors"][-50:]
+            errors_list = self._stats.get("errors", [])
+            if isinstance(errors_list, list):
+                errors_list.append(error_entry)
+                if len(errors_list) > 50:
+                    errors_list = errors_list[-50:]
+                self._stats["errors"] = errors_list
     
     def _embed_texts_gpu(self, texts: List[str]) -> List[List[float]]:
         """Generate embeddings using GPU model engine."""
@@ -772,14 +793,17 @@ class GPUEmbedder(Embedder):
         
         try:
             # Use model engine to generate embeddings
-            embeddings = self._model_engine.embed_texts(
-                texts=texts,
-                batch_size=self._batch_size,
-                max_length=self._max_length,
-                normalize=self._normalize_embeddings
-            )
-            
-            return embeddings
+            if self._model_engine is not None:
+                embeddings = self._model_engine.embed_texts(
+                    texts=texts,
+                    batch_size=self._batch_size,
+                    max_length=self._max_length,
+                    normalize=self._normalize_embeddings
+                )
+                
+                return embeddings
+            else:
+                return self._embed_texts_fallback(texts)
             
         except Exception as e:
             self.logger.error(f"GPU embedding failed: {e}")
@@ -837,3 +861,21 @@ class GPUEmbedder(Embedder):
                 features = [f / norm for f in features]
         
         return features
+    
+    def _get_recent_errors(self, count: int = 10) -> List[Any]:
+        """Get recent errors with proper type checking."""
+        errors_list = self._stats.get("errors", [])
+        if isinstance(errors_list, list) and len(errors_list) >= count:
+            return errors_list[-count:]
+        elif isinstance(errors_list, list):
+            return errors_list
+        else:
+            return []
+    
+    def _get_error_count(self) -> int:
+        """Get error count with proper type checking."""
+        errors_list = self._stats.get("errors", [])
+        if isinstance(errors_list, list):
+            return len(errors_list)
+        else:
+            return 0

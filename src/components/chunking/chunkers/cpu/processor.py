@@ -65,7 +65,7 @@ class CPUChunker(Chunker):
         self._use_nltk = self._config.get('use_nltk', False)
         
         # Monitoring and metrics tracking
-        self._stats = {
+        self._stats: Dict[str, Any] = {
             "total_chunks_created": 0,
             "successful_chunks": 0,
             "failed_chunks": 0,
@@ -140,7 +140,7 @@ class CPUChunker(Chunker):
         
         self.logger.info("Updated CPU chunker configuration")
     
-    def validate_config(self, config: Dict[str, Any]) -> bool:
+    def validate_config(self, config: Any) -> bool:
         """
         Validate configuration parameters.
         
@@ -313,16 +313,15 @@ class CPUChunker(Chunker):
             uptime = (current_time - self._startup_time).total_seconds()
             
             # Calculate rates
-            chunks_per_second = self._stats["total_chunks_created"] / max(uptime, 1.0)
-            avg_processing_time = (
-                self._stats["total_processing_time"] / max(self._stats["total_chunks_created"], 1)
-            )
-            success_rate = (
-                self._stats["successful_chunks"] / max(self._stats["total_chunks_created"], 1) * 100
-            )
-            avg_chars_per_chunk = (
-                self._stats["total_characters_processed"] / max(self._stats["total_chunks_created"], 1)
-            )
+            total_chunks = int(self._stats["total_chunks_created"])
+            successful_chunks = int(self._stats["successful_chunks"])
+            total_time = float(self._stats["total_processing_time"])
+            
+            chunks_per_second = total_chunks / max(uptime, 1.0)
+            avg_processing_time = total_time / max(total_chunks, 1)
+            success_rate = successful_chunks / max(total_chunks, 1) * 100
+            total_chars = int(self._stats["total_characters_processed"])
+            avg_chars_per_chunk = total_chars / max(total_chunks, 1)
             
             return {
                 "component_name": self.name,
@@ -650,7 +649,7 @@ class CPUChunker(Chunker):
         
         chunks: List[TextChunk] = []
         chunk_id = 0
-        current_chunk_sentences = []
+        current_chunk_sentences: List[str] = []
         current_length = 0
         
         for sentence in sentences:
@@ -716,7 +715,7 @@ class CPUChunker(Chunker):
         
         chunks: List[TextChunk] = []
         chunk_id = 0
-        current_chunk_paragraphs = []
+        current_chunk_paragraphs: List[str] = []
         current_length = 0
         
         for paragraph in paragraphs:
@@ -852,7 +851,7 @@ class CPUChunker(Chunker):
         # Calculate how many sentences to include in overlap
         total_length = sum(len(s) for s in sentences)
         overlap_length = 0
-        overlap_sentences = []
+        overlap_sentences: List[str] = []
         
         # Start from the end and work backwards
         for sentence in reversed(sentences):

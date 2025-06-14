@@ -69,10 +69,10 @@ class PythonASTProcessor(DocumentProcessor):
         self._include_docstrings = self._config.get('include_docstrings', True)
         self._include_private_members = self._config.get('include_private_members', True)
         self._max_line_length = self._config.get('max_line_length', 10000)
-        self._extract_relationships = self._config.get('extract_relationships', True)
+        self._extract_relationships_enabled = self._config.get('extract_relationships', True)
         
         # Monitoring and metrics tracking
-        self._stats = {
+        self._stats: Dict[str, Any] = {
             "total_files_processed": 0,
             "successful_files": 0,
             "failed_files": 0,
@@ -118,11 +118,11 @@ class PythonASTProcessor(DocumentProcessor):
         self._include_docstrings = self._config.get('include_docstrings', True)
         self._include_private_members = self._config.get('include_private_members', True)
         self._max_line_length = self._config.get('max_line_length', 10000)
-        self._extract_relationships = self._config.get('extract_relationships', True)
+        self._extract_relationships_enabled = self._config.get('extract_relationships', True)
         
         self.logger.info("Updated Python AST processor configuration")
     
-    def validate_config(self, config: Dict[str, Any]) -> bool:
+    def validate_config(self, config: Any) -> bool:
         """
         Validate configuration parameters.
         
@@ -226,7 +226,7 @@ class TestClass:
                 "include_docstrings": self._include_docstrings,
                 "include_private_members": self._include_private_members,
                 "max_line_length": self._max_line_length,
-                "extract_relationships": self._extract_relationships,
+                "extract_relationships": self._extract_relationships_enabled,
                 "memory_usage": {
                     "rss_mb": round(memory_info.rss / 1024 / 1024, 2),
                     "vms_mb": round(memory_info.vms / 1024 / 1024, 2)
@@ -250,13 +250,13 @@ class TestClass:
             uptime = (current_time - self._startup_time).total_seconds()
             
             # Calculate rates
-            files_per_second = self._stats["successful_files"] / max(uptime, 1.0)
-            avg_processing_time = (
-                self._stats["total_processing_time"] / max(self._stats["successful_files"], 1)
-            )
-            success_rate = (
-                self._stats["successful_files"] / max(self._stats["total_files_processed"], 1) * 100
-            )
+            successful_files = int(self._stats["successful_files"])
+            total_files = int(self._stats["total_files_processed"])
+            total_time = float(self._stats["total_processing_time"])
+            
+            files_per_second = successful_files / max(uptime, 1.0)
+            avg_processing_time = total_time / max(successful_files, 1)
+            success_rate = successful_files / max(total_files, 1) * 100
             
             return {
                 "component_name": self.name,
@@ -266,14 +266,14 @@ class TestClass:
                 "success_rate_percent": round(success_rate, 2),
                 "files_per_second": round(files_per_second, 3),
                 "average_processing_time": round(avg_processing_time, 3),
-                "total_processing_time": round(self._stats["total_processing_time"], 3),
+                "total_processing_time": round(total_time, 3),
                 "total_functions_extracted": self._stats["total_functions_extracted"],
                 "total_classes_extracted": self._stats["total_classes_extracted"],
                 "total_imports_extracted": self._stats["total_imports_extracted"],
                 "last_processing_time": self._stats["last_processing_time"],
                 "initialization_count": self._stats["initialization_count"],
-                "recent_errors": self._stats["errors"][-5:],  # Last 5 errors
-                "error_count": len(self._stats["errors"]),
+                "recent_errors": list(self._stats["errors"])[-5:],  # Last 5 errors
+                "error_count": len(list(self._stats["errors"])),
                 "uptime_seconds": round(uptime, 2)
             }
         except Exception as e:
@@ -553,7 +553,7 @@ class TestClass:
             # Extract symbol table and entities
             symbol_table = self._extract_symbol_table(tree, file_path)
             entities = self._extract_entities(tree)
-            relationships = self._extract_relationships(tree) if self._extract_relationships else []
+            relationships = self._extract_relationships(tree) if self._extract_relationships_enabled else []
             
             # Create metadata
             metadata = PythonMetadata(
@@ -598,6 +598,9 @@ class TestClass:
     
     def _extract_symbol_table(self, tree: ast.AST, file_path: Path) -> SymbolTable:
         """Extract symbol table from AST."""
+        # Ensure we have a Module node
+        if not isinstance(tree, ast.Module):
+            raise ValueError(f"Expected ast.Module, got {type(tree).__name__}")
         module_docstring = ast.get_docstring(tree)
         
         # Extract all elements from the module
@@ -715,8 +718,11 @@ class TestClass:
         if isinstance(node, ast.Import):
             for alias in node.names:
                 elements.append(ImportElement(
+                    type="import",
                     name=alias.name,
                     qualified_name=alias.name,
+                    docstring=None,
+                    content=f"import {alias.name}",
                     alias=alias.asname,
                     source="import",
                     line_range=[getattr(node, 'lineno', 0), getattr(node, 'lineno', 0)]
@@ -725,8 +731,11 @@ class TestClass:
             module = node.module or ""
             for alias in node.names:
                 elements.append(ImportElement(
+                    type="import",
                     name=alias.name,
                     qualified_name=f"{module}.{alias.name}" if module else alias.name,
+                    docstring=None,
+                    content=f"from {module} import {alias.name}" if module else f"import {alias.name}",
                     alias=alias.asname,
                     source="from_import",
                     line_range=[getattr(node, 'lineno', 0), getattr(node, 'lineno', 0)]
@@ -794,7 +803,8 @@ class TestClass:
     def _determine_access_level(self, name: str) -> str:
         """Determine access level based on naming convention."""
         if name.startswith('__') and name.endswith('__'):
-            return AccessLevel.SPECIAL.value
+            # Dunder methods are technically public (e.g., __init__, __str__)
+            return AccessLevel.PUBLIC.value
         elif name.startswith('__'):
             return AccessLevel.PRIVATE.value
         elif name.startswith('_'):

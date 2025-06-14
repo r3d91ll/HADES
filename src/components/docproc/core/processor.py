@@ -58,7 +58,7 @@ class CoreDocumentProcessor(DocumentProcessor):
         )
         
         # Monitoring and metrics tracking
-        self._stats = {
+        self._stats: Dict[str, Any] = {
             "total_documents": 0,
             "successful_documents": 0,
             "failed_documents": 0,
@@ -114,7 +114,7 @@ class CoreDocumentProcessor(DocumentProcessor):
         
         self.logger.info(f"Updated core document processor configuration")
     
-    def validate_config(self, config: Dict[str, Any]) -> bool:
+    def validate_config(self, config: Any) -> bool:
         """
         Validate configuration parameters.
         
@@ -257,13 +257,13 @@ class CoreDocumentProcessor(DocumentProcessor):
             uptime = (current_time - self._startup_time).total_seconds()
             
             # Calculate rates
-            documents_per_second = self._stats["total_documents"] / max(uptime, 1.0)
-            avg_processing_time = (
-                self._stats["total_processing_time"] / max(self._stats["total_documents"], 1)
-            )
-            success_rate = (
-                self._stats["successful_documents"] / max(self._stats["total_documents"], 1) * 100
-            )
+            total_docs = int(self._stats["total_documents"])
+            successful_docs = int(self._stats["successful_documents"])
+            total_time = float(self._stats["total_processing_time"])
+            
+            documents_per_second = total_docs / max(uptime, 1.0)
+            avg_processing_time = total_time / max(total_docs, 1)
+            success_rate = successful_docs / max(total_docs, 1) * 100
             
             return {
                 "component_name": self.name,
@@ -497,9 +497,9 @@ class CoreDocumentProcessor(DocumentProcessor):
         Returns:
             Output data conforming to DocumentProcessingOutput contract
         """
-        documents = []
-        errors = []
-        processing_stats = {}
+        documents: List[Any] = []
+        errors: List[str] = []
+        processing_stats: Dict[str, Any] = {}
         
         try:
             start_time = datetime.now(timezone.utc)

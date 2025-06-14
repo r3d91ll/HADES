@@ -41,8 +41,8 @@ class ChunkingStage(PipelineStage):
         name: str = "chunking",
         config: Optional[Dict[str, Any]] = None,
         enable_parallel: bool = False,
-        worker_pool=None,
-        queue_manager=None
+        worker_pool: Optional[Any] = None,
+        queue_manager: Optional[Any] = None
     ):
         """Initialize chunking stage.
         
@@ -268,11 +268,11 @@ class ChunkingStage(PipelineStage):
         
         # Check various possible locations for the document content
         if "content" in document.metadata:
-            content = document.metadata["content"]
+            content = str(document.metadata["content"])
             self.logger.debug(f"Found content in metadata, length: {len(content)}")
             return content
         elif "text" in document.metadata:
-            content = document.metadata["text"]
+            content = str(document.metadata["text"])
             self.logger.debug(f"Found text in metadata, length: {len(content)}")
             return content
         

@@ -318,9 +318,11 @@ class ISNEStage(PipelineStage):
                     "weight": rel.weight,
                     "type": rel.type
                 }
-                chunk_dict["relationships"].append(rel_dict)  # type: ignore[attr-defined]
+                if isinstance(chunk_dict["relationships"], list):
+                    chunk_dict["relationships"].append(rel_dict)
             
-            doc_dict["chunks"].append(chunk_dict)
+            if isinstance(doc_dict["chunks"], list):
+                doc_dict["chunks"].append(chunk_dict)
         
         return doc_dict
     

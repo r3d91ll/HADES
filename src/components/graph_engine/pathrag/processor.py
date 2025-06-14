@@ -57,7 +57,7 @@ class PathRAGGraphEngine:
         self._graph_storage = None
         self._vector_storage = None
         self._embedding_func = None
-        self._pathrag_instance = None
+        self._pathrag_instance: Optional[Dict[str, Any]] = None
         
         # Statistics
         self._total_documents_processed = 0
@@ -119,7 +119,7 @@ class PathRAGGraphEngine:
         
         self.logger.info("Updated PathRAG graph engine configuration")
     
-    def validate_config(self, config: Dict[str, Any]) -> bool:
+    def validate_config(self, config: Any) -> bool:
         """
         Validate configuration parameters.
         
@@ -325,7 +325,7 @@ class PathRAGGraphEngine:
                 "error": error_msg
             }
     
-    def query(self, query: str, **kwargs) -> Dict[str, Any]:
+    def query(self, query: str, **kwargs: Any) -> Dict[str, Any]:
         """
         Perform a PathRAG query.
         

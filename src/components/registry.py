@@ -53,7 +53,7 @@ class ComponentRegistry:
     based on configuration, enabling runtime component swapping and A/B testing.
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the component registry."""
         self._components: Dict[str, Dict[str, ComponentInfo]] = {
             "docproc": {},
@@ -110,6 +110,7 @@ class ComponentRegistry:
             if isinstance(component_type, str):
                 type_key = component_type
             else:
+                # Must be ComponentType
                 type_key = self._type_mapping.get(component_type, str(component_type))
             
             if type_key not in self._components:
@@ -117,7 +118,18 @@ class ComponentRegistry:
             
             # Create default factory if none provided
             if factory_func is None:
-                factory_func = lambda config: component_class(config=config)
+                def default_factory(config: Optional[Dict[str, Any]]) -> ComponentProtocol:
+                    try:
+                        # Try creating instance without config first (safer)
+                        instance = component_class()
+                        # Then configure if config provided and method exists
+                        if hasattr(instance, 'configure') and config:
+                            instance.configure(config)
+                        return instance
+                    except Exception as e:
+                        logger.error(f"Failed to create instance of {component_class}: {e}")
+                        raise RegistryError(f"Failed to instantiate component: {e}")
+                factory_func = default_factory
             
             # Create component info
             info = ComponentInfo(
@@ -165,6 +177,7 @@ class ComponentRegistry:
             if isinstance(component_type, str):
                 type_key = component_type
             else:
+                # Must be ComponentType
                 type_key = self._type_mapping.get(component_type, str(component_type))
             
             if type_key not in self._components:
@@ -203,8 +216,10 @@ class ComponentRegistry:
             # List components for specific type
             if isinstance(component_type, str):
                 type_key = component_type
-            else:
+            elif isinstance(component_type, ComponentType):
                 type_key = self._type_mapping.get(component_type, str(component_type))
+            else:
+                type_key = str(component_type)
             
             if type_key in self._components:
                 return {type_key: list(self._components[type_key].keys())}
@@ -237,6 +252,7 @@ class ComponentRegistry:
             if isinstance(component_type, str):
                 type_key = component_type
             else:
+                # Must be ComponentType
                 type_key = self._type_mapping.get(component_type, str(component_type))
             
             if type_key in self._components and name in self._components[type_key]:
@@ -285,6 +301,7 @@ class ComponentRegistry:
             if isinstance(component_type, str):
                 type_key = component_type
             else:
+                # Must be ComponentType
                 type_key = self._type_mapping.get(component_type, str(component_type))
             
             if type_key in self._components and name in self._components[type_key]:
@@ -398,7 +415,7 @@ class ComponentRegistry:
         Returns:
             Dictionary containing registry statistics
         """
-        stats = {
+        stats: Dict[str, Any] = {
             "total_components": 0,
             "components_by_type": {},
             "component_types": list(self._components.keys())
@@ -438,7 +455,7 @@ def register_component(
     name: str,
     component_class: Type[ComponentProtocol],
     factory_func: Optional[Callable[[Optional[Dict[str, Any]]], ComponentProtocol]] = None,
-    **kwargs
+    **kwargs: Any
 ) -> None:
     """
     Register a component in the global registry.

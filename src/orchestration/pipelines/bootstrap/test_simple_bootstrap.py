@@ -123,18 +123,39 @@ def main():
         if all_documents:
             sample_doc = all_documents[0]
             print(f"\n=== Sample Document Structure ===")
-            print(f"Document keys: {list(sample_doc.keys())}")
-            print(f"Document ID: {sample_doc.get('id', 'N/A')}")
-            print(f"Document file name: {sample_doc.get('file_name', 'N/A')}")
+            
+            # Handle both dict and object types
+            if isinstance(sample_doc, dict):
+                # It's a dictionary
+                print(f"Document keys: {list(sample_doc.keys())}")
+                print(f"Document ID: {sample_doc.get('id', 'N/A')}")
+                print(f"Document file name: {sample_doc.get('file_name', 'N/A')}")
+            else:
+                # It's likely a Pydantic model or other object
+                doc_dict = sample_doc.__dict__ if hasattr(sample_doc, '__dict__') else {}
+                print(f"Document attributes: {list(doc_dict.keys())}")
+                print(f"Document ID: {getattr(sample_doc, 'id', 'N/A')}")
+                print(f"Document file name: {getattr(sample_doc, 'file_name', 'N/A')}")
             
         # Examine chunk structure
         if all_chunks:
             sample_chunk = all_chunks[0]
             print(f"\n=== Sample Chunk Structure ===")
-            print(f"Chunk keys: {list(sample_chunk.keys())}")
-            print(f"Chunk ID: {sample_chunk.get('id', 'N/A')}")
-            print(f"Chunk text preview: {sample_chunk.get('text', '')[:100]}...")
-            print(f"Chunk source: {sample_chunk.get('source_document', 'N/A')}")
+            
+            # Handle both dict and object types
+            if isinstance(sample_chunk, dict):
+                # It's a dictionary
+                print(f"Chunk keys: {list(sample_chunk.keys())}")
+                print(f"Chunk ID: {sample_chunk.get('id', 'N/A')}")
+                print(f"Chunk text preview: {sample_chunk.get('text', '')[:100]}...")
+                print(f"Chunk source: {sample_chunk.get('source_document', 'N/A')}")
+            else:
+                # It's likely a chunk object
+                chunk_dict = sample_chunk.__dict__ if hasattr(sample_chunk, '__dict__') else {}
+                print(f"Chunk attributes: {list(chunk_dict.keys())}")
+                print(f"Chunk ID: {getattr(sample_chunk, 'id', 'N/A')}")
+                print(f"Chunk text preview: {str(getattr(sample_chunk, 'text', ''))[:100]}...")
+                print(f"Chunk source: {getattr(sample_chunk, 'source_document', 'N/A')}")
             
         print(f"\n=== JSON Files Created ===")
         for subdir in ['docproc', 'chunking']:

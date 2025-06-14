@@ -16,7 +16,8 @@ from datetime import datetime
 from src.storage.arango.connection import ArangoConnection
 from src.ingest.repository.arango_repository import ArangoRepository
 from src.isne.integrations.pathrag_connector import PathRAGConnector
-from src.isne.pipeline import ISNEPipeline, PipelineConfig
+from src.isne.pipeline import ISNEPipeline
+from src.types.orchestration.config import PipelineConfig
 from src.types.isne.models import EmbeddingConfig
 from src.types.common import StorageConfig, PathRankingConfig
 

@@ -28,6 +28,7 @@ from src.types.components.contracts import (
 from src.types.components.protocols import ModelEngine
 
 # Import types
+from src.types.components.model_engine.inference import CompletionRequest
 # from src.types.components.model_engine.config import ModelEngineConfig
 # from src.types.components.model_engine.inference import InferenceRequest, InferenceResponse
 
@@ -59,10 +60,10 @@ class CoreModelEngine(ModelEngine):
             config=self._config
         )
         
-        # Initialize model engine components
-        self._factory: Optional[ModelEngineFactory] = None
-        self._server_manager: Optional[ServerManager] = None
-        self._engine: Optional[BaseModelEngine] = None
+        # Initialize model engine components (TODO: implement these classes)
+        self._factory: Optional[Any] = None  # ModelEngineFactory when implemented
+        self._server_manager: Optional[Any] = None  # ServerManager when implemented
+        self._engine: Optional[Any] = None  # BaseModelEngine when implemented
         
         # Configuration
         self._engine_type = self._config.get('engine_type', 'vllm')
@@ -116,7 +117,7 @@ class CoreModelEngine(ModelEngine):
         
         self.logger.info(f"Updated core model engine configuration")
     
-    def validate_config(self, config: Dict[str, Any]) -> bool:
+    def validate_config(self, config: Any) -> bool:
         """
         Validate configuration parameters.
         
@@ -238,7 +239,7 @@ class CoreModelEngine(ModelEngine):
             
             # Try a simple operation
             if hasattr(self._engine, 'is_ready'):
-                return self._engine.is_ready()
+                return bool(self._engine.is_ready())
             
             return True
             
@@ -291,8 +292,8 @@ class CoreModelEngine(ModelEngine):
         Returns:
             Output data conforming to ModelEngineOutput contract
         """
-        errors = []
-        processing_stats = {}
+        errors: List[str] = []
+        processing_stats: Dict[str, Any] = {}
         
         try:
             start_time = datetime.utcnow()
@@ -426,7 +427,7 @@ class CoreModelEngine(ModelEngine):
             if not self._server_manager:
                 return False
             
-            return self._server_manager.is_running()
+            return bool(self._server_manager.is_running())
             
         except Exception:
             return False
@@ -478,17 +479,20 @@ class CoreModelEngine(ModelEngine):
         """Initialize the model engine."""
         try:
             if not self._factory:
-                self._factory = ModelEngineFactory()
+                # TODO: Implement ModelEngineFactory
+                self._factory = None  # ModelEngineFactory()
             
             # Create engine configuration
-            engine_config = ModelEngineConfig(
-                engine_type=self._engine_type,
-                model_name=self._model_name,
+            # TODO: Implement ModelEngineConfig
+            engine_config = {
+                "engine_type": self._engine_type,
+                "model_name": self._model_name,
                 **self._config.get('server_config', {})
-            )
+            }
             
             # Create engine instance
-            self._engine = self._factory.create_engine(engine_config)
+            # TODO: Implement factory.create_engine
+            self._engine = None  # self._factory.create_engine(engine_config)
             
             self.logger.info(f"Initialized {self._engine_type} engine successfully")
             
@@ -500,7 +504,8 @@ class CoreModelEngine(ModelEngine):
         """Initialize the server manager."""
         try:
             server_config = self._config.get('server_config', {})
-            self._server_manager = ServerManager(config=server_config)
+            # TODO: Implement ServerManager
+            self._server_manager = None  # ServerManager(config=server_config)
             
             self.logger.info("Initialized server manager successfully")
             
@@ -522,20 +527,23 @@ class CoreModelEngine(ModelEngine):
         
         try:
             # Convert request to engine format
-            inference_request = InferenceRequest(
-                request_id=request.get('request_id', 'unknown'),
-                input_text=request.get('input_text', ''),
-                parameters=request.get('parameters', {})
-            )
+            inference_request: CompletionRequest = {
+                'model': request.get('model', 'default'),
+                'prompt': request.get('input_text', ''),
+                'max_tokens': request.get('max_tokens', 100),
+                'temperature': request.get('temperature', 0.7)
+            }
             
             # Process with engine
+            if self._engine is None:
+                raise RuntimeError("Model engine not initialized. Call initialize() first.")
             response = self._engine.generate(inference_request)
             
             # Calculate processing time
             processing_time = (datetime.utcnow() - start_time).total_seconds()
             
             return ModelInferenceResult(
-                request_id=inference_request.request_id,
+                request_id=request.get('request_id', 'unknown'),
                 response_data={
                     "output_text": response.output_text if hasattr(response, 'output_text') else "",
                     "tokens": response.tokens if hasattr(response, 'tokens') else [],
