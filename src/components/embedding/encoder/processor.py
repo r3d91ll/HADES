@@ -50,13 +50,13 @@ class EncoderEmbedder(Embedder):
         )
         
         # Configuration settings
-        self._model_name = self._config.get('model_name', 'microsoft/DialoGPT-medium')
-        self._batch_size = self._config.get('batch_size', 16)  # Lower for encoder models
-        self._max_length = self._config.get('max_length', 512)
-        self._normalize_embeddings = self._config.get('normalize_embeddings', True)
-        self._pooling_strategy = self._config.get('pooling_strategy', 'mean')
-        self._hidden_size = self._config.get('hidden_size', 768)
-        self._device = self._config.get('device', 'cpu')
+        self._model_name = str(self._config.get('model_name', 'microsoft/DialoGPT-medium'))
+        self._batch_size = int(self._config.get('batch_size', 16))  # Lower for encoder models
+        self._max_length = int(self._config.get('max_length', 512))
+        self._normalize_embeddings = bool(self._config.get('normalize_embeddings', True))
+        self._pooling_strategy = str(self._config.get('pooling_strategy', 'mean'))
+        self._hidden_size = int(self._config.get('hidden_size', 768))
+        self._device = str(self._config.get('device', 'cpu'))
         
         # Model components
         self._model = None
@@ -116,13 +116,13 @@ class EncoderEmbedder(Embedder):
             self._model_loaded = False
         
         if 'batch_size' in config:
-            self._batch_size = config['batch_size']
+            self._batch_size = int(config['batch_size'])
         
         if 'max_length' in config:
-            self._max_length = config['max_length']
+            self._max_length = int(config['max_length'])
         
         if 'hidden_size' in config:
-            self._hidden_size = config['hidden_size']
+            self._hidden_size = int(config['hidden_size'])
         
         self.logger.info("Updated encoder embedder configuration")
     
@@ -638,7 +638,7 @@ class EncoderEmbedder(Embedder):
             self.logger.error(f"Encoder embedding failed: {e}")
             return self._embed_texts_fallback(texts)
     
-    def _apply_pooling(self, hidden_states, attention_mask=None):
+    def _apply_pooling(self, hidden_states: Any, attention_mask: Any = None) -> Any:
         """Apply pooling strategy to hidden states."""
         import torch
         

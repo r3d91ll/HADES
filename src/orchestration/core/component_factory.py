@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 class ComponentRegistry:
     """Registry for available component implementations."""
     
-    def __init__(self):
+    def __init__(self) -> None:
         self._components: Dict[str, Dict[str, Type[PipelineStage]]] = {
             'document_processor': {},
             'chunker': {},
@@ -37,7 +37,7 @@ class ComponentRegistry:
         # Register default implementations
         self._register_default_components()
     
-    def _register_default_components(self):
+    def _register_default_components(self) -> None:
         """Register default component implementations."""
         # Document processors
         self._components['document_processor']['docling'] = DocumentProcessorStage
@@ -62,7 +62,7 @@ class ComponentRegistry:
     def register_component(self, 
                          component_type: str,
                          implementation_name: str,
-                         component_class: Type[PipelineStage]):
+                         component_class: Type[PipelineStage]) -> None:
         """
         Register a new component implementation.
         
@@ -229,7 +229,7 @@ def get_global_registry() -> ComponentRegistry:
 
 def register_component(component_type: str,
                       implementation_name: str,
-                      component_class: Type[PipelineStage]):
+                      component_class: Type[PipelineStage]) -> None:
     """
     Register a component in the global registry.
     

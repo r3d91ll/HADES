@@ -19,7 +19,7 @@ sys.path.insert(0, str(project_root))
 from src.orchestration.pipelines.data_ingestion.stages.document_processor import DocumentProcessorStage
 from src.orchestration.pipelines.data_ingestion.stages.chunking import ChunkingStage
 
-def setup_logging():
+def setup_logging() -> None:
     """Set up logging for simple bootstrap test."""
     logging.basicConfig(
         level=logging.INFO,
@@ -30,7 +30,7 @@ def setup_logging():
         ]
     )
 
-def main():
+def main() -> None:
     """Run simple bootstrap test to examine JSON structures."""
     setup_logging()
     logger = logging.getLogger(__name__)

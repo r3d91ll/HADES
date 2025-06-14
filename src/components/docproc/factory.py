@@ -24,7 +24,7 @@ DOCPROC_REGISTRY: Dict[str, Tuple[Type[DocumentProcessor], Callable[[Optional[Di
 }
 
 
-def _register_components():
+def _register_components() -> None:
     """Register document processing components with the global registry."""
     try:
         from src.components.registry import register_component

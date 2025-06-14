@@ -54,12 +54,12 @@ class ASTAwareCodeChunker(Chunker):
         )
         
         # Configuration options
-        self._chunk_strategy = self._config.get('chunk_strategy', 'semantic')  # semantic, hybrid, size_based
-        self._max_chunk_size = self._config.get('max_chunk_size', 2048)
-        self._min_chunk_size = self._config.get('min_chunk_size', 100)
-        self._include_imports = self._config.get('include_imports', True)
-        self._include_docstrings = self._config.get('include_docstrings', True)
-        self._context_lines = self._config.get('context_lines', 2)  # Lines of context around chunks
+        self._chunk_strategy = str(self._config.get('chunk_strategy', 'semantic'))  # semantic, hybrid, size_based
+        self._max_chunk_size = int(self._config.get('max_chunk_size', 2048))
+        self._min_chunk_size = int(self._config.get('min_chunk_size', 100))
+        self._include_imports = bool(self._config.get('include_imports', True))
+        self._include_docstrings = bool(self._config.get('include_docstrings', True))
+        self._context_lines = int(self._config.get('context_lines', 2))  # Lines of context around chunks
         
         # Initialize AST processor
         self._ast_processor = PythonASTProcessor({
@@ -115,12 +115,12 @@ class ASTAwareCodeChunker(Chunker):
         self._metadata.processed_at = datetime.now(timezone.utc)
         
         # Update configuration parameters
-        self._chunk_strategy = self._config.get('chunk_strategy', 'semantic')
-        self._max_chunk_size = self._config.get('max_chunk_size', 2048)
-        self._min_chunk_size = self._config.get('min_chunk_size', 100)
-        self._include_imports = self._config.get('include_imports', True)
-        self._include_docstrings = self._config.get('include_docstrings', True)
-        self._context_lines = self._config.get('context_lines', 2)
+        self._chunk_strategy = str(self._config.get('chunk_strategy', 'semantic'))
+        self._max_chunk_size = int(self._config.get('max_chunk_size', 2048))
+        self._min_chunk_size = int(self._config.get('min_chunk_size', 100))
+        self._include_imports = bool(self._config.get('include_imports', True))
+        self._include_docstrings = bool(self._config.get('include_docstrings', True))
+        self._context_lines = int(self._config.get('context_lines', 2))
         
         self.logger.info("Updated AST-aware code chunker configuration")
     
@@ -652,7 +652,7 @@ class TestClass:
         chunks = []
         chunk_id = 0
         
-        current_lines = []
+        current_lines: List[str] = []
         current_size = 0
         
         # Create line-to-node mapping for better boundary detection
@@ -895,7 +895,7 @@ class TestClass:
         chunks = []
         chunk_id = 0
         
-        current_lines = []
+        current_lines: List[str] = []
         current_size = 0
         
         for line in lines:
@@ -977,7 +977,7 @@ class TestClass:
         sub_chunks = []
         chunk_id = start_chunk_id
         
-        current_lines = []
+        current_lines: List[str] = []
         current_size = 0
         
         for line in lines:
@@ -1160,7 +1160,7 @@ class TestClass:
         chunks = []
         lines = text.split('\n')
         
-        current_chunk_lines = []
+        current_chunk_lines: List[str] = []
         current_size = 0
         chunk_id = 0
         

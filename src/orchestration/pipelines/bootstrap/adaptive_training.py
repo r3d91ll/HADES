@@ -331,7 +331,7 @@ class AdaptiveISNETrainer:
         # 3. Extract results from pipeline processing
         logger.info("Processing completed")
         if isinstance(pipeline_result, dict):
-            all_embeddings = pipeline_result.get('enhanced_documents', [])
+            all_embeddings: List[Any] = pipeline_result.get('enhanced_documents', [])
         else:
             all_embeddings = []
         

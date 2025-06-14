@@ -59,7 +59,7 @@ class BootstrapPipeline:
         self, 
         document_paths: List[str], 
         output_dir: str,
-        **kwargs
+        **kwargs: Any
     ) -> Dict[str, Any]:
         """
         Bootstrap ISNE model from initial document set.
@@ -150,7 +150,7 @@ class BootstrapPipeline:
         self, 
         embeddings_data: List[Dict[str, Any]], 
         output_dir: str,
-        **kwargs
+        **kwargs: Any
     ) -> Dict[str, Any]:
         """
         Bootstrap ISNE model from embeddings.
@@ -300,7 +300,7 @@ def run_bootstrap_pipeline(
     document_paths: List[str],
     output_dir: str,
     config_path: Optional[str] = None,
-    **kwargs
+    **kwargs: Any
 ) -> Dict[str, Any]:
     """
     Convenience function to run bootstrap pipeline.

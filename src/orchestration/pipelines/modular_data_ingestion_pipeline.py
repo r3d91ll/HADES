@@ -157,7 +157,7 @@ class ModularDataIngestionPipeline:
             )
             raise
     
-    def _record_component_info(self, component_type: str, implementation: str):
+    def _record_component_info(self, component_type: str, implementation: str) -> None:
         """Record component information for statistics."""
         self.stats['component_info'][component_type] = implementation
     

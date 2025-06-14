@@ -28,7 +28,7 @@ STORAGE_REGISTRY: Dict[str, Tuple[Type[Storage], Callable[[Optional[Dict[str, An
 }
 
 
-def _register_components():
+def _register_components() -> None:
     """Register storage components with the global registry."""
     try:
         from src.components.registry import register_component

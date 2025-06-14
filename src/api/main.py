@@ -8,7 +8,7 @@ automatic MCP tool exposure for all RAG operations.
 
 import logging
 import time
-from typing import Dict, Any, List
+from typing import Dict, Any, List, AsyncGenerator
 from pathlib import Path
 from contextlib import asynccontextmanager
 
@@ -39,7 +39,7 @@ service_state = {
 }
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Manage service lifecycle - startup and shutdown events."""
     # Startup
     logger.info("Starting HADES unified service...")

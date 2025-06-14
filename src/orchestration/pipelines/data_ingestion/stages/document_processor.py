@@ -46,9 +46,9 @@ class DocumentProcessorStage(PipelineStage):
         name: str = "document_processor",
         config: Optional[Dict[str, Any]] = None,
         enable_parallel: bool = False,
-        worker_pool=None,
-        queue_manager=None
-    ):
+        worker_pool: Any = None,
+        queue_manager: Any = None
+    ) -> None:
         """Initialize document processing stage.
         
         Args:

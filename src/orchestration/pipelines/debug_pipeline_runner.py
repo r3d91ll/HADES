@@ -152,7 +152,7 @@ def process_single_file(file_path: Path, stages: List[Tuple[str, Any]], output_d
     return stage_results
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Debug Pipeline Runner for HADES")
     parser.add_argument("-i", "--input-dir", required=True, help="Input directory containing files to process")
     parser.add_argument("-o", "--output-dir", required=True, help="Output directory for results and debug files")

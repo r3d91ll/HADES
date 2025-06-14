@@ -30,7 +30,7 @@ CHUNKING_REGISTRY: Dict[str, Tuple[Type[Chunker], Callable[[Optional[Dict[str, A
 }
 
 
-def _register_components():
+def _register_components() -> None:
     """Register chunking components with the global registry."""
     try:
         from src.components.registry import register_component

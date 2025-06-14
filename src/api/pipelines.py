@@ -133,7 +133,7 @@ async def query_pipeline(request: QueryPipelineRequest) -> QueryPipelineResponse
         # Stage 1: Vector retrieval
         stage_start = time.time()
         # TODO: Implement actual vector retrieval
-        vector_results = []  # Placeholder
+        vector_results: List[Dict[str, Any]] = []  # Placeholder
         if isinstance(pipeline_metadata["stages_executed"], list):
             pipeline_metadata["stages_executed"].append({
                 "stage": "vector_retrieval",

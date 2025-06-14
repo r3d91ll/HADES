@@ -31,7 +31,7 @@ GRAPH_ENHANCEMENT_REGISTRY: Dict[str, Tuple[Type[GraphEnhancer], Callable[[Optio
 }
 
 
-def _register_components():
+def _register_components() -> None:
     """Register graph enhancement components with the global registry."""
     try:
         from src.components.registry import register_component
