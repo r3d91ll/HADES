@@ -106,7 +106,7 @@ class ISNEAttention(nn.Module):
         num_nodes = x.size(0)
         
         # Create a mapping from edges to their indices
-        edge_to_idx = torch.zeros(num_nodes, num_nodes, device=x.device) - 1
+        edge_to_idx = torch.zeros(num_nodes, num_nodes, dtype=torch.long, device=x.device) - 1
         edge_to_idx[source, target] = torch.arange(source.size(0), device=x.device)
         
         # Apply softmax normalization row-wise (per node)
@@ -130,7 +130,7 @@ class ISNEAttention(nn.Module):
                 # Get corresponding attention weights
                 neighbor_weights = attention[source == i]
                 # Weighted sum of neighbor features
-                output[i] = torch.sum(Wh[neighbors] * neighbor_weights.unsqueeze(-1), dim=0)
+                output[i] = torch.sum(Wh[neighbors] * neighbor_weights.unsqueeze(-1), dim=0).to(output.dtype)
         
         # Return values with correct typing
         if return_attention_weights:

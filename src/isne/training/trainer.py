@@ -19,7 +19,7 @@ import numpy as np
 from numpy.typing import NDArray
 from tqdm import tqdm
 
-from src.isne.models.isne_model import ISNEModel
+from src.isne.models.isne_model import ISNEModel, create_neighbor_lists_from_edge_index
 from src.isne.losses.feature_loss import FeaturePreservationLoss
 from src.isne.losses.structural_loss import StructuralPreservationLoss
 from src.isne.losses.contrastive_loss import ContrastiveLoss
@@ -106,7 +106,7 @@ class ISNETrainer:
         
         logger.info(f"ISNE trainer initialized on device: {self.device}")
         
-        # Initialize model, losses, and optimizer
+        # Initialize model, losses, and optimizer placeholders
         self.model: Optional[ISNEModel] = None
         self.feature_loss: Optional[FeaturePreservationLoss] = None
         self.structural_loss: Optional[StructuralPreservationLoss] = None
@@ -131,19 +131,18 @@ class ISNETrainer:
             'total_neg_count': 0
         }
     
-    def _initialize_model(self) -> None:
+    def _initialize_model(self, num_nodes: int) -> None:
         """
         Initialize the ISNE model.
+        
+        Args:
+            num_nodes: Number of nodes in the graph
         """
         self.model = ISNEModel(
-            in_features=self.embedding_dim,
-            hidden_features=self.hidden_dim,
-            out_features=self.output_dim,
-            num_layers=self.num_layers,
-            num_heads=self.num_heads,
-            dropout=self.dropout,
-            residual=True,
-            normalize_features=True
+            num_nodes=num_nodes,
+            embedding_dim=self.embedding_dim,
+            learning_rate=self.learning_rate,
+            device=self.device
         ).to(self.device)
     
     def _initialize_losses(self) -> None:
@@ -190,13 +189,23 @@ class ISNETrainer:
             weight_decay=self.weight_decay
         )
     
-    def prepare_model(self) -> None:
+    def prepare_model(self, num_nodes: Optional[int] = None) -> None:
         """
         Prepare the model, loss functions, and optimizer for training.
+        
+        Args:
+            num_nodes: Number of nodes in the graph (required for ISNE model)
         """
-        self._initialize_model()
+        if num_nodes is None:
+            # For backward compatibility, we'll delay model initialization
+            logger.warning("num_nodes not provided, model will be initialized later")
+            self.model = None
+        else:
+            self._initialize_model(num_nodes)
         self._initialize_losses()
-        self._initialize_optimizer()
+        # Only initialize optimizer if model exists
+        if self.model is not None:
+            self._initialize_optimizer()
     
     def train(
         self,
@@ -233,7 +242,8 @@ class ISNETrainer:
         """
         # Prepare model if not already done
         if self.model is None:
-            self.prepare_model()
+            num_nodes = features.shape[0]
+            self.prepare_model(num_nodes)
             
         # Move data to device
         features = features.to(self.device)
@@ -824,6 +834,124 @@ class ISNETrainer:
         logger.info("=======================================")
         
         return self.train_stats
+    
+    def train_isne_simple(
+        self,
+        edge_index: Tensor,
+        epochs: int = 100,
+        batch_size: int = 128,
+        walk_length: int = 80,
+        walks_per_node: int = 10,
+        context_window: int = 5,
+        verbose: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Simple ISNE training using skip-gram objective as described in the paper.
+        
+        Args:
+            edge_index: Edge index tensor [2, num_edges]
+            epochs: Number of training epochs
+            batch_size: Training batch size
+            walk_length: Length of random walks
+            walks_per_node: Number of random walks per node
+            context_window: Context window size for skip-gram
+            verbose: Whether to show progress
+            
+        Returns:
+            Training statistics
+        """
+        if self.model is None:
+            raise ValueError("Model not initialized. Call prepare_model first.")
+        
+        # Move data to device
+        edge_index = edge_index.to(self.device)
+        num_nodes = self.model.num_nodes
+        
+        # Create adjacency lists for ISNE
+        adjacency_lists = create_neighbor_lists_from_edge_index(edge_index, num_nodes)
+        
+        # Simple optimizer for theta parameters
+        optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate)
+        
+        # Training statistics
+        training_stats = {
+            'epochs': 0,
+            'losses': [],
+            'time_per_epoch': []
+        }
+        
+        logger.info(f"Starting simple ISNE training for {epochs} epochs")
+        logger.info(f"Graph: {num_nodes} nodes, {edge_index.size(1)} edges")
+        
+        for epoch in range(epochs):
+            epoch_start = time.time()
+            epoch_loss = 0.0
+            num_batches = 0
+            
+            # Simple training: sample random walks and train skip-gram
+            for batch_start in range(0, num_nodes, batch_size):
+                batch_end = min(batch_start + batch_size, num_nodes)
+                batch_nodes = torch.arange(batch_start, batch_end, device=self.device)
+                
+                # Get neighbor lists for batch nodes
+                batch_neighbor_lists = [adjacency_lists[i] for i in range(batch_start, batch_end)]
+                
+                # Simple skip-gram training
+                optimizer.zero_grad()
+                
+                # Get ISNE embeddings for batch nodes
+                embeddings = self.model.get_node_embeddings(batch_nodes, batch_neighbor_lists)
+                
+                # Simple objective: minimize distance to random neighbor embeddings
+                loss = torch.tensor(0.0, device=self.device, requires_grad=True)
+                
+                for i, node_id in enumerate(batch_nodes):
+                    neighbors = batch_neighbor_lists[i]
+                    if len(neighbors) > 0:
+                        # Sample a random neighbor as positive example
+                        pos_neighbor = torch.tensor([neighbors[torch.randint(0, len(neighbors), (1,)).item()]], device=self.device)
+                        pos_embedding = self.model.get_node_embeddings(pos_neighbor, [adjacency_lists[pos_neighbor[0].item()]])
+                        
+                        # Positive loss: maximize similarity to neighbor
+                        pos_loss = -torch.nn.functional.cosine_similarity(
+                            embeddings[i:i+1], pos_embedding, dim=1
+                        ).mean()
+                        
+                        # Negative sampling: random node that's not a neighbor
+                        neg_node = torch.randint(0, num_nodes, (1,), device=self.device)
+                        while neg_node.item() in neighbors or neg_node.item() == node_id.item():
+                            neg_node = torch.randint(0, num_nodes, (1,), device=self.device)
+                        
+                        neg_embedding = self.model.get_node_embeddings(neg_node, [adjacency_lists[neg_node[0].item()]])
+                        
+                        # Negative loss: minimize similarity to non-neighbor
+                        neg_loss = torch.nn.functional.cosine_similarity(
+                            embeddings[i:i+1], neg_embedding, dim=1
+                        ).mean()
+                        
+                        loss = loss + pos_loss + neg_loss
+                
+                if loss.requires_grad:
+                    loss.backward()
+                    optimizer.step()
+                    
+                    epoch_loss += loss.item()
+                    num_batches += 1
+            
+            # Record statistics
+            epoch_time = time.time() - epoch_start
+            avg_loss = epoch_loss / max(num_batches, 1)
+            
+            training_stats['losses'].append(avg_loss)
+            training_stats['time_per_epoch'].append(epoch_time)
+            
+            if verbose and (epoch + 1) % 10 == 0:
+                logger.info(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.6f}, Time: {epoch_time:.2f}s")
+        
+        training_stats['epochs'] = epochs
+        logger.info(f"ISNE training completed. Final loss: {training_stats['losses'][-1]:.6f}")
+        
+        return training_stats
     
     def evaluate(
         self,

@@ -60,6 +60,7 @@ tqdm = "^4.67.1"
 coverage = "^7.8.0"
 types-pyyaml = "^6.0.12.20250402"
 types-requests = "^2.32.0.20250328"
+torch-geometric = "^2.6.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.0.0"
