@@ -32,7 +32,7 @@ from typing import Optional, Any, cast
 
 # Import the RandomWalkSampler class if available
 try:
-    from src.isne.training.random_walk_sampler import RandomWalkSampler
+    from src.isne.training.sampler import RandomWalkSampler
     HAS_RANDOM_WALK_SAMPLER = True
 except ImportError:
     logger.warning("RandomWalkSampler not available. Will use default sampler unless provided in config.")

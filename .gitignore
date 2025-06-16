@@ -163,3 +163,5 @@ test-simple
 test-out/
 output/*
 
+alerts/*
+wandb/*

@@ -226,9 +226,64 @@ class ISNEModel(nn.Module):
         Args:
             filepath: Path to load embeddings from
         """
-        checkpoint = torch.load(filepath, map_location=self.device)
+        checkpoint = torch.load(filepath, map_location=self.device, weights_only=False)
         self.theta.data = checkpoint['theta']
         logger.info(f"Loaded ISNE embeddings from {filepath}")
+    
+    def save(self, filepath: str) -> None:
+        """
+        Save the complete model state.
+        
+        Args:
+            filepath: Path to save the model
+        """
+        torch.save({
+            'state_dict': self.state_dict(),
+            'num_nodes': self.num_nodes,
+            'embedding_dim': self.embedding_dim,
+            'learning_rate': self.learning_rate,
+            'negative_samples': self.negative_samples,
+            'context_window': self.context_window,
+            'device': str(self.device)
+        }, filepath)
+        logger.info(f"Saved ISNE model to {filepath}")
+    
+    @classmethod
+    def load(cls, filepath: str) -> 'ISNEModel':
+        """
+        Load a model from file.
+        
+        Args:
+            filepath: Path to the saved model
+            
+        Returns:
+            Loaded ISNE model
+        """
+        checkpoint = torch.load(filepath, map_location='cpu', weights_only=False)
+        
+        # Extract model configuration
+        if 'model_config' in checkpoint:
+            config = checkpoint['model_config']
+            model = cls(
+                num_nodes=config['num_nodes'],
+                embedding_dim=config['embedding_dim'],
+                learning_rate=config.get('learning_rate', 0.001),
+                negative_samples=config.get('negative_samples', 5),
+                context_window=config.get('context_window', 5),
+                device=config.get('device', 'cpu')
+            )
+            
+            # Load model state
+            if 'model_state_dict' in checkpoint:
+                model.load_state_dict(checkpoint['model_state_dict'])
+            else:
+                raise ValueError("Model state dict not found in checkpoint")
+                
+        else:
+            raise ValueError(f"Invalid checkpoint format: missing model_config. Found keys: {list(checkpoint.keys())}")
+        
+        logger.info(f"Loaded ISNE model from {filepath}")
+        return model
 
 
 def create_neighbor_lists_from_edge_index(edge_index: Tensor, num_nodes: int) -> List[List[int]]:

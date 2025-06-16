@@ -1,0 +1,166 @@
+# ISNE Training Pipeline Configuration
+# This handles regular training operations (not bootstrap)
+
+# Data Configuration
+data:
+  # Source data directory (relative to HADES root or absolute path)
+  data_dir: "../test-data3"
+  
+  # Percentage of data to use for training (0.01 = 1%, 0.10 = 10%, 1.0 = 100%)
+  data_percentage: 0.10
+  
+  # Sampling strategy for data selection
+  sampling:
+    strategy: "stratified"  # stratified, random, latest
+    seed: 42  # For reproducible sampling
+    file_types:
+      pdf: 0.10
+      py: 0.10  
+      md: 0.10
+      txt: 0.10
+      json: 0.10
+
+# Model Configuration  
+model:
+  # Source model (baseline to train from)
+  source_model:
+    # Path to existing model (can be ESM, bootstrap output, or previous training result)
+    path: "output/micro_validation_bootstrap/isne_model_final.pth"
+    
+    # Model identifier/version
+    name: "ISNE_micro_validation_baseline"
+    
+    # Model type for validation
+    type: "isne"
+  
+  # Target model (output of training)
+  target_model:
+    # Output directory for new model
+    output_dir: "output/isne_training"
+    
+    # Model name with versioning
+    name: "isne_v{version}_{timestamp}"
+    
+    # Versioning strategy
+    versioning:
+      # Auto-increment version numbers
+      auto_increment: true
+      
+      # Version number (will auto-increment if auto_increment is true)
+      version: 1
+      
+      # Include timestamp in model name
+      include_timestamp: true
+      
+      # Timestamp format
+      timestamp_format: "%Y%m%d_%H%M%S"
+
+# Training Configuration
+training:
+  # Training hyperparameters
+  epochs: 20
+  learning_rate: 0.001
+  batch_size: 64
+  
+  # Model architecture (will inherit from source model if not specified)
+  architecture:
+    hidden_dim: null  # null = inherit from source model
+    num_layers: null  # null = inherit from source model
+    num_heads: null   # null = inherit from source model
+    dropout: 0.1
+  
+  # Early stopping
+  early_stopping:
+    patience: 5
+    min_delta: 0.0001
+  
+  # Device configuration
+  device: "cuda"  # cuda, cpu, auto
+  
+  # Optimizer settings
+  optimizer:
+    type: "adam"
+    weight_decay: 1e-5
+
+# Pipeline Configuration
+pipeline:
+  # Document processing settings
+  document_processing:
+    use_hybrid_processing: true
+    python_use_ast: true
+    pdf_extraction_method: "docling"
+  
+  # Chunking settings
+  chunking:
+    chunk_size: 512
+    overlap: 50
+  
+  # Embedding settings  
+  embedding:
+    model_name: "sentence-transformers/all-MiniLM-L6-v2"
+    batch_size: 32
+    use_gpu: true
+  
+  # Graph construction settings
+  graph_construction:
+    similarity_threshold: 0.6
+    max_edges_per_node: 10
+    use_gpu: true
+
+# Evaluation Configuration
+evaluation:
+  # Whether to run evaluation after training
+  enabled: true
+  
+  # Evaluation metrics
+  metrics:
+    - "inductive_performance"
+    - "graph_preservation"
+    - "embedding_quality"
+  
+  # Performance targets
+  targets:
+    inductive_performance: 0.85  # 85% minimum
+  
+  # Evaluation sample size
+  sample_size: 1000
+
+# Output Configuration
+output:
+  # Save intermediate results
+  save_intermediate: true
+  
+  # Monitoring and logging
+  monitoring:
+    enable_alerts: true
+    alert_thresholds:
+      max_memory_mb: 8000
+      max_duration_minutes: 60
+  
+  # Results to save
+  save_results:
+    - "model"
+    - "training_history" 
+    - "evaluation_results"
+    - "config_used"
+
+# API Configuration (for MCP endpoints)
+api:
+  # Default timeout for training operations (in seconds)
+  timeout: 3600  # 1 hour
+  
+  # Progress reporting interval (in seconds)
+  progress_interval: 30
+  
+  # Whether to allow config overrides via API
+  allow_config_override: true
+  
+  # Allowed override fields (security)
+  allowed_overrides:
+    - "data.data_percentage"
+    - "data.data_dir"
+    - "training.epochs"
+    - "training.learning_rate"
+    - "training.batch_size"
+    - "model.target_model.name"
+    - "evaluation.enabled"

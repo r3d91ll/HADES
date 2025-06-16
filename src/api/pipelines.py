@@ -66,7 +66,7 @@ class IngestPipelineResponse(BaseModel):
 class ISNETrainingRequest(BaseModel):
     """Request for ISNE training pipeline."""
     training_data_path: Optional[str] = Field(None, description="Path to training data")
-    model_config: Dict[str, Any] = Field(default_factory=dict, description="Model configuration")
+    model_settings: Dict[str, Any] = Field(default_factory=dict, description="Model configuration")
     training_config: Dict[str, Any] = Field(default_factory=dict, description="Training configuration")
     notification_webhook: Optional[str] = Field(None, description="Webhook for completion notification")
     
@@ -412,47 +412,41 @@ async def run_ingestion_pipeline(job_id: str, request: IngestPipelineRequest) ->
 
 async def run_isne_training_pipeline(job_id: str, request: ISNETrainingRequest) -> None:
     """Background task for ISNE training pipeline."""
+    from src.api.isne_training import ISNEProductionTrainer
+    
     try:
         job_data = pipeline_jobs[job_id]
-        job_data["status"] = "running"
-        job_data["stage"] = "data_loading"
+        trainer = ISNEProductionTrainer()
         
-        # Stage 1: Data Loading
-        job_data["progress_percent"] = 5.0
-        await asyncio.sleep(2)
+        # Extract configuration
+        graph_data_path = request.training_data_path or "output/graph_data.json"
+        output_dir = request.model_settings.get("output_dir", "output/models")
+        model_path = request.model_settings.get("existing_model_path")
+        model_name = request.model_settings.get("model_name", f"isne_model_{job_id}")
         
-        # Stage 2: Model Initialization
-        job_data["stage"] = "model_initialization"
-        job_data["progress_percent"] = 10.0
-        await asyncio.sleep(1)
+        # Run training
+        results = await trainer.train(
+            job_id=job_id,
+            job_data=job_data,
+            graph_data_path=graph_data_path,
+            output_dir=output_dir,
+            training_config=request.training_config,
+            model_path=model_path,
+            model_name=model_name
+        )
         
-        # Stage 3: Training (simulate epochs)
-        epochs = request.training_config.get("epochs", 50)
-        for epoch in range(epochs):
-            job_data["stage"] = f"training_epoch_{epoch+1}"
-            job_data["progress_percent"] = 10.0 + (epoch / epochs) * 75.0
-            await asyncio.sleep(0.1)  # Simulate training time
-        
-        # Stage 4: Validation
-        job_data["stage"] = "validation"
-        job_data["progress_percent"] = 90.0
-        await asyncio.sleep(1)
-        
-        # Stage 5: Model Saving
-        job_data["stage"] = "model_saving"
-        job_data["progress_percent"] = 95.0
-        await asyncio.sleep(1)
-        
-        # Complete
-        job_data["status"] = "completed"
-        job_data["progress_percent"] = 100.0
-        job_data["stage"] = "completed"
-        job_data["results"] = {
-            "training_epochs": epochs,
-            "final_loss": 0.1234,  # Simulated
-            "model_path": f"/models/isne/job_{job_id}.pth",
-            "validation_accuracy": 0.95
-        }
+        # Send webhook notification if configured
+        if request.notification_webhook and job_data["status"] == "completed":
+            try:
+                import aiohttp
+                async with aiohttp.ClientSession() as session:
+                    await session.post(request.notification_webhook, json={
+                        "job_id": job_id,
+                        "status": "completed",
+                        "results": results
+                    })
+            except Exception as e:
+                logger.warning(f"Failed to send webhook notification: {e}")
         
         logger.info(f"ISNE training pipeline job {job_id} completed successfully")
         

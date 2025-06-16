@@ -1,0 +1,261 @@
+# Incremental Storage Configuration for HADES
+# ArangoDB-based incremental document ingestion and ISNE model updates
+
+# Database Configuration
+database:
+  name: "hades_incremental"
+  connection:
+    hosts: ["http://localhost:8529"]
+    username: "root"
+    password: ""  # Set in environment variable ARANGO_PASSWORD
+    pool_size: 10
+    timeout: 30
+    retry_count: 3
+
+# Processing Configuration
+processing:
+  batch_size: 100
+  max_workers: 4
+  chunk_size_limit: 10000
+  enable_parallel_processing: true
+  
+  # Memory limits
+  max_memory_mb: 2048
+  gc_threshold: 0.8
+
+# Conflict Resolution
+conflict_resolution:
+  default_strategy: "update"  # skip, update, merge, keep_both
+  similarity_threshold: 0.85
+  auto_resolve: true
+  
+  # Strategy-specific settings
+  merge:
+    content_merge_strategy: "replace_with_newer"
+    metadata_merge_strategy: "combine"
+  
+  keep_both:
+    version_suffix_format: "_v{timestamp}"
+    max_versions_per_document: 5
+
+# Graph Construction
+graph:
+  edge_similarity_threshold: 0.4
+  max_edges_per_node: 50
+  similarity_metrics:
+    - "cosine"
+    - "euclidean"  # fallback if cosine fails
+  
+  # Graph optimization
+  optimization:
+    enable_auto_optimization: true
+    optimization_interval_hours: 24
+    min_weight_threshold: 0.1
+    max_node_degree: 100
+
+# Model Configuration
+model:
+  expansion_strategy: "gradual"  # immediate, gradual, adaptive
+  expansion_factor: 1.2
+  
+  # Training settings for incremental updates
+  training:
+    epochs: 20
+    learning_rate: 0.001
+    batch_size: 128
+    patience: 10
+    min_delta: 0.001
+    
+    # GPU settings
+    use_gpu: true
+    gpu_memory_fraction: 0.8
+  
+  # Model versioning
+  versioning:
+    auto_backup: true
+    max_versions: 10
+    compression: true
+
+# Caching Configuration
+cache:
+  enabled: true
+  backend: "redis"  # redis, memory, disk
+  
+  # Redis settings
+  redis:
+    host: "localhost"
+    port: 6379
+    db: 0
+    password: ""  # Set in environment variable REDIS_PASSWORD
+  
+  # TTL settings (in seconds)
+  ttl:
+    default: 3600
+    embeddings: 86400
+    similarity_results: 7200
+    graph_queries: 1800
+  
+  # Key prefixes
+  prefixes:
+    embeddings: "hades:emb:"
+    similarity: "hades:sim:"
+    graph: "hades:graph:"
+    metadata: "hades:meta:"
+
+# Monitoring and Alerting
+monitoring:
+  enable_metrics: true
+  metrics_interval_seconds: 60
+  
+  # Performance thresholds
+  thresholds:
+    processing_time_seconds: 300
+    memory_usage_percent: 80
+    error_rate_percent: 5
+    queue_size: 1000
+  
+  # Alert settings
+  alerts:
+    enable_alerts: true
+    channels: ["database", "log"]  # database, log, email, slack
+    
+    # Alert levels and conditions
+    conditions:
+      high:
+        - "error_rate > 10%"
+        - "memory_usage > 90%"
+        - "processing_time > 600s"
+      medium:
+        - "error_rate > 5%"
+        - "memory_usage > 80%"
+        - "queue_size > 500"
+      low:
+        - "successful_completion"
+        - "optimization_completed"
+
+# Data Validation
+validation:
+  enable_strict_validation: true
+  schema_validation: true
+  content_validation: true
+  
+  # Document validation
+  documents:
+    max_size_mb: 100
+    allowed_extensions: [".pdf", ".txt", ".md", ".py", ".json", ".yaml", ".yml", ".html"]
+    encoding_detection: true
+    
+  # Chunk validation
+  chunks:
+    min_size: 10
+    max_size: 10000
+    require_content: true
+    
+  # Embedding validation
+  embeddings:
+    dimension_validation: true
+    vector_normalization: true
+    nan_detection: true
+
+# Performance Optimization
+optimization:
+  # Database optimization
+  database:
+    enable_indexing: true
+    index_optimization_interval_hours: 168  # Weekly
+    query_optimization: true
+    
+  # Processing optimization
+  processing:
+    enable_batching: true
+    adaptive_batch_size: true
+    load_balancing: true
+    
+  # Memory optimization
+  memory:
+    enable_garbage_collection: true
+    gc_interval_seconds: 300
+    memory_mapping: true
+
+# Security
+security:
+  enable_ssl: false  # Set to true for production
+  ssl_cert_path: ""
+  ssl_key_path: ""
+  
+  # Input validation
+  input_validation:
+    sanitize_paths: true
+    validate_file_types: true
+    check_permissions: true
+  
+  # Access control
+  access_control:
+    enable_authentication: false  # Set to true for production
+    require_api_key: false
+    rate_limiting: false
+
+# Backup and Recovery
+backup:
+  enable_auto_backup: true
+  backup_interval_hours: 24
+  backup_retention_days: 30
+  backup_compression: true
+  
+  # Backup locations
+  locations:
+    database: "backups/database/"
+    models: "backups/models/"
+    logs: "backups/logs/"
+  
+  # Recovery settings
+  recovery:
+    enable_point_in_time_recovery: true
+    recovery_validation: true
+
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+  # Log destinations
+  handlers:
+    console:
+      enabled: true
+      level: "INFO"
+    file:
+      enabled: true
+      level: "DEBUG"
+      path: "logs/incremental_storage.log"
+      max_size_mb: 100
+      backup_count: 5
+    database:
+      enabled: true
+      level: "WARNING"
+      collection: "logs"
+
+# Development and Testing
+development:
+  debug_mode: false
+  verbose_logging: false
+  enable_profiling: false
+  
+  # Testing settings
+  testing:
+    use_test_database: false
+    test_database_name: "hades_incremental_test"
+    enable_mock_services: false
+    
+  # Development helpers
+  helpers:
+    enable_dev_endpoints: false
+    allow_dangerous_operations: false
+
+# Environment-specific overrides
+# These can be set via environment variables with HADES_INCREMENTAL_ prefix
+environment_overrides:
+  database_name: "${HADES_INCREMENTAL_DB_NAME}"
+  arango_password: "${ARANGO_PASSWORD}"
+  redis_password: "${REDIS_PASSWORD}"
+  debug_mode: "${HADES_DEBUG_MODE}"
+  log_level: "${HADES_LOG_LEVEL}"

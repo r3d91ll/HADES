@@ -52,6 +52,7 @@ try:
     import torch_cluster
     from torch_cluster import random_walk
     TORCH_CLUSTER_AVAILABLE = True
+    logger.debug("torch_cluster available with random_walk function")
 except ImportError:
     logger.warning("torch_cluster not available. Using fallback random walk implementation.")
     TORCH_CLUSTER_AVAILABLE = False

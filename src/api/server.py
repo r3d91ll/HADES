@@ -14,6 +14,7 @@ from fastapi.responses import Response
 from src.types.api import WriteRequest, QueryRequest, WriteResponse, QueryResponse, StatusResponse, QueryResult
 from .core import PathRAGSystem
 from src.components.registry import get_global_registry
+from .isne_training_pipeline import router as isne_training_router
 
 # Configure logging
 logging.basicConfig(
@@ -37,6 +38,9 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
+
+# Include ISNE training endpoints
+app.include_router(isne_training_router)
 
 # PathRAG system instance
 _pathrag_system = None
@@ -297,4 +301,4 @@ hades_metrics_collection_errors_total{{error="collection_failed"}} 1
 if __name__ == "__main__":
     import uvicorn
     logger.info("Starting HADES API server")
-    uvicorn.run("api.server:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("src.api.server:app", host="0.0.0.0", port=8595, reload=True)

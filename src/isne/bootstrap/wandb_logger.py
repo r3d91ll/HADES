@@ -34,8 +34,8 @@ class WandBLogger:
         
         if self.enabled:
             try:
-                import wandb
-                self.wandb = wandb
+                import wandb as wandb_module
+                self.wandb = wandb_module
                 logger.info("W&B integration enabled")
             except ImportError:
                 logger.warning("wandb not installed - disabling W&B integration")

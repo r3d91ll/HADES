@@ -53,16 +53,8 @@ class DocumentProcessingStage(BaseBootstrapStage):
             processor = create_docproc_component(config.processor_type)
             
             documents = []
-            stats = {
-                "files_processed": 0,
-                "documents_generated": 0,
-                "total_content_chars": 0,
-                "file_details": [],
-                "supported_formats": config.supported_formats,
-                "processor_type": config.processor_type
-            }
             
-            # Filter files by supported formats
+            # Filter files by supported formats first
             supported_files = []
             for file_path in input_files:
                 if any(file_path.suffix.lower().endswith(f".{fmt}") or 
@@ -73,6 +65,18 @@ class DocumentProcessingStage(BaseBootstrapStage):
             
             logger.info(f"Processing {len(supported_files)} supported files "
                        f"(filtered from {len(input_files)} total files)")
+            
+            # Initialize stats after filtering
+            stats = {
+                "files_processed": 0,
+                "documents_generated": 0,
+                "documents_skipped_empty": 0,
+                "files_skipped_unsupported": len(input_files) - len(supported_files),
+                "total_content_chars": 0,
+                "file_details": [],
+                "supported_formats": config.supported_formats,
+                "processor_type": config.processor_type
+            }
             
             # Process each file
             for file_path in supported_files:
@@ -98,11 +102,20 @@ class DocumentProcessingStage(BaseBootstrapStage):
                     # Process document
                     output = processor.process(doc_input)
                     
-                    # Collect results
-                    file_docs = len(output.documents)
-                    file_chars = sum(len(doc.content) for doc in output.documents)
+                    # Filter out empty documents before adding to collection
+                    valid_documents = []
+                    for doc in output.documents:
+                        if doc.content and len(doc.content.strip()) >= 10:  # Minimum 10 characters
+                            valid_documents.append(doc)
+                        else:
+                            stats["documents_skipped_empty"] += 1
+                            logger.debug(f"Filtering out empty document from {file_path.name}: {getattr(doc, 'id', 'unknown_id')}")
                     
-                    documents.extend(output.documents)
+                    # Collect results (only valid documents)
+                    file_docs = len(valid_documents)
+                    file_chars = sum(len(doc.content) for doc in valid_documents)
+                    
+                    documents.extend(valid_documents)
                     stats["files_processed"] += 1
                     stats["documents_generated"] += file_docs
                     stats["total_content_chars"] += file_chars
@@ -138,9 +151,19 @@ class DocumentProcessingStage(BaseBootstrapStage):
                     error_message=error_msg
                 )
             
-            # Success
+            # Calculate skip rates for alerting
+            total_input_files = len(input_files)
+            skip_rate = (stats["files_skipped_unsupported"] + stats["documents_skipped_empty"]) / total_input_files if total_input_files > 0 else 0
+            
+            # Log completion with skip statistics
             logger.info(f"Document processing completed: {len(documents)} documents from "
                        f"{stats['files_processed']} files ({stats['total_content_chars']} total characters)")
+            logger.info(f"Skipped: {stats['files_skipped_unsupported']} unsupported files, "
+                       f"{stats['documents_skipped_empty']} empty documents (skip rate: {skip_rate:.1%})")
+            
+            # Add skip rate to stats for monitoring
+            stats["skip_rate"] = skip_rate
+            stats["total_input_files"] = total_input_files
             
             return DocumentProcessingResult(
                 success=True,

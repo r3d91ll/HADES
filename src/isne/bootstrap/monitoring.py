@@ -235,7 +235,7 @@ class BootstrapMonitor:
             })
         
         # Check memory growth threshold
-        memory_growth_threshold = 500  # 500 MB
+        memory_growth_threshold = self.alert_thresholds.get("memory_growth_threshold_mb", 500)
         if stage_metrics.memory_delta_mb > memory_growth_threshold:
             alert_data = {
                 "stage": stage_name,
@@ -275,6 +275,29 @@ class BootstrapMonitor:
                 "stage": stage_name,
                 "data": alert_data
             })
+        
+        # Check for high skip rates in document processing
+        if stage_name == "document_processing" and "skip_rate" in stage_metrics.stats:
+            skip_rate = stage_metrics.stats["skip_rate"]
+            if skip_rate > 0.5:  # Alert if >50% of files are skipped
+                alert_data = {
+                    "stage": stage_name,
+                    "skip_rate": skip_rate,
+                    "files_skipped_unsupported": stage_metrics.stats.get("files_skipped_unsupported", 0),
+                    "documents_skipped_empty": stage_metrics.stats.get("documents_skipped_empty", 0),
+                    "total_input_files": stage_metrics.stats.get("total_input_files", 0)
+                }
+                self.alert_manager.alert(
+                    f"High skip rate in {stage_name}: {skip_rate:.1%} of files skipped",
+                    AlertLevel.MEDIUM,
+                    f"stage_skip_rate_{stage_name}",
+                    alert_data
+                )
+                self.pipeline_metrics.alerts_generated.append({
+                    "type": "high_skip_rate",
+                    "stage": stage_name,
+                    "data": alert_data
+                })
         
         # Check for stage failure
         if not stage_metrics.success:

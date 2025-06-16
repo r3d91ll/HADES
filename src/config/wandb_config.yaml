@@ -1,0 +1,82 @@
+# Weights & Biases Configuration for HADES ISNE Training
+
+# Enable/disable W&B integration
+enabled: true
+
+# W&B project settings
+project: "hades-isne-training"
+entity: null  # Set to your W&B entity/team name, or null for personal projects
+
+# Run tags for organization
+tags:
+  - "isne"
+  - "graph-rag"
+  - "production"
+  - "hades"
+
+# Run notes template
+notes: "ISNE model training for HADES graph-RAG system"
+
+# Model artifact settings
+log_model: true      # Log trained models as W&B artifacts
+log_code: true       # Log code with the run
+log_gradients: false # Log gradient histograms (increases overhead)
+
+# Alert settings
+alert_on_failure: true
+alert_on_completion: true
+
+# Sweep configuration (for hyperparameter tuning)
+sweep_config:
+  method: "bayes"  # bayes, random, grid
+  metric:
+    name: "validation/loss"
+    goal: "minimize"
+  parameters:
+    learning_rate:
+      distribution: "log_uniform_values"
+      min: 0.0001
+      max: 0.01
+    hidden_dim:
+      values: [64, 128, 256, 512]
+    num_layers:
+      values: [2, 3, 4]
+    dropout:
+      distribution: "uniform"
+      min: 0.0
+      max: 0.3
+    weight_decay:
+      distribution: "log_uniform_values"
+      min: 1e-6
+      max: 1e-3
+
+# Visualization settings
+visualize_embeddings: true
+visualize_graph: false  # Disabled by default due to size
+max_nodes_to_visualize: 1000
+
+# Resource monitoring
+monitor_gpu: true
+monitor_cpu: true
+monitor_memory: true
+monitor_disk: false
+
+# Data logging settings
+log_dataset_stats: true
+log_training_samples: false  # Don't log individual samples
+log_validation_results: true
+
+# Checkpoint settings
+save_checkpoints: true
+checkpoint_frequency: 10  # Save every N epochs
+keep_top_k_checkpoints: 3  # Keep best K checkpoints
+
+# Integration settings
+slack_webhook: null  # Set to Slack webhook URL for notifications
+email_notifications: false
+
+# Advanced settings
+resume_runs: true  # Allow resuming interrupted runs
+force_offline: false  # Run in offline mode
+silent: false  # Suppress W&B console output
+ignore_globs: []  # Files to ignore when logging code

@@ -63,9 +63,20 @@ class ChunkingStage(BaseBootstrapStage):
                 "chunk_overlap": config.chunk_overlap
             }
             
+            # Track skipped documents
+            skipped_count = 0
+            skipped_reasons = []
+            
             # Process each document
             for doc in documents:
                 try:
+                    # Skip documents with empty or minimal content
+                    if not doc.content or len(doc.content.strip()) < 10:
+                        skipped_count += 1
+                        skipped_reasons.append(f"Document {doc.id}: empty or minimal content")
+                        logger.debug(f"Skipping document {doc.id}: empty or minimal content")
+                        continue
+                    
                     logger.info(f"Chunking document {doc.id}...")
                     
                     # Create chunking input
@@ -127,8 +138,10 @@ class ChunkingStage(BaseBootstrapStage):
                     logger.info(f"  ✓ {doc.id}: {len(doc_chunks)} chunks, {doc_chars} characters")
                     
                 except Exception as e:
+                    skipped_count += 1
                     error_msg = f"Failed to chunk document {doc.id}: {e}"
-                    logger.error(error_msg)
+                    skipped_reasons.append(error_msg)
+                    logger.warning(error_msg)
                     stats["document_details"].append({
                         "document_id": doc.id,
                         "error": str(e),
