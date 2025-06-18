@@ -1,14 +1,17 @@
 # HADES Unified Database Schema
+
 **Heuristic Adaptive Data Extrapolation System**
 
 ## Executive Summary
 
-HADES implements a unified, adaptive database schema that combines the simplicity of mixed-collection discovery with the operational intelligence of incremental processing. The system starts with unified collections for maximum cross-domain discovery capability and evolves into performance-optimized structures based on actual usage patterns, while maintaining full incremental update capabilities and model version tracking.
+HADES implements a **dual-embedding architecture** that combines semantic and structural search capabilities through a novel streaming chunk processing approach. Building on the proven success of graph-enhanced RAG systems (achieving 35-80% performance improvements as demonstrated by Microsoft GraphRAG and related research), HADES introduces an efficient **streaming ISNE architecture** that learns structural relationships without requiring expensive LLM-based entity extraction.
+
+The core innovation is using **sequential chunk streaming** to train ISNE models that capture both intra-document and cross-document relationships naturally through processing order. This enables retrieval strategies impossible with traditional approaches - semantic embeddings answer "what is this about?" while ISNE embeddings answer "how does this relate to the knowledge structure?" Together, they provide efficient graph-enhanced RAG capabilities that rival complex knowledge graph extraction systems while maintaining simplicity and computational efficiency.
 
 ## Core Philosophy
 
 - **Start unified, evolve intelligently** - Begin with mixed collections, migrate to specialized collections based on real usage data
-- **Anti-Windows performance model** - System gets faster over time as data self-organizes through usage patterns
+- **Adaptive performance optimization** - System improves over time as data self-organizes through usage patterns and learning
 - **Incremental by design** - Only process new or changed content via content hashing
 - **Model evolution tracking** - Full lineage tracking for ISNE model versions
 - **LLM-driven interactions** - Schema designed for natural language querying and prompt-engineering
@@ -62,6 +65,431 @@ Documents → Content Hash → Change Detection → Chunking → Embedding → I
                                       ↓
                               ArangoDB Relationships
 ```
+
+## Dual-Embedding Architecture with Streaming ISNE
+
+### Core Concept: Streaming Chunk Processing for Graph-Enhanced RAG
+
+HADES builds on the proven graph-enhanced RAG paradigm (as demonstrated by Microsoft GraphRAG's 70-80% performance improvements) but takes a fundamentally different approach to structural understanding. Instead of using expensive LLM-based entity extraction and knowledge graph construction, HADES employs **streaming chunk processing** with ISNE to achieve similar benefits at a fraction of the computational cost.
+
+The system uses two complementary embedding approaches:
+
+- **Semantic Embeddings** (ModernBERT, 768-dim): Capture meaning, topical similarity, and conceptual relationships
+- **ISNE Embeddings** (384-dim): Capture structural relationships learned from sequential chunk processing order
+
+This dual approach enables retrieval strategies comparable to complex graph-enhanced systems while maintaining the simplicity of vector-based approaches.
+
+### The Streaming Chunk Innovation
+
+Unlike traditional batch-based document processing, HADES processes documents as a **continuous stream of chunks** with global sequential IDs. This architectural choice solves multiple fundamental problems:
+
+```python
+# Traditional approach: Documents → Chunks → Batch Processing
+documents = [doc1, doc2, doc3]
+chunks_per_doc = [chunk_doc(doc) for doc in documents]
+# Problem: Inconsistent chunk-to-node mapping, no cross-document relationships
+
+# HADES streaming approach: Global Sequential Chunk Stream
+chunk_stream = [
+    {"chunk_id": 0, "type": "doc_start", "doc_path": "src/auth/jwt_handler.py"},
+    {"chunk_id": 1, "type": "content", "content": "import jwt", "doc_path": "src/auth/jwt_handler.py"},
+    {"chunk_id": 2, "type": "content", "content": "def validate_token(token):", "doc_path": "src/auth/jwt_handler.py"},
+    {"chunk_id": 3, "type": "doc_end", "doc_path": "src/auth/jwt_handler.py"},
+    
+    {"chunk_id": 4, "type": "doc_start", "doc_path": "src/auth/README.md"},
+    {"chunk_id": 5, "type": "content", "content": "# Authentication Module", "doc_path": "src/auth/README.md"},
+    {"chunk_id": 6, "type": "content", "content": "JWT validation process:", "doc_path": "src/auth/README.md"},
+    {"chunk_id": 7, "type": "doc_end", "doc_path": "src/auth/README.md"},
+    # ... continues streaming
+]
+```
+
+#### Benefits of Streaming Architecture
+
+1. **Consistent Node Mapping**: Each chunk gets a stable global ID that maps directly to ISNE model nodes
+2. **Natural Cross-Document Relationships**: ISNE learns both intra-document sequences and cross-document co-occurrence patterns
+3. **Directory Co-location Discovery**: Processing files in directory order naturally creates structural relationships for co-located content
+4. **Document Boundary Awareness**: Start/end markers provide structural signals about document boundaries
+5. **Computational Efficiency**: No expensive entity extraction or knowledge graph construction required
+
+### Comparison with Existing Graph-Enhanced RAG
+
+| Approach | Structural Learning Method | Cross-Domain Discovery | Computational Cost | Implementation Complexity |
+|----------|---------------------------|------------------------|-------------------|-------------------------|
+| **Microsoft GraphRAG** | LLM entity extraction + clustering | High (via knowledge graph) | High (LLM calls for extraction) | High (entity extraction, graph construction) |
+| **G-Retriever** | GNN on extracted graphs | Medium (predefined relationships) | Medium (GNN training) | Medium (graph construction required) |
+| **HADES Streaming ISNE** | Sequential processing order | High (natural co-occurrence) | Low (no LLM extraction) | Low (stream processing) |
+
+### Retrieval Strategy Examples
+
+#### Strategy 1: Semantic → Structural Expansion
+
+```python
+# User query: "How do we handle JWT authentication?"
+
+# Step 1: Semantic search finds topically relevant chunks
+semantic_results = semantic_index.search(query_embedding, k=10)
+# Finds: documentation about JWT, auth concepts, security policies
+
+# Step 2: ISNE expansion finds structurally related implementations  
+isne_results = []
+for chunk in semantic_results:
+    structural_neighbors = isne_index.search(chunk.isne_embedding, k=20)
+    isne_results.extend(structural_neighbors)
+# Discovers: actual JWT validation code, related auth functions, test cases
+
+# Result: User gets both conceptual understanding AND concrete implementation
+```
+
+#### Strategy 2: Structural Navigation
+
+```python
+# User studying: def validate_token(token): ...
+
+# Step 1: Use ISNE to find structurally related content
+isne_neighbors = isne_index.search(code_chunk.isne_embedding, k=20)
+# Finds chunks that play similar structural roles in the knowledge graph
+
+# Result: Documentation that describes this function's purpose, 
+# test cases that exercise it, related security functions
+# Even if they never mention "validate_token" by name!
+```
+
+#### Strategy 3: Cross-Domain Discovery via Streaming ISNE
+
+```python
+# Streaming ISNE discovers these connections naturally:
+# Processing order: auth/jwt_handler.py → auth/README.md → auth/tests/test_jwt.py
+
+code_chunk = "def validate_token(token): ..."      # chunk_id: 47
+doc_chunk = "JWT validation process requires..."   # chunk_id: 52  
+test_chunk = "def test_validate_token(): ..."      # chunk_id: 58
+
+# ISNE learned from processing sequence that these chunks are related
+# Even with different vocabulary, they share structural context
+isne_neighbors_47 = [52, 58, 49, 51]  # Includes doc and test chunks
+```
+
+#### Strategy 4: Semantic Bridging → Structural Exploration
+
+```python
+# Hybrid approach combining semantic similarity with ISNE structural patterns
+def discover_cross_domain_patterns(query_chunk):
+    # Step 1: Find semantically similar chunks across all documents
+    semantic_matches = find_semantic_matches(query_chunk, threshold=0.7)
+    
+    # Step 2: For each semantic match, explore ISNE structural neighborhoods
+    cross_domain_patterns = []
+    for semantic_match in semantic_matches:
+        # Get structural neighbors from streaming ISNE
+        structural_neighbors = get_isne_neighbors(semantic_match.chunk_id, k=10)
+        
+        # Find overlapping structural patterns
+        pattern_overlap = analyze_structural_overlap(
+            get_isne_neighbors(query_chunk.chunk_id, k=10),
+            structural_neighbors
+        )
+        
+        cross_domain_patterns.extend(pattern_overlap)
+    
+    return cross_domain_patterns
+
+# Example: Query about JWT validation finds both implementation and documentation
+# through semantic similarity, then discovers related tests and examples
+# through structural exploration of the ISNE neighborhoods
+```
+
+### Dual Index Management
+
+```python
+class DualEmbeddingIndexer:
+    """Manages both semantic and structural embedding indices."""
+    
+    def __init__(self):
+        self.semantic_index = faiss.IndexFlatL2(768)  # ModernBERT dimensions
+        self.isne_index = faiss.IndexFlatL2(384)      # ISNE dimensions
+        self.chunk_metadata = {}  # Maps chunk_id to metadata
+        
+    def search_semantic(self, query_embedding, k=10):
+        """Traditional semantic similarity search."""
+        distances, indices = self.semantic_index.search(query_embedding, k)
+        return self._format_results(indices, distances, "semantic")
+        
+    def search_structural(self, chunk_id, k=20):
+        """Find structurally related chunks via ISNE."""
+        isne_embedding = self.get_isne_embedding(chunk_id)
+        distances, indices = self.isne_index.search(isne_embedding, k)
+        return self._format_results(indices, distances, "structural")
+        
+    def search_hybrid(self, query, alpha=0.7):
+        """Combine semantic and structural search."""
+        # Get initial semantic results
+        semantic_results = self.search_semantic(query, k=10)
+        
+        # Expand with structural neighbors
+        structural_expansion = []
+        for result in semantic_results[:5]:  # Top 5 semantic matches
+            structural_neighbors = self.search_structural(result.chunk_id, k=10)
+            structural_expansion.extend(structural_neighbors)
+        
+        # Rerank combining both signals
+        return self._rerank_hybrid(semantic_results, structural_expansion, alpha)
+```
+
+### Streaming Chunk Processor Implementation
+
+```python
+class StreamingChunkProcessor:
+    """
+    Processes documents as a continuous stream of chunks with global sequential IDs.
+    
+    This implementation enables consistent chunk-to-node mapping and natural
+    cross-document relationship discovery through processing order.
+    """
+    
+    def __init__(self, base_path: str = ".", processing_order: str = "directory_first"):
+        self.chunk_id = 0
+        self.base_path = Path(base_path)
+        self.processing_order = processing_order
+        self.chunk_registry = {}  # chunk_id -> metadata mapping
+        
+    def create_chunk_stream(self, file_paths: List[str]) -> List[Dict]:
+        """Create a global sequential chunk stream from multiple documents."""
+        
+        # Sort files to ensure consistent processing order
+        sorted_paths = self._sort_files_by_strategy(file_paths)
+        
+        chunk_stream = []
+        
+        for file_path in sorted_paths:
+            doc_chunks = self._process_single_document(file_path)
+            chunk_stream.extend(doc_chunks)
+            
+        return chunk_stream
+    
+    def _sort_files_by_strategy(self, file_paths: List[str]) -> List[str]:
+        """Sort files to optimize co-location discovery."""
+        
+        if self.processing_order == "directory_first":
+            # Group by directory, then process files within each directory
+            files_by_dir = defaultdict(list)
+            for path in file_paths:
+                directory = str(Path(path).parent)
+                files_by_dir[directory].append(path)
+            
+            sorted_paths = []
+            for directory in sorted(files_by_dir.keys()):
+                # Within directory: README first, then source files, then tests
+                dir_files = files_by_dir[directory]
+                readme_files = [f for f in dir_files if "readme" in f.lower()]
+                source_files = [f for f in dir_files if f.endswith(('.py', '.js', '.java', '.cpp'))]
+                test_files = [f for f in dir_files if "test" in f.lower()]
+                other_files = [f for f in dir_files if f not in readme_files + source_files + test_files]
+                
+                sorted_paths.extend(readme_files + source_files + test_files + other_files)
+                
+            return sorted_paths
+            
+        elif self.processing_order == "semantic_clustering":
+            # TODO: Implement semantic-based file ordering
+            return sorted(file_paths)
+            
+        else:
+            return sorted(file_paths)
+    
+    def _process_single_document(self, file_path: str) -> List[Dict]:
+        """Process a single document into the chunk stream."""
+        chunks = []
+        
+        # Document start marker
+        doc_start_chunk = {
+            "chunk_id": self.chunk_id,
+            "type": "doc_start",
+            "doc_path": file_path,
+            "directory": str(Path(file_path).parent),
+            "filename": Path(file_path).name,
+            "file_extension": Path(file_path).suffix,
+            "content": f"<DOC_START:{file_path}>",
+            "metadata": {
+                "is_boundary": True,
+                "boundary_type": "start",
+                "original_doc": file_path
+            }
+        }
+        chunks.append(doc_start_chunk)
+        self.chunk_registry[self.chunk_id] = doc_start_chunk
+        self.chunk_id += 1
+        
+        # Read and chunk document content
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                
+            # Split into content chunks
+            content_chunks = self._split_content(content, file_path)
+            
+            for chunk_text in content_chunks:
+                content_chunk = {
+                    "chunk_id": self.chunk_id,
+                    "type": "content",
+                    "content": chunk_text,
+                    "doc_path": file_path,
+                    "directory": str(Path(file_path).parent),
+                    "filename": Path(file_path).name,
+                    "source_type": self._detect_source_type(file_path),
+                    "metadata": {
+                        "is_boundary": False,
+                        "original_doc": file_path,
+                        "position_in_doc": len([c for c in chunks if c["type"] == "content"]),
+                        "char_count": len(chunk_text),
+                        "processing_order": self.chunk_id
+                    }
+                }
+                chunks.append(content_chunk)
+                self.chunk_registry[self.chunk_id] = content_chunk
+                self.chunk_id += 1
+                
+        except Exception as e:
+            # Error chunk for failed processing
+            error_chunk = {
+                "chunk_id": self.chunk_id,
+                "type": "error",
+                "content": f"<ERROR: Failed to process {file_path}: {str(e)}>",
+                "doc_path": file_path,
+                "metadata": {"error": str(e), "is_boundary": False}
+            }
+            chunks.append(error_chunk)
+            self.chunk_registry[self.chunk_id] = error_chunk
+            self.chunk_id += 1
+        
+        # Document end marker
+        doc_end_chunk = {
+            "chunk_id": self.chunk_id,
+            "type": "doc_end",
+            "doc_path": file_path,
+            "directory": str(Path(file_path).parent),
+            "content": f"<DOC_END:{file_path}>",
+            "metadata": {
+                "is_boundary": True,
+                "boundary_type": "end",
+                "original_doc": file_path,
+                "chunks_in_doc": len([c for c in chunks if c["type"] == "content"])
+            }
+        }
+        chunks.append(doc_end_chunk)
+        self.chunk_registry[self.chunk_id] = doc_end_chunk
+        self.chunk_id += 1
+        
+        return chunks
+    
+    def _split_content(self, content: str, file_path: str) -> List[str]:
+        """Split content into chunks based on file type."""
+        
+        file_ext = Path(file_path).suffix.lower()
+        
+        if file_ext in ['.py', '.js', '.java', '.cpp', '.c']:
+            # Code files: split by functions/classes
+            return self._split_code_content(content, file_ext)
+        elif file_ext in ['.md', '.txt', '.rst']:
+            # Documentation: split by sections/paragraphs
+            return self._split_doc_content(content)
+        else:
+            # Default: simple text splitting
+            return self._split_text_content(content)
+    
+    def _split_code_content(self, content: str, file_ext: str) -> List[str]:
+        """Split code content preserving logical structure."""
+        # Simple implementation - can be enhanced with AST parsing
+        lines = content.split('\n')
+        chunks = []
+        current_chunk = []
+        
+        for line in lines:
+            if line.strip().startswith(('def ', 'class ', 'function ', 'const ', 'var ')):
+                if current_chunk:
+                    chunks.append('\n'.join(current_chunk))
+                    current_chunk = []
+            current_chunk.append(line)
+            
+            # Limit chunk size
+            if len(current_chunk) > 50:
+                chunks.append('\n'.join(current_chunk))
+                current_chunk = []
+        
+        if current_chunk:
+            chunks.append('\n'.join(current_chunk))
+            
+        return [chunk for chunk in chunks if chunk.strip()]
+    
+    def _split_doc_content(self, content: str) -> List[str]:
+        """Split documentation content by sections."""
+        # Split by headers and paragraphs
+        sections = []
+        current_section = []
+        
+        for line in content.split('\n'):
+            if line.strip().startswith('#') and current_section:
+                sections.append('\n'.join(current_section))
+                current_section = []
+            current_section.append(line)
+            
+            # Limit section size
+            if len(current_section) > 30:
+                sections.append('\n'.join(current_section))
+                current_section = []
+        
+        if current_section:
+            sections.append('\n'.join(current_section))
+            
+        return [section for section in sections if section.strip()]
+    
+    def _split_text_content(self, content: str) -> List[str]:
+        """Default text splitting."""
+        # Simple paragraph-based splitting
+        paragraphs = content.split('\n\n')
+        return [p.strip() for p in paragraphs if p.strip()]
+    
+    def _detect_source_type(self, file_path: str) -> str:
+        """Detect if file contains code or documentation."""
+        file_ext = Path(file_path).suffix.lower()
+        
+        if file_ext in ['.py', '.js', '.java', '.cpp', '.c', '.go', '.rs', '.rb']:
+            return "code"
+        elif file_ext in ['.md', '.txt', '.rst', '.adoc']:
+            return "document"
+        else:
+            return "unknown"
+    
+    def get_chunk_metadata(self, chunk_id: int) -> Optional[Dict]:
+        """Get metadata for a specific chunk ID."""
+        return self.chunk_registry.get(chunk_id)
+    
+    def find_chunks_by_directory(self, directory: str) -> List[int]:
+        """Find all chunk IDs from a specific directory."""
+        return [
+            chunk_id for chunk_id, metadata in self.chunk_registry.items()
+            if metadata.get("directory") == directory and metadata.get("type") == "content"
+        ]
+    
+    def find_document_boundaries(self, chunk_id: int) -> Tuple[int, int]:
+        """Find start and end chunk IDs for the document containing this chunk."""
+        chunk_meta = self.chunk_registry.get(chunk_id)
+        if not chunk_meta:
+            return (-1, -1)
+            
+        doc_path = chunk_meta["doc_path"]
+        
+        start_id = None
+        end_id = None
+        
+        for cid, meta in self.chunk_registry.items():
+            if meta["doc_path"] == doc_path:
+                if meta["type"] == "doc_start":
+                    start_id = cid
+                elif meta["type"] == "doc_end":
+                    end_id = cid
+                    
+        return (start_id or -1, end_id or -1)
 
 ## Database Schema Design
 
@@ -147,9 +575,30 @@ The primary collection where all content lives for optimal cross-domain discover
 
 ```javascript
 {
-  _id: "mixed_chunks/chunk_<hash>_<index>",
+  _id: "mixed_chunks/chunk_47",  // Global sequential ID from streaming processor
   content: "def validate_token(token): ...",
-  embeddings: [0.1, 0.2, ...], // Vector embeddings
+  
+  // Dual embedding architecture
+  embeddings: {
+    semantic: [0.1, 0.2, ...],  // 768-dim ModernBERT - captures meaning
+    isne: [0.3, 0.4, ...],      // 384-dim ISNE - captures structural relationships
+    embedding_models: {
+      semantic: "ModernBERT",
+      isne: "isne_streaming_v1_20250616"  // Streaming-trained model
+    }
+  },
+  
+  // Streaming processing metadata
+  streaming_metadata: {
+    global_chunk_id: 47,        // Consistent ID for ISNE node mapping
+    processing_order: 47,       // Order in the global stream
+    doc_position: 2,           // Position within source document
+    boundary_context: {
+      prev_boundary: 44,        // Previous doc_end chunk_id
+      next_boundary: 51,        // Next doc_start chunk_id
+      same_doc_chunks: [45, 46, 47, 48, 49, 50]  // All chunks from same doc
+    }
+  },
   
   // Source reference
   source_id: "documents/doc_<hash>",
@@ -597,35 +1046,82 @@ class ISNEGraphPopulator:
     
     def _classify_relationship_type(self, chunk_a, chunk_b, similarity):
         """
-        Classify the type of relationship based on content and similarity.
+        Simple relationship classification - start with similarity only.
         
-        ISNE helps here because it understands semantic relationships
-        beyond just text similarity.
+        Future versions can add specific types based on actual usage patterns
+        and validation, rather than predetermined thresholds.
         """
-        # Cross-domain relationships (code ↔ document)
+        # For now, just track the relationship as similarity with metadata
+        # Let usage patterns reveal which specific types are actually useful
+        return "similarity"
+    
+    def _create_relationship_metadata(self, chunk_a, chunk_b, similarity):
+        """
+        Create rich metadata for relationship analysis and future classification.
+        """
+        return {
+            "source_types": [chunk_a.source_type, chunk_b.source_type],
+            "cross_domain": chunk_a.source_type != chunk_b.source_type,
+            "similarity_score": similarity,
+            "chunk_a_type": chunk_a.chunk_type,
+            "chunk_b_type": chunk_b.chunk_type,
+            # Store features that might be useful for future classification
+            "potential_types": self._suggest_potential_types(chunk_a, chunk_b, similarity),
+            "needs_validation": True
+        }
+    
+    def _suggest_potential_types(self, chunk_a, chunk_b, similarity):
+        """
+        Suggest potential relationship types without hard classification.
+        These are hints for future analysis, not definitive labels.
+        """
+        suggestions = []
+        
+        if chunk_a.source_type != chunk_b.source_type:
+            if similarity > 0.8:
+                suggestions.extend(["cross_reference", "implementation", "documentation"])
+        else:
+            if similarity > 0.9:
+                suggestions.extend(["duplicate", "variant", "related"])
+        
+        return suggestions
+    
+    def interpret_isne_relationship(self, chunk_a, chunk_b, isne_similarity):
+        """
+        Explain why ISNE thinks these chunks are structurally related.
+        This helps validate and understand the discoveries.
+        """
+        interpretation = {
+            "relationship_strength": "strong" if isne_similarity > 0.85 else 
+                                   "moderate" if isne_similarity > 0.75 else "weak",
+            "likely_reasons": []
+        }
+        
+        # Cross-domain structural relationships
         if chunk_a.source_type != chunk_b.source_type:
             if chunk_a.source_type == "code" and chunk_b.source_type == "document":
-                return "implements" if similarity > 0.85 else "conceptual"
-            elif chunk_a.source_type == "document" and chunk_b.source_type == "code":
-                return "documented_by" if similarity > 0.85 else "conceptual"
+                if isne_similarity > 0.85:
+                    interpretation["likely_reasons"].append(
+                        "Code likely implements functionality described in documentation"
+                    )
+                elif isne_similarity > 0.75:
+                    interpretation["likely_reasons"].append(
+                        "Code and documentation address related system components"
+                    )
+            
+        # Same-domain structural relationships  
+        elif chunk_a.source_type == "code" and chunk_b.source_type == "code":
+            if isne_similarity > 0.9:
+                interpretation["likely_reasons"].extend([
+                    "Functions may call each other or share dependencies",
+                    "Similar algorithmic or architectural patterns"
+                ])
+            elif isne_similarity > 0.8:
+                interpretation["likely_reasons"].append(
+                    "Related functionality within the same system component"
+                )
         
-        # Same-domain relationships
-        if chunk_a.source_type == "code" and chunk_b.source_type == "code":
-            if similarity > 0.9:
-                return "calls" if self._detect_function_call(chunk_a, chunk_b) else "similarity"
-            elif similarity > 0.8:
-                return "imports" if self._detect_import_relationship(chunk_a, chunk_b) else "similarity"
-            else:
-                return "similarity"
-        
-        # Document relationships
-        if chunk_a.source_type == "document" and chunk_b.source_type == "document":
-            if similarity > 0.85:
-                return "references" if self._detect_citation(chunk_a, chunk_b) else "conceptual"
-            else:
-                return "conceptual"
-        
-        return "similarity"  # Default
+        return interpretation
 ```
 
 ### Integration with Current Training Pipeline
@@ -656,6 +1152,129 @@ post_training:
     parallel_processing: true
     max_workers: 4
 ```
+
+### Scalability Considerations
+
+#### The O(n²) Challenge
+
+For large datasets, pairwise comparison becomes prohibitive:
+
+- 10K chunks = 50M comparisons
+- 100K chunks = 5B comparisons  
+- 160K chunks (current) = 12.8B comparisons
+
+#### Scalable Solutions
+
+```python
+class ScalableISNEGraphPopulator(ISNEGraphPopulator):
+    """
+    Scalable version using approximate nearest neighbor search.
+    """
+    
+    def __init__(self, confidence_threshold=0.75, use_ann=True, ann_method='faiss'):
+        super().__init__(confidence_threshold)
+        self.use_ann = use_ann
+        self.ann_method = ann_method
+        self.ann_index = None
+        
+    def _build_ann_index(self, embeddings: np.ndarray):
+        """Build approximate nearest neighbor index."""
+        import faiss
+        
+        d = embeddings.shape[1]
+        # Use IVF index for datasets > 10K
+        if len(embeddings) > 10000:
+            nlist = int(np.sqrt(len(embeddings)))
+            self.ann_index = faiss.IndexIVFFlat(
+                faiss.IndexFlatL2(d), d, nlist
+            )
+            self.ann_index.train(embeddings)
+            self.ann_index.add(embeddings)
+        else:
+            # Use exact search for smaller datasets
+            self.ann_index = faiss.IndexFlatL2(d)
+            self.ann_index.add(embeddings)
+    
+    def _discover_relationships_scalable(self, chunks, embeddings, k=20):
+        """
+        Discover relationships using ANN search.
+        
+        Args:
+            k: Number of nearest neighbors to consider per chunk
+               Start conservative (k=10-20) and increase only if needed
+        """
+        relationships = []
+        
+        # Build ANN index
+        self._build_ann_index(embeddings.cpu().numpy())
+        
+        # Search for k nearest neighbors for each chunk
+        D, I = self.ann_index.search(embeddings.cpu().numpy(), k)
+        
+        for i in range(len(chunks)):
+            for j, neighbor_idx in enumerate(I[i]):
+                if neighbor_idx != i:  # Skip self
+                    similarity = 1 - D[i][j]  # Convert distance to similarity
+                    
+                    if similarity > self.confidence_threshold:
+                        # Create relationship with metadata
+                        relationships.append(self._create_relationship(
+                            chunks[i], chunks[neighbor_idx], 
+                            similarity, i, neighbor_idx
+                        ))
+        
+        return relationships
+```
+
+#### Batched Processing & Memory Management
+
+```python
+def populate_in_batches(self, chunks, embeddings, batch_size=1000):
+    """Process chunks in batches to manage memory and enable progress tracking."""
+    relationships = []
+    
+    for i in range(0, len(chunks), batch_size):
+        batch_chunks = chunks[i:i+batch_size]
+        batch_embeddings = embeddings[i:i+batch_size]
+        
+        # Process batch
+        batch_relationships = self._discover_relationships_scalable(
+            batch_chunks, batch_embeddings
+        )
+        
+        # Write to ArangoDB incrementally
+        self._write_relationships_to_db(batch_relationships)
+        
+        # Clear memory
+        del batch_relationships
+        
+        self.logger.info(f"Processed batch {i//batch_size + 1}, found {len(relationships)} relationships")
+    
+    return relationships
+```
+
+#### Relationship Pruning Strategy
+
+```python
+def prune_low_value_relationships(self, min_usage=2, min_score=0.4, age_days=30):
+    """Remove relationships that aren't providing value."""
+    # AQL query to identify low-value relationships
+    query = """
+    FOR rel IN relationships
+        FILTER rel.usage_count < @min_usage 
+        OR rel.validation_score < @min_score
+        OR DATE_DIFF(rel.created_at, DATE_NOW(), "day") > @age_days
+        REMOVE rel IN relationships
+        RETURN OLD
+    """
+    # This prevents unbounded graph growth
+```
+
+#### Staged Rollout Strategy
+
+1. **Phase 1**: Test with 1K chunks using exact search
+2. **Phase 2**: Scale to 10K chunks with basic ANN (k=20)
+3. **Phase 3**: Full dataset with optimized parameters based on usage data
 
 ### Post-Training Graph Population
 
@@ -706,14 +1325,147 @@ When our current training completes, we'll have:
 3. **Ready for Graph Creation**: Model can now discover relationships
 
 Next steps after training completes:
+
 1. Implement `ISNEGraphPopulator` class
 2. Create ArangoDB collections (mixed_chunks, relationships)
 3. Run graph population on test-data3 chunks
 4. Validate cross-domain relationship discovery
 
+### Cross-Domain Validation Strategy
+
+#### Synthetic Test Cases
+
+```python
+class CrossDomainValidator:
+    """Validate code↔document relationships with known pairs."""
+    
+    def __init__(self):
+        self.synthetic_pairs = [
+            {
+                "code": "def authenticate_user(username, password): ...",
+                "doc": "User authentication requires username and password validation...",
+                "expected_similarity": 0.8
+            },
+            {
+                "code": "class JWTTokenValidator: ...",
+                "doc": "JWT tokens must be validated for expiration and signature...",
+                "expected_similarity": 0.85
+            }
+        ]
+    
+    def validate_synthetic_pairs(self, graph_populator):
+        """Test if known code/doc pairs are discovered."""
+        results = []
+        for pair in self.synthetic_pairs:
+            # Process synthetic chunks
+            relationships = graph_populator.discover_relationships(
+                [pair["code"], pair["doc"]]
+            )
+            
+            # Check if relationship was found
+            found = any(r for r in relationships 
+                       if r["confidence"] > self.confidence_threshold)
+            
+            results.append({
+                "pair": pair,
+                "found": found,
+                "actual_similarity": relationships[0]["confidence"] if relationships else 0
+            })
+        
+        return results
+```
+
+#### A/B Testing Framework
+
+```python
+class RetrievalComparator:
+    """Compare retrieval with and without ISNE relationships."""
+    
+    def compare_methods(self, query: str, k: int = 10):
+        # Method A: Vector similarity only
+        results_baseline = self.retrieve_vector_only(query, k)
+        
+        # Method B: Vector + ISNE relationships  
+        results_with_isne = self.retrieve_with_relationships(query, k)
+        
+        # Log for analysis
+        self.log_comparison({
+            "query": query,
+            "baseline_results": results_baseline,
+            "isne_results": results_with_isne,
+            "baseline_relevance": self.calculate_relevance(results_baseline),
+            "isne_relevance": self.calculate_relevance(results_with_isne)
+        })
+        
+        return {
+            "improvement": self.calculate_improvement(results_baseline, results_with_isne),
+            "cross_domain_found": self.count_cross_domain(results_with_isne)
+        }
+```
+
+### Relationship Validation & Graph Consistency
+
+#### Simplified Validation (MVP Approach)
+
+```python
+class RelationshipValidator:
+    """
+    Validates and tracks relationship quality through usage.
+    """
+    
+    def __init__(self):
+        self.validation_scores = {}  # relationship_id -> score
+        self.usage_tracking = {}     # relationship_id -> usage_count
+        
+    def track_relationship_usage(self, relationship_id: str, was_helpful: bool):
+        """Track when a relationship is actually used in retrieval."""
+        self.usage_tracking[relationship_id] = self.usage_tracking.get(relationship_id, 0) + 1
+        
+        # Update validation score based on feedback
+        current_score = self.validation_scores.get(relationship_id, 0.5)
+        # Exponential moving average
+        alpha = 0.1
+        new_score = (1 - alpha) * current_score + alpha * (1.0 if was_helpful else 0.0)
+        self.validation_scores[relationship_id] = new_score
+    
+    def get_validated_relationships(self, min_score=0.6, min_usage=5):
+        """Get relationships that have been validated through usage."""
+        validated = []
+        for rel_id, score in self.validation_scores.items():
+            if score >= min_score and self.usage_tracking.get(rel_id, 0) >= min_usage:
+                validated.append(rel_id)
+        return validated
+```
+
+#### Minimal Consistency Approach (MVP)
+
+```python
+# Start simple - let relationships age naturally
+# Only add consistency management if retrieval quality degrades
+
+def check_relationship_staleness(self):
+    """Simple staleness check - no immediate action required."""
+    stale_count = self.db.query("""
+        FOR rel IN relationships
+            FILTER DATE_DIFF(rel.created_at, DATE_NOW(), "day") > 90
+            COLLECT WITH COUNT INTO stale
+            RETURN stale
+    """)
+    
+    self.logger.info(f"Found {stale_count} relationships older than 90 days")
+    # Don't delete yet - monitor if they're still being used
+```
+
+**Future Considerations** (Only if needed):
+
+- Add consistency tracking if retrieval quality drops
+- Implement lazy revalidation based on usage
+- Consider relationship versioning only after proving base value
+
 ### Relationship Discovery Examples
 
 **Code ↔ Document Discovery**:
+
 ```python
 # Document chunk: "JWT tokens should be validated on every request..."
 # Code chunk: "def validate_token(token): ..."
@@ -721,6 +1473,7 @@ Next steps after training completes:
 ```
 
 **Code ↔ Code Discovery**:
+
 ```python
 # Function A: "def authenticate_user(username, password): ..."
 # Function B: "def validate_token(token): ..."  
@@ -728,45 +1481,197 @@ Next steps after training completes:
 ```
 
 **Document ↔ Document Discovery**:
+
 ```python
 # Research paper section: "Authentication mechanisms in distributed systems..."
 # Technical doc section: "Our microservice authentication architecture..."
 # ISNE discovers: type="conceptual", confidence=0.77, cross_domain=False
 ```
 
-## Implementation Roadmap
+## Implementation Roadmap - Pragmatic Approach
 
-### Phase 1: Core Schema Setup (In Progress)
-1. ✅ Create base collections with unified schema
-2. ✅ Implement content hashing system  
-3. ✅ Set up basic incremental detection
-4. ✅ Create model version tracking
-5. 🔄 **Current**: ISNE training test running
+### Phase 0: Streaming Architecture Foundation (Current Focus)
 
-### Phase 2: ISNE Graph Integration (Next)
-1. 📋 **Implement ISNEGraphPopulator class**
-2. 📋 **Create ArangoDB collections setup**
-3. 📋 **Integrate graph population with training pipeline**
-4. 📋 **Test relationship discovery on current training output**
-5. 📋 **Validate cross-domain relationship quality**
+1. ✅ Train initial ISNE model (batch approach)
+2. ✅ Validate basic relationship discovery concept
+3. 🔄 **Current**: Implement streaming chunk processor
+   - Global sequential chunk IDs for consistent node mapping
+   - Directory-first processing order for co-location discovery
+   - Document boundary markers for structural context
+4. 📋 **Retrain ISNE with streaming architecture**
+   - Use StreamingChunkProcessor to create global chunk stream
+   - Train ISNE on sequential processing order
+   - Validate cross-document relationship discovery
 
-### Phase 3: Relationship Classification & Quality
-1. Implement relationship type classification
-2. Add confidence scoring and validation
-3. Create relationship quality metrics
-4. Set up relationship validation feedback loop
+### Phase 1: Dual-Embedding Implementation (Next)
 
-### Phase 4: Performance Optimization
-1. Implement adaptive cold storage migration
-2. Add access pattern tracking
-3. Optimize indexes based on usage
-4. Set up performance monitoring
+1. 📋 **Create streaming-aware ArangoDB schema**
+   - mixed_chunks: content + dual embeddings + streaming metadata
+   - relationships: ISNE structural + semantic bridging
+2. 📋 **Implement streaming ISNEGraphPopulator**
+   - Direct chunk_id → ISNE node mapping
+   - Semantic bridging → structural exploration
+   - FAISS indices for both semantic and ISNE embeddings
+3. 📋 **Build streaming ingestion pipeline**
+   - StreamingChunkProcessor → Embeddings → ISNE → ArangoDB
+   - No entity extraction or knowledge graph construction required
+4. 📋 **Compare against traditional graph-enhanced RAG**
+   - Benchmark against GraphRAG-style approaches
+   - Measure efficiency gains from streaming architecture
 
-### Phase 5: Project Inheritance
-1. Create dynamic project collection system
-2. Implement inheritance confidence scoring
-3. Add project-specific adaptation tracking
-4. Set up cross-project knowledge sharing
+### Phase 2: Validation & Feedback (If Phase 1 Shows Value)
+
+1. Add relationship usage tracking
+2. Implement validation scoring
+3. Create feedback collection mechanism
+4. Build relationship quality dashboard
+
+### Phase 3: Scale & Optimize (After Validation)
+
+1. Add content hashing for incremental updates
+2. Implement relationship consistency management
+3. Optimize ANN search parameters
+4. Add performance monitoring
+
+### Phase 4: Advanced Features (Production Ready)
+
+1. Model version tracking
+2. Batch processing and rollback
+3. Cold storage migration
+4. Project inheritance
+
+### Phase 5: Full Operational Intelligence (Future)
+
+1. Complex relationship type classification
+2. Advanced consistency guarantees
+3. Multi-tenant project isolation
+4. Comprehensive monitoring dashboards
+
+**Key Principle**: Each phase must prove value before moving to the next. Start simple, measure impact, then add complexity only where it provides clear benefits.
+
+## Advantages Over Traditional Graph-Enhanced RAG
+
+### Computational Efficiency
+
+Traditional graph-enhanced RAG systems like Microsoft GraphRAG require expensive LLM calls for entity extraction and relationship identification. **Research shows these systems achieve 35-80% performance improvements but at significant computational cost** (Graph-Enhanced RAG Systems: The convergence of structural and semantic embeddings).
+
+**HADES Streaming ISNE Advantages**:
+
+| Traditional GraphRAG | HADES Streaming ISNE |
+|----------------------|---------------------|
+| LLM entity extraction ($$$) | No entity extraction needed |
+| Knowledge graph construction | Direct structural learning from processing order |
+| Complex hierarchical clustering | Simple sequential chunk processing |
+| Multi-stage pipeline complexity | Single-pass streaming architecture |
+| High latency (entity extraction) | Low latency (direct embedding lookup) |
+
+### Scalability Benefits
+
+**Microsoft GraphRAG**: Requires entity extraction for every document, then graph construction and clustering. As the research notes, "nano-GraphRAG achieves 6x cost reduction compared to Microsoft's original while maintaining core functionality, processing documents at $0.08 versus $0.48 per dataset."
+
+**HADES**: Processes documents once through streaming chunker, trains ISNE on the global sequence, then uses direct chunk_id → node mapping for instant relationship discovery.
+
+### Implementation Simplicity
+
+The research highlights that "despite diverse implementations, successful graph-enhanced RAG systems share common architectural patterns" including hierarchical knowledge organization and hybrid retrieval strategies.
+
+**HADES implements these proven patterns with minimal complexity**:
+
+- **Hierarchical Organization**: Directory structure naturally creates hierarchy
+- **Hybrid Retrieval**: Semantic + ISNE dual search
+- **Semantic Bridging**: Cross-document relationship discovery
+- **Adaptive Query Routing**: Simple queries → semantic, complex → structural
+
+### Research Validation
+
+The field consensus from recent research confirms our architectural direction:
+
+> "The fusion of graph-aware embeddings with semantic embeddings represents a fundamental advance in how AI systems understand and retrieve information. By combining the meaning of information with its relational context, these systems achieve what neither approach could accomplish alone."
+
+**HADES aligns with proven approaches while offering efficiency advantages**:
+
+- ✅ Dual embedding architecture (semantic + structural)
+- ✅ Cross-domain relationship discovery  
+- ✅ Hierarchical knowledge organization
+- ✅ Computational efficiency through streaming processing
+- ✅ Implementation simplicity without entity extraction
+
+## Critical Path to Success
+
+### Immediate Next Steps (1-2 days)
+
+1. **Create Minimal Schema**
+
+   ```javascript
+   // Just two collections to start
+   db._create("mixed_chunks")
+   db._create("relationships")
+   ```
+
+2. **Basic Ingestion Pipeline**
+
+   ```python
+   # Super simple flow
+   documents → chunks → embeddings → store in mixed_chunks
+   ```
+
+3. **ISNE Relationship Discovery**
+
+   ```python
+   # Use existing trained model
+   chunks = load_chunks_from_db(limit=1000)
+   relationships = discover_with_faiss(chunks, k=20)
+   store_relationships(relationships)
+   ```
+
+4. **Dual-Embedding Retrieval Comparison**
+
+   ```python
+   # The critical test - comparing retrieval strategies
+   query = "How do I validate JWT tokens?"
+   
+   # Method 1: Semantic only (baseline)
+   semantic_only = retrieve_semantic_only(query, k=10)
+   
+   # Method 2: Semantic + ISNE structural expansion
+   semantic_with_isne = retrieve_semantic_plus_structural(query, k=10)
+   
+   # Method 3: Pure structural navigation from seed chunk
+   seed_chunk = "def validate_token(token): ..."
+   structural_only = retrieve_structural_neighbors(seed_chunk, k=20)
+   
+   print(f"Semantic only: {semantic_only}")
+   print(f"Semantic + ISNE: {semantic_with_isne}")
+   print(f"Structural only: {structural_only}")
+   print(f"Unique ISNE discoveries: {find_unique_to_isne(semantic_with_isne, semantic_only)}")
+   ```
+
+### Success Criteria (Refined for Dual-Embedding)
+
+✅ **Proceed to Phase 1 if**:
+
+- **Semantic + ISNE** finds relevant results that **semantic-only** misses
+- **Structural navigation** discovers meaningful cross-domain connections
+- At least **20% improvement** in combined precision/recall
+- **Unique ISNE discoveries** represent >10% of valuable results
+- **Cross-domain connections** show clear structural (not just semantic) relationships
+
+❌ **Stop and reconsider if**:
+
+- No meaningful improvement in retrieval quality
+- Cross-domain relationships are mostly noise
+- Performance overhead isn't justified by quality gains
+
+### What NOT to Build Yet
+
+- ❌ Versioning system
+- ❌ Incremental updates  
+- ❌ Complex consistency management
+- ❌ Batch processing infrastructure
+- ❌ Monitoring dashboards
+- ❌ Project inheritance
+
+Build these ONLY after proving the core value proposition.
 
 ## Monitoring and Analytics
 
@@ -788,16 +1693,19 @@ Next steps after training completes:
 ## Security and Data Governance
 
 ### Access Control
+
 - Collection-level permissions for different user roles
 - Project-specific access controls for isolated development
 - Model version access based on stability and approval status
 
 ### Data Lineage
+
 - Full traceability from source documents to final relationships
 - Version history for all chunks and relationships
 - Audit trails for all processing batches and model updates
 
 ### Compliance
+
 - Data retention policies based on performance tiers
 - Privacy controls for sensitive content
 - Export capabilities for data portability
@@ -805,18 +1713,21 @@ Next steps after training completes:
 ## Future Considerations
 
 ### Advanced Features
+
 - Multi-tenant project isolation
 - Federated learning across project collections
 - Advanced relationship types (temporal, causal, hierarchical)
 - Integration with external knowledge graphs
 
 ### Scaling Strategies
+
 - Horizontal partitioning of mixed_chunks by domain or time
 - Dedicated read replicas for analytical queries
 - Archive collections for historical data
 - Distributed ISNE training across multiple models
 
 ### AI/ML Integration
+
 - Store model training metadata alongside chunks
 - Track feature importance for relationship scoring
 - Version control for embedding model updates
