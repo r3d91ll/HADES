@@ -1,0 +1,107 @@
+# Application Production Pipeline Configuration  
+# Configuration for apply_efficient_isne_model.py
+
+version: 1
+
+# Pipeline stage info
+stage:
+  name: "application"
+  description: "Apply trained ISNE model to create production database"
+  
+# Model configuration
+model:
+  path: null  # Will be set dynamically from training output
+  path_pattern: "./output/isne_training_efficient/isne_model_*.pth"
+  architecture: "memory_efficient_isne"
+  device: "auto"
+  
+# Database configuration
+database:
+  source_db: "isne_training_database"
+  target_db: "isne_production_database"
+  create_new_db: true
+  drop_existing: false
+  copy_base_data: true
+  
+# Processing configuration
+processing:
+  batch_size: 1000
+  enhancement_batch_size: 500
+  parallel_processing: true
+  max_workers: 4
+  
+# Enhancement settings
+enhancement:
+  enhance_embeddings: true
+  create_new_edges: true
+  edge_discovery_threshold: 0.7
+  max_new_edges_per_node: 20
+  
+# Edge discovery configuration
+edge_discovery:
+  enabled: true
+  similarity_threshold: 0.7
+  cross_file_only: true
+  
+  # Edge types to discover
+  edge_types:
+    semantic_similarity:
+      enabled: true
+      threshold: 0.8
+      weight_multiplier: 1.0
+      
+    structural_similarity:
+      enabled: true
+      threshold: 0.75
+      weight_multiplier: 0.9
+      
+    functional_similarity:
+      enabled: true
+      threshold: 0.7
+      weight_multiplier: 0.85
+      
+# Quality control
+quality:
+  validate_enhanced_embeddings: true
+  check_embedding_dimensions: true
+  verify_edge_consistency: true
+  
+# Collections to process
+collections:
+  process_all: true
+  specific_collections:
+    - "embeddings"
+    - "chunks"
+    - "code_files"
+    - "documentation_files"
+    - "config_files"
+    
+# Performance optimization
+performance:
+  memory_limit_per_batch_gb: 4
+  gpu_memory_limit_gb: 6
+  clear_cache_frequency: 100
+  
+# Output configuration
+output:
+  save_enhancement_report: true
+  report_path: "./output/enhancement_report.json"
+  save_statistics: true
+  
+# Monitoring
+monitoring:
+  progress_reporting: true
+  memory_monitoring: true
+  time_tracking: true
+  
+# Error handling
+error_handling:
+  skip_failed_batches: false
+  max_retries_per_batch: 3
+  continue_on_collection_failure: false
+  
+# Backup and safety
+backup:
+  create_backup: false
+  backup_collections: ["embeddings", "chunks"]
+  backup_path: "./backup"

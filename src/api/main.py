@@ -181,7 +181,10 @@ async def run_pipeline() -> Dict[str, str]:
 
 # Import and include pipeline routes
 from .pipelines import router as pipelines_router
+from .production_pipeline import router as production_pipeline_router
+
 api_v1.include_router(pipelines_router)
+api_v1.include_router(production_pipeline_router)
 
 # Mount API v1 routes
 app.mount("/api/v1", api_v1)

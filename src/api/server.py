@@ -15,6 +15,7 @@ from src.types.api import WriteRequest, QueryRequest, WriteResponse, QueryRespon
 from .core import PathRAGSystem
 from src.components.registry import get_global_registry
 from .isne_training_pipeline import router as isne_training_router
+from .production_pipeline import router as production_pipeline_router
 
 # Configure logging
 logging.basicConfig(
@@ -41,6 +42,9 @@ app.add_middleware(
 
 # Include ISNE training endpoints
 app.include_router(isne_training_router)
+
+# Include production pipeline endpoints  
+app.include_router(production_pipeline_router)
 
 # PathRAG system instance
 _pathrag_system = None

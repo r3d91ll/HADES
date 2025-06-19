@@ -609,6 +609,93 @@ class ArangoClient:
         """Context manager exit."""
         self.disconnect()
     
+    def list_databases(self) -> List[str]:
+        """List all databases."""
+        try:
+            from arango import ArangoClient as PyArangoClient
+            
+            # Create a new client instance
+            client = PyArangoClient(hosts=self.url)
+            
+            # Get system database
+            sys_db = client.db('_system', username=self.username, password=self.password)
+            
+            # List all databases
+            return sys_db.databases()
+            
+        except Exception as e:
+            logger.error(f"Failed to list databases: {e}")
+            return []
+    
+    def connect_to_database(self, database_name: str) -> bool:
+        """Connect to a specific database."""
+        try:
+            # Update the database name
+            self.database_name = database_name
+            
+            # Reconnect with the new database
+            if self._client is None:
+                self._client = PyArangoClient(hosts=self.url)
+                
+            self._database = self._client.db(
+                name=database_name,
+                username=self.username,
+                password=self.password
+            )
+            
+            # Test connection
+            self._database.properties()
+            self._connected = True
+            
+            logger.info(f"Connected to database: {database_name}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to connect to database {database_name}: {e}")
+            self._connected = False
+            return False
+    
+    def list_collections(self) -> List[str]:
+        """List collections in current database."""
+        try:
+            if not self._database:
+                return []
+            
+            collections = self._database.collections()
+            return [c['name'] for c in collections if not c['name'].startswith('_')]
+            
+        except Exception as e:
+            logger.error(f"Failed to list collections: {e}")
+            return []
+    
+    def get_collection_count(self, collection_name: str) -> int:
+        """Get document count for a collection."""
+        try:
+            if not self._database:
+                return 0
+            
+            collection = self._database.collection(collection_name)
+            return collection.count()
+            
+        except Exception as e:
+            logger.error(f"Failed to get count for {collection_name}: {e}")
+            return 0
+    
+    def get_sample_document(self, collection_name: str) -> Optional[Dict[str, Any]]:
+        """Get a sample document from collection."""
+        try:
+            if not self._database:
+                return None
+            
+            collection = self._database.collection(collection_name)
+            cursor = collection.all(limit=1)
+            docs = list(cursor)
+            return docs[0] if docs else None
+            
+        except Exception as e:
+            logger.error(f"Failed to get sample from {collection_name}: {e}")
+            return None
+
     def __repr__(self) -> str:
         """String representation."""
         status = "connected" if self._connected else "disconnected"

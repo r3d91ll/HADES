@@ -1,0 +1,112 @@
+# Bootstrap Production Pipeline Configuration
+# Configuration for bootstrap_full_isne_testdata.py
+
+version: 1
+
+# Pipeline stage info
+stage:
+  name: "bootstrap"
+  description: "Bootstrap ISNE test dataset into ArangoDB"
+  
+# Input configuration
+input:
+  dataset_path: "/home/todd/ML-Lab/Olympus/sequential-ISNE-testdata/isne-testdata"
+  recursive: true
+  skip_hidden: true
+  skip_cache: true
+  
+# Database configuration
+database:
+  name: "isne_training_database"
+  create_if_missing: true
+  drop_existing: false
+  
+# Processing configuration
+processing:
+  batch_size: 100
+  max_file_size_mb: 50
+  similarity_threshold: 0.8
+  skip_existing_files: true
+  
+# Edge creation settings
+edges:
+  create_directory_edges: true
+  create_cross_modal_edges: true
+  create_similarity_edges: true
+  create_sequential_edges: true
+  
+  # Edge type configurations
+  directory_edges:
+    enabled: true
+    weight: 0.5
+    
+  cross_modal_edges:
+    enabled: true
+    weight: 0.6
+    code_to_doc_weight: 0.7
+    
+  similarity_edges:
+    enabled: true
+    threshold: 0.8
+    min_similarity: 0.6
+    max_edges_per_node: 10
+    
+  sequential_edges:
+    enabled: true
+    weight: 0.9
+    
+# Component configuration
+components:
+  docproc:
+    type: "core"
+    config_override:
+      batch_size: 50
+      
+  chunking:
+    type: "core"
+    config_override:
+      chunk_size: 512
+      overlap: 50
+      
+  embedding:
+    type: "core"
+    config_override:
+      model_name: "all-MiniLM-L6-v2"
+      batch_size: 32
+      
+# File type processing
+file_types:
+  code:
+    extensions: [".py", ".js", ".ts", ".java", ".cpp", ".h", ".cs", ".php", ".rb", ".go", ".rs"]
+    collection: "code_files"
+    process_ast: true
+    
+  documentation:
+    extensions: [".md", ".txt", ".rst", ".docx", ".pdf"]
+    collection: "documentation_files"
+    extract_structure: true
+    
+  config:
+    extensions: [".yaml", ".yml", ".json", ".toml", ".ini", ".cfg"]
+    collection: "config_files"
+    parse_structure: true
+    
+# Performance settings
+performance:
+  parallel_processing: true
+  max_workers: 4
+  memory_limit_per_worker_gb: 2
+  
+# Logging
+logging:
+  level: "INFO"
+  debug_components: []
+  file_processing_log: true
+  statistics_log: true
+  
+# Quality control
+quality:
+  min_chunk_length: 10
+  max_chunk_length: 2048
+  validate_embeddings: true
+  check_duplicates: true

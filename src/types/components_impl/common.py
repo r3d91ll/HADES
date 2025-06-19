@@ -8,6 +8,12 @@ component implementations in the HADES system.
 from typing import Dict, Any, Optional, Union
 from dataclasses import dataclass
 
+# Import BaseSchema from the main types module
+from ..common import BaseSchema
+
+# Base class for all HADES component models
+BaseHADESModel = BaseSchema
+
 
 @dataclass
 class ComponentResult:

@@ -172,7 +172,7 @@ class DocumentationFile(BaseFileModel):
     # Documentation-specific metadata
     document_structure: Dict[str, Any] = Field(default_factory=dict, description="Document structure")
     headings: List[Dict[str, Any]] = Field(default_factory=list, description="Document headings")
-    links: List[str] = Field(default_factory=list, description="Links in the document")
+    links: List[Dict[str, str]] = Field(default_factory=list, description="Links in the document")
     code_references: List[str] = Field(default_factory=list, description="References to code")
     readability_score: Optional[float] = Field(None, ge=0, description="Readability score")
 

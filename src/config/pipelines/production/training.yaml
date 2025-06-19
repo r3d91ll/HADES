@@ -1,0 +1,107 @@
+# Training Production Pipeline Configuration
+# Configuration for train_isne_memory_efficient.py
+
+version: 1
+
+# Pipeline stage info
+stage:
+  name: "training"
+  description: "Train memory-efficient ISNE model"
+  
+# Database configuration
+database:
+  source_db: "isne_training_database"
+  validate_data: true
+  min_nodes: 1000
+  min_edges: 500
+  
+# Model configuration
+model:
+  architecture: "memory_efficient_isne"
+  embedding_dim: 384  # all-MiniLM-L6-v2 dimension
+  hidden_dim: 256
+  num_layers: 4
+  dropout: 0.1
+  num_heads: 8
+  
+# Training hyperparameters
+training:
+  epochs: 50
+  batch_size: 512
+  learning_rate: 0.001
+  weight_decay: 1e-5
+  
+  # Early stopping
+  patience: 10
+  min_delta: 0.001
+  
+  # Loss weights
+  feature_loss_weight: 1.0
+  structural_loss_weight: 0.5
+  contrastive_loss_weight: 0.3
+  
+# Memory optimization
+memory:
+  gradient_accumulation_steps: 4
+  max_subgraph_size: 2000
+  overlap_ratio: 0.1
+  clear_cache_every_n_batches: 10
+  
+# Device configuration
+device:
+  type: "auto"  # auto, cpu, cuda, cuda:0, cuda:1
+  cuda_visible_devices: null  # Override CUDA_VISIBLE_DEVICES
+  multi_gpu: true
+  data_parallel: true
+  
+# Output configuration
+output:
+  base_dir: "./output/isne_training_efficient"
+  save_checkpoints: true
+  checkpoint_every_n_epochs: 10
+  save_final_model: true
+  model_filename_template: "isne_model_{timestamp}.pth"
+  
+# Validation
+validation:
+  enabled: true
+  validation_split: 0.1
+  validate_every_n_epochs: 5
+  
+# Monitoring
+monitoring:
+  wandb:
+    enabled: false
+    project: "hades-isne"
+    entity: null
+    
+  tensorboard:
+    enabled: true
+    log_dir: "./logs/tensorboard"
+    
+  metrics:
+    - "loss"
+    - "feature_loss" 
+    - "structural_loss"
+    - "contrastive_loss"
+    - "gpu_memory_usage"
+    - "training_time"
+    
+# Performance settings
+performance:
+  num_workers: 4
+  pin_memory: true
+  persistent_workers: true
+  
+# Advanced training options
+advanced:
+  mixed_precision: true
+  compile_model: false  # PyTorch 2.0+ compile
+  gradient_clipping: 1.0
+  
+# Debugging
+debug:
+  enabled: false
+  save_graph_structure: false
+  log_memory_usage: true
+  profile_training: false

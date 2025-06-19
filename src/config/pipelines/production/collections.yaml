@@ -1,0 +1,139 @@
+# Collections Production Pipeline Configuration
+# Configuration for build_semantic_collections.py
+
+version: 1
+
+# Pipeline stage info
+stage:
+  name: "collections"
+  description: "Build semantic collections for production use"
+  
+# Database configuration
+database:
+  source_db: "isne_production_database"
+  validate_schema: true
+  
+# Collection definitions
+collections:
+  code_analysis:
+    name: "code_analysis_collection"
+    description: "Organized code files by functionality and structure"
+    
+    categories:
+      classes:
+        pattern: "class\\s+\\w+"
+        collection_suffix: "_classes"
+        
+      functions:
+        pattern: "def\\s+\\w+"
+        collection_suffix: "_functions"
+        
+      modules:
+        pattern: "import\\s+\\w+|from\\s+\\w+\\s+import"
+        collection_suffix: "_modules"
+        
+      tests:
+        pattern: "test_|_test\\.py|tests/"
+        collection_suffix: "_tests"
+        
+  documentation:
+    name: "documentation_collection"
+    description: "Organized documentation by topic and type"
+    
+    categories:
+      concepts:
+        keywords: ["concept", "overview", "introduction", "guide"]
+        collection_suffix: "_concepts"
+        
+      tutorials:
+        keywords: ["tutorial", "walkthrough", "example", "demo"]
+        collection_suffix: "_tutorials"
+        
+      api_docs:
+        keywords: ["api", "reference", "specification", "schema"]
+        collection_suffix: "_api_docs"
+        
+      architecture:
+        keywords: ["architecture", "design", "structure", "pattern"]
+        collection_suffix: "_architecture"
+        
+  semantic_clusters:
+    name: "semantic_clusters"
+    description: "Clusters based on enhanced embeddings"
+    
+    clustering:
+      algorithm: "kmeans"
+      n_clusters: 50
+      min_cluster_size: 5
+      embedding_field: "enhanced_embedding"
+      
+# Processing configuration
+processing:
+  parallel_processing: true
+  max_workers: 4
+  batch_size: 500
+  
+# Semantic analysis
+semantic_analysis:
+  similarity_threshold: 0.75
+  min_group_size: 3
+  max_group_size: 100
+  
+  # Content analysis
+  content_analysis:
+    extract_keywords: true
+    max_keywords: 10
+    min_keyword_frequency: 2
+    
+    extract_topics: true
+    topic_modeling: "lda"
+    n_topics: 20
+    
+# Organization rules
+organization:
+  create_hierarchical_structure: true
+  max_depth: 3
+  group_by_similarity: true
+  
+  # Auto-categorization
+  auto_categorization:
+    enabled: true
+    confidence_threshold: 0.8
+    
+# Quality control
+quality:
+  min_collection_size: 5
+  validate_semantic_consistency: true
+  check_duplicate_content: true
+  
+# Output configuration
+output:
+  create_collection_summaries: true
+  generate_visualization_data: true
+  export_collection_metadata: true
+  
+# Collection metadata
+metadata:
+  include_statistics: true
+  include_relationships: true
+  include_quality_metrics: true
+  
+  statistics:
+    - "collection_size"
+    - "avg_similarity"
+    - "topic_coherence"
+    - "keyword_diversity"
+    
+# Performance settings
+performance:
+  cache_embeddings: true
+  cache_similarity_matrices: true
+  memory_limit_gb: 8
+  
+# Advanced features
+advanced:
+  create_cross_collection_links: true
+  link_similarity_threshold: 0.7
+  
+  build_collection_graph: true
+  graph_edge_threshold: 0.6

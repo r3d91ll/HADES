@@ -15,6 +15,7 @@ from .chunkers.cpu.processor import CPUChunker
 from .chunkers.text.processor import TextChunker
 from .chunkers.code.processor import CodeChunker
 from .chunkers.chonky.processor import ChonkyChunker
+from .chunkers.ast.processor import ASTAwareCodeChunker
 
 
 logger = logging.getLogger(__name__)
@@ -27,6 +28,7 @@ CHUNKING_REGISTRY: Dict[str, Tuple[Type[Chunker], Callable[[Optional[Dict[str, A
     "text": (TextChunker, lambda config: TextChunker(config=config)),
     "code": (CodeChunker, lambda config: CodeChunker(config=config)),
     "chonky": (ChonkyChunker, lambda config: ChonkyChunker(config=config)),
+    "ast": (ASTAwareCodeChunker, lambda config: ASTAwareCodeChunker(config=config)),
 }
 
 

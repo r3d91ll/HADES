@@ -1,0 +1,81 @@
+# Production Pipeline Configuration
+# Configuration for complete HADES production pipeline
+
+version: 1
+
+# Pipeline configuration
+pipeline:
+  name: "production_pipeline"
+  description: "Complete HADES production pipeline with ISNE enhancement"
+  version: "1.0"
+  
+# Production stages
+stages:
+  - name: "bootstrap"
+    description: "Bootstrap ISNE test dataset into ArangoDB"
+    enabled: true
+    config: "pipelines/production/bootstrap.yaml"
+    
+  - name: "training"
+    description: "Train memory-efficient ISNE model"
+    enabled: true
+    config: "pipelines/production/training.yaml"
+    depends_on: ["bootstrap"]
+    
+  - name: "application"
+    description: "Apply trained model to create production database"
+    enabled: true
+    config: "pipelines/production/application.yaml"
+    depends_on: ["training"]
+    
+  - name: "collections"
+    description: "Build semantic collections for production use"
+    enabled: true
+    config: "pipelines/production/collections.yaml"
+    depends_on: ["application"]
+
+# Default paths and settings
+defaults:
+  input_dir: "/home/todd/ML-Lab/Olympus/sequential-ISNE-testdata/isne-testdata"
+  output_base_dir: "./output"
+  temp_dir: "./temp"
+  
+# Database configuration
+databases:
+  training: "isne_training_database"
+  production: "isne_production_database"
+  
+# Resource allocation
+resources:
+  max_parallel_processes: 2
+  memory_limit_gb: 16
+  gpu_memory_limit_gb: 8
+  disk_space_required_gb: 20
+  
+# Monitoring and logging
+monitoring:
+  enabled: true
+  log_level: "INFO"
+  debug_logging: false
+  metrics_enabled: true
+  alerts_enabled: true
+  
+# Error handling
+error_handling:
+  max_retries: 3
+  retry_delay_seconds: 30
+  continue_on_failure: false
+  
+# Component configuration references
+components:
+  docproc:
+    config: "components/docproc/core/config.yaml"
+    
+  chunking:
+    config: "components/chunking/core/config.yaml"
+    
+  embedding:
+    config: "components/embedding/core/config.yaml"
+    
+  storage:
+    config: "components/storage/arangodb/config.yaml"

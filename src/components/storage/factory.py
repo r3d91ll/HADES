@@ -14,6 +14,7 @@ from .core.processor import CoreStorage
 from .memory.storage import MemoryStorage
 from .networkx.processor import NetworkXStorage
 from .arangodb.storage import ArangoStorage
+from .arangodb.storage_v2 import ArangoStorageV2
 
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,7 @@ STORAGE_REGISTRY: Dict[str, Tuple[Type[Storage], Callable[[Optional[Dict[str, An
     "memory": (MemoryStorage, lambda config: MemoryStorage(config=config)),
     "networkx": (NetworkXStorage, lambda config: NetworkXStorage(config=config)),
     "arangodb": (ArangoStorage, lambda config: ArangoStorage(config=config)),
+    "arangodb_v2": (ArangoStorageV2, lambda config: ArangoStorageV2(config=config)),
 }
 
 
@@ -62,7 +64,7 @@ def create_storage_component(
     Create a storage component by name.
     
     Args:
-        component_name: Name of the component to create (e.g., "core", "memory", "networkx", "arangodb")
+        component_name: Name of the component to create (e.g., "core", "memory", "networkx", "arangodb", "arangodb_v2")
         config: Optional configuration dictionary
         
     Returns:
