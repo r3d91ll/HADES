@@ -64,6 +64,8 @@ Before declaring a module complete, perform the following reviews:
   - Centralized configuration management ready for frontend integration
   - Predictable structure for finding types/config for any module
 
+**Example Structure:**
+
 ### Post-Compression Protocol
 
 When conversation context is compressed:
