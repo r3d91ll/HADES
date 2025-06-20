@@ -9,7 +9,7 @@ in a database (ArangoDB).
 import logging
 from typing import Dict, Any, List, Tuple, Optional, Union, Set
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 import json
 

@@ -9,7 +9,7 @@ Sequential-ISNE schema integration, and all protocol compliance features.
 import sys
 import uuid
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Any
 
 # Add src to Python path
@@ -111,7 +111,7 @@ def test_arangodb_storage_v2():
             content="def hello():\n    print('Hello, world!')",
             content_hash=f"hash_{uuid.uuid4().hex[:8]}",
             size=40,
-            modified_time=datetime.now(),
+            modified_time=datetime.now(timezone.utc),
             directory_depth=1,
             lines_of_code=2
         )
@@ -130,7 +130,7 @@ def test_arangodb_storage_v2():
             content="# Test Project\n\nThis is a test.",
             content_hash=f"hash_{uuid.uuid4().hex[:8]}",
             size=32,
-            modified_time=datetime.now(),
+            modified_time=datetime.now(timezone.utc),
             directory_depth=1,
             word_count=7
         )
@@ -149,7 +149,7 @@ def test_arangodb_storage_v2():
             content="database:\n  host: localhost",
             content_hash=f"hash_{uuid.uuid4().hex[:8]}",
             size=28,
-            modified_time=datetime.now(),
+            modified_time=datetime.now(timezone.utc),
             directory_depth=1
         )
         
@@ -318,7 +318,7 @@ def test_arangodb_storage_v2():
                 content="# Context test",
                 content_hash=f"hash_{uuid.uuid4().hex[:8]}",
                 size=15,
-                modified_time=datetime.now(),
+                modified_time=datetime.now(timezone.utc),
                 directory_depth=1
             )
             ctx_file_id = ctx_storage.store_modality_file(test_file)

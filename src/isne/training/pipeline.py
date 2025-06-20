@@ -15,7 +15,7 @@ import logging
 import json
 import time
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List, Union
 from dataclasses import dataclass
 
@@ -123,7 +123,7 @@ class ISNETrainingConfig:
         
         # Handle versioning
         version = self._get_next_version(output_dir)
-        timestamp = datetime.now().strftime(self.get('model.target_model.versioning.timestamp_format'))
+        timestamp = datetime.now(timezone.utc).strftime(self.get('model.target_model.versioning.timestamp_format'))
         
         # Format model name
         model_name = model_name_template.format(version=version, timestamp=timestamp)
@@ -208,7 +208,7 @@ class ISNETrainingPipeline:
         try:
             import os
             
-            run_name = f"isne_training_{model_paths['model_name']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            run_name = f"isne_training_{model_paths['model_name']}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
             
             wandb_config = {
                 **training_config,
@@ -553,7 +553,7 @@ class ISNETrainingPipeline:
         metadata = {
             'model_name': model_info['model_name'],
             'version': model_info['version'],
-            'created_at': datetime.now().isoformat(),
+            'created_at': datetime.now(timezone.utc).isoformat(),
             'source_model': model_info['source_path'],
             'config_used': self.config.config,
             'training_type': 'incremental'

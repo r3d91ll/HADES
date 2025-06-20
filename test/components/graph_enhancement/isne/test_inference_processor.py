@@ -8,7 +8,7 @@ inference functionality, and configuration management.
 import pytest
 import numpy as np
 from typing import Dict, Any, List
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import patch, MagicMock
 from pathlib import Path
 

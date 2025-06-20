@@ -11,7 +11,7 @@ Tests the VLLMModelEngine component implementation including:
 
 import pytest
 from unittest.mock import Mock, patch, AsyncMock
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List
 
 from src.components.model_engine.engines.vllm.processor import VLLMModelEngine

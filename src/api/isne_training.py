@@ -13,7 +13,7 @@ import json
 import os
 from pathlib import Path
 from typing import Dict, Any, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 import torch
 import traceback
 
@@ -76,7 +76,7 @@ class ISNEProductionTrainer:
                     "training_config": training_config,
                     "device": str(self.device),
                     "production_training": True,
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
                 
                 self.wandb_run = wandb.init(

@@ -8,7 +8,7 @@ This provides safe, configurable training operations for regular model improveme
 import asyncio
 import logging
 from typing import Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks
@@ -19,7 +19,7 @@ from src.isne.training.pipeline import ISNETrainingPipeline, ISNETrainingConfig,
 logger = logging.getLogger(__name__)
 
 # Create API router
-router = APIRouter(prefix="/api/v1/isne", tags=["ISNE Training"])
+router = APIRouter(prefix="/isne", tags=["ISNE Training"])
 
 # Global training job tracking
 active_jobs: Dict[str, Dict[str, Any]] = {}
@@ -76,7 +76,7 @@ async def start_training(request: TrainingRequest, background_tasks: BackgroundT
     """
     try:
         # Generate job ID if not provided
-        job_id = request.job_id or f"training_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        job_id = request.job_id or f"training_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
         
         # Check if job already exists
         if job_id in active_jobs:
@@ -104,7 +104,7 @@ async def start_training(request: TrainingRequest, background_tasks: BackgroundT
             "status": "started",
             "progress_percent": 0.0,
             "current_stage": "initialization",
-            "started_at": datetime.now().isoformat(),
+            "started_at": datetime.now(timezone.utc).isoformat(),
             "overrides": overrides,
             "results": None,
             "error_message": None
@@ -225,7 +225,7 @@ async def run_training_job(job_id: str, overrides: Dict[str, Any]):
             active_jobs[job_id]["status"] = "completed"
             active_jobs[job_id]["progress_percent"] = 100.0
             active_jobs[job_id]["current_stage"] = "completed"
-            active_jobs[job_id]["completed_at"] = datetime.now().isoformat()
+            active_jobs[job_id]["completed_at"] = datetime.now(timezone.utc).isoformat()
             active_jobs[job_id]["results"] = {
                 "model_path": result.model_path,
                 "model_name": result.model_name,
@@ -240,7 +240,7 @@ async def run_training_job(job_id: str, overrides: Dict[str, Any]):
             # Training failed
             active_jobs[job_id]["status"] = "failed"
             active_jobs[job_id]["current_stage"] = "failed"
-            active_jobs[job_id]["completed_at"] = datetime.now().isoformat()
+            active_jobs[job_id]["completed_at"] = datetime.now(timezone.utc).isoformat()
             active_jobs[job_id]["error_message"] = result.error_message
             
             logger.error(f"Training job {job_id} failed: {result.error_message}")
@@ -249,7 +249,7 @@ async def run_training_job(job_id: str, overrides: Dict[str, Any]):
         # Unexpected error
         active_jobs[job_id]["status"] = "failed"
         active_jobs[job_id]["current_stage"] = "failed"
-        active_jobs[job_id]["completed_at"] = datetime.now().isoformat()
+        active_jobs[job_id]["completed_at"] = datetime.now(timezone.utc).isoformat()
         active_jobs[job_id]["error_message"] = str(e)
         
         logger.error(f"Training job {job_id} failed with exception: {e}")

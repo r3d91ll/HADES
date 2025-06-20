@@ -6,7 +6,7 @@ Builds Sequential-ISNE graph structure in ArangoDB using discovered files and re
 
 import logging
 from typing import Dict, List, Any, Tuple, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import defaultdict
 
 from .config import BootstrapConfig, BootstrapMetrics
@@ -58,7 +58,7 @@ class GraphBuilder:
         """
         self.logger.info(f"Building graph from {len(processed_files)} files and {len(relationships)} relationships")
         
-        start_time = datetime.now()
+        start_time = datetime.now(timezone.utc)
         
         try:
             # Phase 1: Store all files in modality collections
@@ -71,7 +71,7 @@ class GraphBuilder:
             self._collect_final_metrics()
             
             # Calculate total processing time
-            end_time = datetime.now()
+            end_time = datetime.now(timezone.utc)
             self.metrics.total_processing_time = (end_time - start_time).total_seconds()
             
             self.logger.info(f"Graph build completed in {self.metrics.total_processing_time:.2f}s")

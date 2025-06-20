@@ -9,7 +9,7 @@ import logging
 import time
 from typing import Dict, List, Any, Optional, Union, Iterator
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 
 from arango import ArangoClient as PyArangoClient
 from arango.database import StandardDatabase
@@ -156,7 +156,7 @@ class ArangoClient:
                 self._db.properties()
                 
                 self._connected = True
-                self._last_health_check = datetime.now()
+                self._last_health_check = datetime.now(timezone.utc)
                 self._stats['connections_created'] += 1
                 
                 logger.info(f"Successfully connected to ArangoDB database: {self.database_name}")
@@ -201,7 +201,7 @@ class ArangoClient:
             
             # Simple query to test connection
             self._db.properties()
-            self._last_health_check = datetime.now()
+            self._last_health_check = datetime.now(timezone.utc)
             return True
             
         except Exception as e:
@@ -562,7 +562,7 @@ class ArangoClient:
             'port': self.port,
             'database': self.database_name,
             'last_health_check': self._last_health_check.isoformat() if self._last_health_check else None,
-            'uptime': (datetime.now() - self._last_health_check).total_seconds() if self._last_health_check else 0
+            'uptime': (datetime.now(timezone.utc) - self._last_health_check).total_seconds() if self._last_health_check else 0
         })
         return metrics
     

@@ -31,7 +31,7 @@ import sys
 import time
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 import difflib
 
 # Pipeline imports
@@ -307,7 +307,7 @@ def run_enhanced_pipeline(args: argparse.Namespace) -> int:
         debug_dir.mkdir(parents=True, exist_ok=True)
     
     # Generate run ID for this execution
-    run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     
     # Setup alert manager
     alert_manager = AlertManager(
@@ -411,7 +411,7 @@ def run_enhanced_pipeline(args: argparse.Namespace) -> int:
             # Save a debug summary with information about each stage
             debug_summary: Dict[str, Any] = {
                 "run_id": run_id,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "stages_processed": [stage_name for stage_name, _ in stages],
                 "files_input": file_paths,
                 "debug_files_created": []
@@ -442,7 +442,7 @@ def run_enhanced_pipeline(args: argparse.Namespace) -> int:
         # Generate summary statistics
         stats = {
             "run_id": run_id,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "input_dir": str(input_dir),
             "files_processed": len(files),
             "stages_completed": len(stages),

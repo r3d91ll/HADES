@@ -12,7 +12,7 @@ import numpy as np
 import logging
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union, cast, Tuple, Type
-from datetime import datetime
+from datetime import datetime, timezone
 from torch import Tensor
 import torch.nn as nn
 
@@ -294,7 +294,7 @@ class ISNEPipeline:
                     # Add validation info to the document if available
                     if self.validate and validation_summary is not None:
                         enhanced_doc["validation_info"] = {
-                            "timestamp": datetime.now().isoformat(),
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
                             "quality_score": validation_summary.get("discrepancies", {}).get("quality_score", 0)
                         }
                     
@@ -315,7 +315,7 @@ class ISNEPipeline:
             processing_stats = {
                 "status": "success",
                 "documents_processed": len(enhanced_documents),
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "validation_performed": self.validate
             }
             
@@ -398,7 +398,7 @@ class ISNEPipeline:
         
         # Send alert through alert manager with proper parameters
         context = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "model_path": self.model_path
         }
         self.alert_manager.alert(message, alert_level, "ISNEPipeline", context)
@@ -436,7 +436,7 @@ class ISNEPipeline:
         Path(output_dir).mkdir(parents=True, exist_ok=True)
         
         # Generate timestamp for filename
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         report_path = os.path.join(output_dir, f"isne_validation_{timestamp}.json")
         
         # Save report to file
@@ -460,7 +460,7 @@ class ISNEPipeline:
         Path(output_dir).mkdir(parents=True, exist_ok=True)
         
         # Generate timestamp for filename
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         
         # Save enhanced documents
         docs_path = os.path.join(output_dir, f"isne_enhanced_docs_{timestamp}.json")

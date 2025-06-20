@@ -51,7 +51,7 @@ class ScheduledISNETrainer:
         )
         
         # State tracking
-        self.last_full_retrain = datetime.now()
+        self.last_full_retrain = datetime.now(timezone.utc)
         self.daily_updates_since_full_retrain = 0
         
     def run_daily_incremental(self, date: Optional[datetime] = None) -> Dict[str, Any]:
@@ -65,7 +65,7 @@ class ScheduledISNETrainer:
             Training results
         """
         if date is None:
-            date = datetime.now() - timedelta(days=1)
+            date = datetime.now(timezone.utc) - timedelta(days=1)
             
         logger.info(f"Running daily incremental training for {date.strftime('%Y-%m-%d')}")
         
@@ -109,14 +109,14 @@ class ScheduledISNETrainer:
         
         # Get date range for retraining
         if scope == 'weekly':
-            start_date = datetime.now() - timedelta(weeks=1)
+            start_date = datetime.now(timezone.utc) - timedelta(weeks=1)
         elif scope == 'monthly':
-            start_date = datetime.now() - timedelta(days=30)
+            start_date = datetime.now(timezone.utc) - timedelta(days=30)
         else:  # full
             start_date = None  # All data
             
         # Get all chunks in scope
-        all_chunks = self._get_chunks_by_date_range(start_date, datetime.now())
+        all_chunks = self._get_chunks_by_date_range(start_date, datetime.now(timezone.utc))
         current_graph_stats = self._get_current_graph_stats()
         
         logger.info(f"Retraining with {len(all_chunks)} total chunks")
@@ -125,7 +125,7 @@ class ScheduledISNETrainer:
         results = self.adaptive_trainer._retrain_and_process(all_chunks, current_graph_stats)
         
         # Update tracking
-        self.last_full_retrain = datetime.now()
+        self.last_full_retrain = datetime.now(timezone.utc)
         self.daily_updates_since_full_retrain = 0
         
         # Enhanced results
@@ -133,7 +133,7 @@ class ScheduledISNETrainer:
             'training_type': f'{scope}_full_retrain',
             'scope': scope,
             'start_date': start_date.isoformat() if start_date else None,
-            'end_date': datetime.now().isoformat()
+            'end_date': datetime.now(timezone.utc).isoformat()
         })
         
         # Save full training log
@@ -148,7 +148,7 @@ class ScheduledISNETrainer:
         Returns:
             Tuple of (should_retrain, reason)
         """
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         
         # Check weekly schedule
         weekly_config = self.config.get('weekly', {})
@@ -201,7 +201,7 @@ class ScheduledISNETrainer:
         log_dir = Path("./training_logs")
         log_dir.mkdir(exist_ok=True)
         
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         log_file = log_dir / f"{training_type}_training_{timestamp}.json"
         
         import json
@@ -241,7 +241,7 @@ class AdaptiveISNETrainer:
         self.max_incremental_updates = max_incremental_updates
         
         # State tracking
-        self.last_retrain_time = datetime.now()
+        self.last_retrain_time = datetime.now(timezone.utc)
         self.incremental_updates_count = 0
         self.graph_stats_at_last_train: Dict[str, Any] = {}
         self.embedding_quality_history: List[float] = []
@@ -261,7 +261,7 @@ class AdaptiveISNETrainer:
         """
         
         # 1. Check minimum time interval
-        time_since_retrain = datetime.now() - self.last_retrain_time
+        time_since_retrain = datetime.now(timezone.utc) - self.last_retrain_time
         if time_since_retrain < self.min_retrain_interval:
             return False, f"Too soon since last retrain ({time_since_retrain})"
         
@@ -315,7 +315,7 @@ class AdaptiveISNETrainer:
                            current_graph_stats: Dict) -> Dict:
         """Retrain ISNE model and process chunks."""
         
-        start_time = datetime.now()
+        start_time = datetime.now(timezone.utc)
         
         # 1. Create training documents from new chunks
         logger.info("Processing documents for retraining")
@@ -336,7 +336,7 @@ class AdaptiveISNETrainer:
             all_embeddings = []
         
         # 4. Update state tracking
-        self.last_retrain_time = datetime.now()
+        self.last_retrain_time = datetime.now(timezone.utc)
         self.incremental_updates_count = 0
         self.graph_stats_at_last_train = current_graph_stats.copy()
         
@@ -347,7 +347,7 @@ class AdaptiveISNETrainer:
             overall_score = float(quality_metrics['chunks_with_isne']) / max(1, float(quality_metrics.get('total_isne_count', 1)))
             self.embedding_quality_history.append(overall_score)
         
-        processing_time = datetime.now() - start_time
+        processing_time = datetime.now(timezone.utc) - start_time
         
         return {
             'strategy': 'retrain',
@@ -363,7 +363,7 @@ class AdaptiveISNETrainer:
     def _incremental_process(self, new_chunks: List[Dict]) -> Dict:
         """Process chunks incrementally without retraining."""
         
-        start_time = datetime.now()
+        start_time = datetime.now(timezone.utc)
         
         # 1. Generate embeddings using existing model
         logger.info(f"Generating ISNE embeddings for {len(new_chunks)} chunks")
@@ -396,7 +396,7 @@ class AdaptiveISNETrainer:
             overall_score = float(quality_metrics['chunks_with_isne']) / max(1, float(quality_metrics.get('total_isne_count', 1)))
             self.embedding_quality_history.append(overall_score)
         
-        processing_time = datetime.now() - start_time
+        processing_time = datetime.now(timezone.utc) - start_time
         
         return {
             'strategy': 'incremental',
@@ -450,7 +450,7 @@ class AdaptiveISNETrainer:
         return {
             'last_retrain_time': self.last_retrain_time.isoformat(),
             'incremental_updates_since_retrain': self.incremental_updates_count,
-            'time_since_retrain_hours': (datetime.now() - self.last_retrain_time).total_seconds() / 3600,
+            'time_since_retrain_hours': (datetime.now(timezone.utc) - self.last_retrain_time).total_seconds() / 3600,
             'embedding_quality_history': self.embedding_quality_history[-10:],  # Last 10 scores
             'current_quality': self.embedding_quality_history[-1] if self.embedding_quality_history else None
         }

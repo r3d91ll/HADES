@@ -10,7 +10,7 @@ import sys
 import logging
 import json
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
@@ -37,7 +37,7 @@ def main() -> None:
     
     # Define paths
     corpus_dir = project_root / "test-data"
-    output_dir = project_root / "test-output" / "simple-bootstrap-test" / datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_dir = project_root / "test-output" / "simple-bootstrap-test" / datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     
     # Create output directories
     output_dir.mkdir(parents=True, exist_ok=True)

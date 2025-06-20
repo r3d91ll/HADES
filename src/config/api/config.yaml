@@ -6,7 +6,7 @@ version: 1
 # Server configuration
 server:
   host: "0.0.0.0"
-  port: 8080
+  port: 8595  # Primary FastAPI port (8590-8599 range)
   workers: 4
   timeout: 30
   keepalive: 2
@@ -42,3 +42,34 @@ features:
   health_checks: true
   metrics: true
   request_id_tracing: true
+
+# MCP (Model Context Protocol) settings
+mcp:
+  # Main API server configuration (8590-8599 port range)
+  api:
+    host: "localhost"
+    port: 8595  # Primary FastAPI port
+    base_url: "http://localhost:8595"
+    timeout: 300
+  
+  # SSE transport configuration for FastAPI-MCP
+  sse:
+    timeout: 300
+    log_level: "INFO"
+    endpoint: "/_mcp/sse"
+    messages_endpoint: "/_mcp/messages"
+    
+  # FastAPI-MCP integration (enabled via SSE transport)
+  fastapi_integration:
+    enabled: true
+    transport: "sse"
+    oauth_required: false
+    
+  # Port allocation (8590-8599 reserved for HADES services)
+  port_range:
+    start: 8590
+    end: 8599
+    primary: 8595
+    # 8590-8594: Available for additional services
+    # 8595: Primary FastAPI server  
+    # 8596-8599: Available for additional services

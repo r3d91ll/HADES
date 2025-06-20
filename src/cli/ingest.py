@@ -12,7 +12,7 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Any, Optional, cast
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.orchestration.pipelines.ingest.orchestrator.ingestor import RepositoryIngestor
 from src.storage.arango.connection import ArangoConnection
@@ -220,7 +220,7 @@ def main() -> int:
         # Convert to serializable format
         serializable_results = {
             "stats": result.get("results", {}),
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "config": {
                 "database": args.db_name,
                 "mode": args.db_mode,

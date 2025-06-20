@@ -10,7 +10,7 @@ import tempfile
 import shutil
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.pipelines.bootstrap import BootstrapPipeline, BootstrapConfig
 from src.pipelines.bootstrap.config import FileTypeFilter, EdgeDiscoveryMethod

@@ -8,7 +8,7 @@ to existing graph structure while preserving performance.
 import logging
 import asyncio
 from typing import Dict, List, Any, Optional, Tuple, Set
-from datetime import datetime
+from datetime import datetime, timezone
 import numpy as np
 from scipy.spatial.distance import cosine
 
@@ -59,7 +59,7 @@ class GraphBuilder:
         """
         logger.info(f"Building graph incrementally: {new_chunks} new, {updated_chunks} updated chunks")
         
-        start_time = datetime.now()
+        start_time = datetime.now(timezone.utc)
         
         try:
             # Get chunks that need graph connections
@@ -78,7 +78,7 @@ class GraphBuilder:
             # Update node metadata
             await self._update_node_metadata(pending_chunks)
             
-            processing_time = (datetime.now() - start_time).total_seconds()
+            processing_time = (datetime.now(timezone.utc) - start_time).total_seconds()
             
             results = {
                 'new_edges': edge_results['created_edges'],
@@ -361,7 +361,7 @@ class GraphBuilder:
                 'chunk_id': chunk_id,
                 'embedding_id': chunk_id,  # Assume same ID for now
                 'node_index': node_index,
-                'created_at': datetime.now().isoformat(),
+                'created_at': datetime.now(timezone.utc).isoformat(),
                 'isne_enhanced': False,
                 'metadata': {}
             }
@@ -434,7 +434,7 @@ class GraphBuilder:
             try:
                 edges_collection.update(existing[0], {
                     'weight': weight,
-                    'updated_at': datetime.now().isoformat()
+                    'updated_at': datetime.now(timezone.utc).isoformat()
                 })
                 return True
             except Exception as e:
@@ -448,7 +448,7 @@ class GraphBuilder:
                 '_to': to_id,
                 'weight': weight,
                 'edge_type': edge_type,
-                'created_at': datetime.now().isoformat(),
+                'created_at': datetime.now(timezone.utc).isoformat(),
                 'metadata': {}
             }
             
@@ -492,7 +492,7 @@ class GraphBuilder:
                 
                 self.db.query(query, bind_vars={
                     'chunk_id': chunk.chunk_id,
-                    'timestamp': datetime.now().isoformat()
+                    'timestamp': datetime.now(timezone.utc).isoformat()
                 })
                 
             except Exception as e:

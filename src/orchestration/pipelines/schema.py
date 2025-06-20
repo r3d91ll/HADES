@@ -5,7 +5,7 @@ This module provides Pydantic models for validating and documenting the
 data structures used throughout the orchestration pipeline system.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, List, Optional, Any, Union
 from pydantic import BaseModel, Field, validator

@@ -6,7 +6,7 @@ and validation results.
 """
 
 from typing import Any, Dict, List, Optional, TypedDict, Union
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import BaseModel, Field, field_validator
 import numpy as np
 

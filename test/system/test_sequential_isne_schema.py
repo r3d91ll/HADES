@@ -18,7 +18,7 @@ from src.storage.incremental.sequential_isne_types import (
     FileType, CodeFileType, DocumentationType, ConfigFileType,
     ProcessingStatus, classify_file_type
 )
-from datetime import datetime
+from datetime import datetime, timezone
 
 def test_sequential_isne_schema():
     """Test Sequential-ISNE schema creation and validation."""

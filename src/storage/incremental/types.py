@@ -5,7 +5,7 @@ Type definitions for incremental storage module.
 from typing import List, Dict, Any, Optional, Union
 from enum import Enum
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import BaseModel, Field
 
 

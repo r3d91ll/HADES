@@ -7,7 +7,7 @@ to focus on testing the core component functionality.
 
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 

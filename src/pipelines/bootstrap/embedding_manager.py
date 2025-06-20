@@ -9,7 +9,7 @@ and proper linking in the Sequential-ISNE schema.
 import logging
 import hashlib
 from typing import Dict, List, Any, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.storage.incremental.sequential_isne_types import Chunk, Embedding, SourceType, EmbeddingType, FileType
 from src.types.components.contracts import EmbeddingInput, EmbeddingOutput, DocumentChunk, ChunkEmbedding

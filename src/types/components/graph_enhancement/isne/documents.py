@@ -7,7 +7,7 @@ including both TypedDict and dataclass versions for different use cases.
 
 from typing import Any, Dict, List, Optional, TypedDict, Union
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import BaseModel, Field
 
 from src.types.isne.base import DocumentType, RelationType, EmbeddingVector
@@ -94,7 +94,7 @@ class IngestDocument:
         
         # Set timestamps if not provided
         if self.created_at is None:
-            self.created_at = datetime.now()
+            self.created_at = datetime.now(timezone.utc)
         
         # Ensure model info exists in metadata
         if "model_used" not in self.metadata:
@@ -166,7 +166,7 @@ class DocumentRelation:
         """Set default weights and timestamps after initialization."""
         # Set creation timestamp if not provided
         if self.created_at is None:
-            self.created_at = datetime.now()
+            self.created_at = datetime.now(timezone.utc)
         
         # Set default weights based on relation type if not explicitly set
         if self.weight == 1.0:  # Only if not explicitly set

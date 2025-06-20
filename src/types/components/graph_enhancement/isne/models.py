@@ -5,7 +5,7 @@ training configuration, and document graph structures.
 """
 
 from typing import Any, Dict, List, Literal, Optional, TypedDict, Union
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Import standardized types from common module
 from ..common import DocumentType, RelationType

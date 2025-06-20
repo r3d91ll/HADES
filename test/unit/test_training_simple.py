@@ -14,7 +14,7 @@ sys.path.append(str(Path(__file__).parent / "src"))
 from src.isne.training.pipeline import ISNETrainingPipeline, ISNETrainingConfig
 
 # Configure logging to both console and file
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 
 # Create logs directory if it doesn't exist
@@ -22,7 +22,7 @@ logs_dir = Path(__file__).parent / "logs" / "training_scripts"
 logs_dir.mkdir(parents=True, exist_ok=True)
 
 # Create log filename with timestamp
-log_filename = f"simple_training_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+log_filename = f"simple_training_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.log"
 log_file_path = logs_dir / log_filename
 
 # Configure logging to both file and console

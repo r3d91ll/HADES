@@ -15,7 +15,7 @@ import logging
 import time
 import uuid
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel, Field
 
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 # Job tracking for long-running pipelines
 pipeline_jobs: Dict[str, Dict[str, Any]] = {}
 
-router = APIRouter(prefix="/pipelines", tags=["Pipelines"])
+router = APIRouter(prefix="/pipes", tags=["Pipelines"])
 
 # =====================================================
 # Request/Response Models
@@ -224,13 +224,13 @@ async def ingest_pipeline(request: IngestPipelineRequest, background_tasks: Back
         "status": "pending",
         "progress_percent": 0.0,
         "stage": "initialization",
-        "start_time": datetime.now(),
+        "start_time": datetime.now(timezone.utc),
         "request": request.dict(),
         "results": {}
     }
     
     # Start background ingestion task
-    background_tasks.add_task(run_ingestion_pipeline, job_id, request)
+    background_tasks.add_task(run_ingest, job_id, request)
     
     logger.info(f"Started ingestion pipeline job {job_id} for {len(request.documents)} documents")
     
@@ -243,7 +243,7 @@ async def ingest_pipeline(request: IngestPipelineRequest, background_tasks: Back
     )
 
 @router.post("/isne_training", response_model=ISNETrainingResponse)
-async def isne_training_pipeline(request: ISNETrainingRequest, background_tasks: BackgroundTasks) -> ISNETrainingResponse:
+async def train_isne(request: ISNETrainingRequest, background_tasks: BackgroundTasks) -> ISNETrainingResponse:
     """
     Execute ISNE model training pipeline.
     
@@ -269,13 +269,13 @@ async def isne_training_pipeline(request: ISNETrainingRequest, background_tasks:
         "status": "pending",
         "progress_percent": 0.0,
         "stage": "initialization",
-        "start_time": datetime.now(),
+        "start_time": datetime.now(timezone.utc),
         "request": request.dict(),
         "results": {}
     }
     
     # Start background training task
-    background_tasks.add_task(run_isne_training_pipeline, job_id, request)
+    background_tasks.add_task(run_train, job_id, request)
     
     # Estimate duration based on configuration
     estimated_epochs = request.training_config.get("epochs", 50)
@@ -287,11 +287,11 @@ async def isne_training_pipeline(request: ISNETrainingRequest, background_tasks:
         job_id=job_id,
         status="pending",
         estimated_duration_minutes=estimated_duration,
-        progress_endpoint=f"/api/v1/pipelines/jobs/{job_id}/status"
+        progress_endpoint=f"/pipes/jobs/{job_id}/status"
     )
 
 @router.get("/jobs/{job_id}/status", response_model=PipelineJobStatus)
-async def get_pipeline_job_status(job_id: str) -> PipelineJobStatus:
+async def get_job_status(job_id: str) -> PipelineJobStatus:
     """
     Get status of a pipeline job.
     
@@ -308,7 +308,7 @@ async def get_pipeline_job_status(job_id: str) -> PipelineJobStatus:
     
     duration_seconds = None
     if job_data["status"] in ["completed", "failed"]:
-        duration_seconds = (datetime.now() - job_data["start_time"]).total_seconds()
+        duration_seconds = (datetime.now(timezone.utc) - job_data["start_time"]).total_seconds()
     
     return PipelineJobStatus(
         job_id=job_id,
@@ -322,7 +322,7 @@ async def get_pipeline_job_status(job_id: str) -> PipelineJobStatus:
     )
 
 @router.get("/jobs", response_model=List[PipelineJobStatus])
-async def list_pipeline_jobs(status_filter: Optional[str] = None, limit: int = 50) -> List[PipelineJobStatus]:
+async def list_jobs(status_filter: Optional[str] = None, limit: int = 50) -> List[PipelineJobStatus]:
     """
     List pipeline jobs with optional status filtering.
     
@@ -341,7 +341,7 @@ async def list_pipeline_jobs(status_filter: Optional[str] = None, limit: int = 5
             
         duration_seconds = None
         if job_data["status"] in ["completed", "failed"]:
-            duration_seconds = (datetime.now() - job_data["start_time"]).total_seconds()
+            duration_seconds = (datetime.now(timezone.utc) - job_data["start_time"]).total_seconds()
         
         jobs.append(PipelineJobStatus(
             job_id=job_data["job_id"],
@@ -360,7 +360,7 @@ async def list_pipeline_jobs(status_filter: Optional[str] = None, limit: int = 5
 # Background Pipeline Execution Functions
 # =====================================================
 
-async def run_ingestion_pipeline(job_id: str, request: IngestPipelineRequest) -> None:
+async def run_ingest(job_id: str, request: IngestPipelineRequest) -> None:
     """Background task for document ingestion pipeline."""
     try:
         job_data = pipeline_jobs[job_id]
@@ -410,7 +410,7 @@ async def run_ingestion_pipeline(job_id: str, request: IngestPipelineRequest) ->
         job_data["status"] = "failed"
         job_data["error_message"] = str(e)
 
-async def run_isne_training_pipeline(job_id: str, request: ISNETrainingRequest) -> None:
+async def run_train(job_id: str, request: ISNETrainingRequest) -> None:
     """Background task for ISNE training pipeline."""
     from src.api.isne_training import ISNEProductionTrainer
     

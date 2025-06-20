@@ -16,7 +16,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Tuple, Optional
 
 # Add project root to Python path
@@ -282,7 +282,7 @@ class MemoryEfficientISNETrainer:
             'edges': edges,
             'metadata': {
                 'db_name': self.db_name,
-                'extraction_timestamp': datetime.now().isoformat(),
+                'extraction_timestamp': datetime.now(timezone.utc).isoformat(),
                 'num_embeddings': len(nodes),
                 'sampled_similarity_edges': similarity_edges_added
             }
@@ -501,7 +501,7 @@ class MemoryEfficientISNETrainer:
         
         # Save model
         output_dir.mkdir(parents=True, exist_ok=True)
-        model_path = output_dir / f"isne_model_efficient_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pth"
+        model_path = output_dir / f"isne_model_efficient_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.pth"
         
         save_data = {
             'model_state_dict': model.state_dict(),

@@ -7,7 +7,7 @@ schema to the Sequential-ISNE modality-specific schema architecture.
 
 import logging
 from typing import Dict, List, Any, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from arango import ArangoClient
@@ -284,7 +284,7 @@ class SequentialISNEMigrator:
             'content_hash': doc['content_hash'],
             'size': doc['size'],
             'modified_time': doc['modified_time'],
-            'ingestion_time': doc.get('ingestion_time', datetime.now().isoformat()),
+            'ingestion_time': doc.get('ingestion_time', datetime.now(timezone.utc).isoformat()),
             'processing_status': doc.get('processing_status', ProcessingStatus.COMPLETED.value),
             'directory_depth': len(file_path.parts) - 1,
             'chunk_count': doc.get('chunk_count', 0),
@@ -382,7 +382,7 @@ class SequentialISNEMigrator:
             'end_pos': chunk.get('end_pos', 0),
             'chunk_index': chunk.get('chunk_index', 0),
             'chunk_type': 'text',  # Default, could be improved with analysis
-            'created_at': chunk.get('created_at', datetime.now().isoformat()),
+            'created_at': chunk.get('created_at', datetime.now(timezone.utc).isoformat()),
             'embedding_id': chunk.get('embedding_id'),
             'metadata': chunk.get('metadata', {})
         }
@@ -443,7 +443,7 @@ class SequentialISNEMigrator:
             'model_name': embedding.get('model_name', 'unknown'),
             'model_version': embedding.get('model_version', 'unknown'),
             'embedding_dim': embedding.get('embedding_dim', len(embedding.get('vector', []))),
-            'created_at': embedding.get('created_at', datetime.now().isoformat()),
+            'created_at': embedding.get('created_at', datetime.now(timezone.utc).isoformat()),
             'isne_metadata': {},
             'metadata': embedding.get('metadata', {})
         }
@@ -459,7 +459,7 @@ class SequentialISNEMigrator:
             True if migration successful
         """
         try:
-            self.migration_log.append(f"Starting Sequential-ISNE migration at {datetime.now()}")
+            self.migration_log.append(f"Starting Sequential-ISNE migration at {datetime.now(timezone.utc)}")
             
             # Step 1: Validate source schema
             if not self.validate_source_schema():
@@ -468,7 +468,7 @@ class SequentialISNEMigrator:
             
             # Step 2: Create backup if requested
             if backup_source:
-                backup_name = f"{self.source_db_name}_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                backup_name = f"{self.source_db_name}_backup_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
                 if not self._create_backup(backup_name):
                     self.warnings.append("Backup creation failed, continuing migration")
             
@@ -492,7 +492,7 @@ class SequentialISNEMigrator:
                 self.errors.append("Embedding migration failed")
                 return False
             
-            self.migration_log.append(f"Sequential-ISNE migration completed successfully at {datetime.now()}")
+            self.migration_log.append(f"Sequential-ISNE migration completed successfully at {datetime.now(timezone.utc)}")
             return True
             
         except Exception as e:
@@ -527,7 +527,7 @@ class SequentialISNEMigrator:
             'success': len(self.errors) == 0,
             'source_database': self.source_db_name,
             'target_database': self.target_db_name,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         }
     
     def print_migration_report(self) -> None:

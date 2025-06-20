@@ -8,7 +8,7 @@ Provides performance tracking, alerting, and metrics export.
 import time
 import psutil
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
@@ -134,7 +134,7 @@ class BootstrapMonitor:
                 "pipeline_start",
                 {
                     "pipeline_name": pipeline_name,
-                    "start_time": datetime.now().isoformat(),
+                    "start_time": datetime.now(timezone.utc).isoformat(),
                     "output_dir": str(output_dir)
                 }
             )
@@ -384,7 +384,7 @@ class BootstrapMonitor:
             ])
         
         # Write metrics to file
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         metrics_file = self.output_dir / f"{timestamp}_{stage_name}_metrics.txt"
         with open(metrics_file, 'w') as f:
             f.write("\\n".join(metrics_lines))
@@ -461,7 +461,7 @@ class BootstrapMonitor:
         ]
         
         # Write pipeline metrics to file
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         metrics_file = self.output_dir / f"{timestamp}_pipeline_metrics.txt"
         with open(metrics_file, 'w') as f:
             f.write("\\n".join(metrics_lines))

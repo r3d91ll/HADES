@@ -9,7 +9,7 @@ import logging
 import hashlib
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Iterator, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 

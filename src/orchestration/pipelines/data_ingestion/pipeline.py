@@ -19,7 +19,7 @@ import json
 import time
 from typing import Dict, List, Any, Optional, Tuple, TypedDict, cast
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.orchestration.pipelines.data_ingestion.stages.document_processor import DocumentProcessorStage
 from src.orchestration.pipelines.data_ingestion.stages.chunking import ChunkingStage
@@ -208,7 +208,7 @@ class DataIngestionPipeline:
             cast(List[Dict[str, Any]], self.stats["errors"]).append({
                 "stage": "pipeline",
                 "message": str(e),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             })
             self.alert_manager.alert(
                 message=f"Data ingestion pipeline failed: {e}",
@@ -242,7 +242,7 @@ class DataIngestionPipeline:
             cast(List[Dict[str, Any]], self.stats["errors"]).append({
                 "stage": "document_processing",
                 "message": str(e),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             })
             return []
     
@@ -284,7 +284,7 @@ class DataIngestionPipeline:
             cast(List[Dict[str, Any]], self.stats["errors"]).append({
                 "stage": "chunking",
                 "message": str(e),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             })
             return []
     
@@ -341,7 +341,7 @@ class DataIngestionPipeline:
                         'embedding_metadata': {
                             'model': 'modernbert',  # From config
                             'dimension': len(chunk_schema.embedding) if chunk_schema.embedding else 0,
-                            'timestamp': datetime.now().isoformat()
+                            'timestamp': datetime.now(timezone.utc).isoformat()
                         }
                     }
                     embedded_chunks.append(chunk_dict)
@@ -364,7 +364,7 @@ class DataIngestionPipeline:
             cast(List[Dict[str, Any]], self.stats["errors"]).append({
                 "stage": "embedding",
                 "message": str(e),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             })
             return []
     
@@ -422,11 +422,11 @@ class DataIngestionPipeline:
                         'embedding_metadata': {
                             'model': 'modernbert',
                             'dimension': len(chunk_schema.embedding) if chunk_schema.embedding else 0,
-                            'timestamp': datetime.now().isoformat()
+                            'timestamp': datetime.now(timezone.utc).isoformat()
                         },
                         'isne_metadata': {
                             'model_version': 'v1',
-                            'training_timestamp': datetime.now().isoformat(),
+                            'training_timestamp': datetime.now(timezone.utc).isoformat(),
                             'enhancement_quality': 0.85  # Default quality score
                         },
                         'graph_relationships': getattr(chunk_schema, 'graph_relationships', {}),
@@ -456,7 +456,7 @@ class DataIngestionPipeline:
             cast(List[Dict[str, Any]], self.stats["errors"]).append({
                 "stage": "isne",
                 "message": str(e),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             })
             # Return chunks without ISNE enhancement
             for chunk in embedded_chunks:
@@ -541,7 +541,7 @@ class DataIngestionPipeline:
             cast(List[Dict[str, Any]], self.stats["errors"]).append({
                 "stage": "storage",
                 "message": str(e),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             })
             return {}
     
@@ -584,7 +584,7 @@ class DataIngestionPipeline:
             'total_time': total_time,
             'storage_results': storage_results or {},
             'success': len(self.stats['errors']) == 0,
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'debug_enabled': self.enable_debug,
             'debug_output_dir': str(self.debug_output_dir) if self.debug_output_dir else None
         }

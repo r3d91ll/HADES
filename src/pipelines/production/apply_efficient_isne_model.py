@@ -14,7 +14,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Tuple, Optional
 from collections import defaultdict
 
@@ -413,7 +413,7 @@ class EfficientISNEApplicationPipeline:
                 'embedding': embedding.tolist(),
                 'dimensions': len(embedding),
                 'model_version': 'memory_efficient_isne_v1',
-                'created_at': datetime.now().isoformat()
+                'created_at': datetime.now(timezone.utc).isoformat()
             }
             docs.append(doc)
         
@@ -501,7 +501,7 @@ class EfficientISNEApplicationPipeline:
                             'source_file': source_file,
                             'target_file': target_file,
                             'discovery_method': 'memory_efficient_isne',
-                            'created_at': datetime.now().isoformat()
+                            'created_at': datetime.now(timezone.utc).isoformat()
                         })
             
             logger.info(f"Processed batch {i//batch_size + 1}/{(len(normalized) + batch_size - 1)//batch_size}")

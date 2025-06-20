@@ -13,7 +13,7 @@ import time
 import json
 import numpy as np
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Set, Tuple
 from collections import defaultdict
 import re
@@ -513,7 +513,7 @@ class SemanticCollectionBuilder:
                     'chunk_ids': cluster_chunks[:100],  # Limit stored chunks
                     'center_embedding': cluster_centers[i].tolist(),
                     'sample_content': samples,
-                    'created_at': datetime.now().isoformat()
+                    'created_at': datetime.now(timezone.utc).isoformat()
                 })
         
         logger.info(f"Created {len(clusters)} semantic clusters")

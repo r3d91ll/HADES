@@ -11,7 +11,7 @@ import logging
 import json
 import argparse
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional, List
 
 # Add project root to path
@@ -177,7 +177,7 @@ def main() -> int:
         if args.output_dir:
             output_dir = Path(args.output_dir)
         else:
-            output_dir = Path(f"./bootstrap-output-{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+            output_dir = Path(f"./bootstrap-output-{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}")
         
         output_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"Bootstrap output directory: {output_dir}")
@@ -245,7 +245,7 @@ def main() -> int:
         
         # Run bootstrap process
         logger.info("Starting ISNE bootstrap process...")
-        start_time = datetime.now()
+        start_time = datetime.now(timezone.utc)
         
         if args.skip_training:
             logger.info("Skipping training phases (graph construction only)")
@@ -254,7 +254,7 @@ def main() -> int:
         
         results = bootstrapper.bootstrap_full_corpus()
         
-        end_time = datetime.now()
+        end_time = datetime.now(timezone.utc)
         processing_time = (end_time - start_time).total_seconds()
         
         # Report results

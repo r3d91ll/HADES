@@ -11,7 +11,7 @@ import sys
 import logging
 from pathlib import Path
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Add src to path
 sys.path.append(str(Path(__file__).parent / "src"))
@@ -149,7 +149,7 @@ def main():
     print(f"✅ Found trained model: {model_path}")
     
     # Create output directory
-    output_dir = f"output/graph_validation_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    output_dir = f"output/graph_validation_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
     
     try:
         # Initialize populator

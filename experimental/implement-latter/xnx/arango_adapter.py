@@ -9,7 +9,7 @@ import sys
 from typing import Dict, List, Any, Optional, Tuple, Union
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -108,7 +108,7 @@ class ArangoPathRAGAdapter:
             "content": content,
             "embedding": embedding,
             "metadata": metadata,
-            "created_at": datetime.now().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
         
         # Insert or replace the node
@@ -171,7 +171,7 @@ class ArangoPathRAGAdapter:
             "weight": weight,
             "direction": direction,
             "xnx_notation": f"{weight:.2f} {to_id} {direction}",
-            "created_at": datetime.now().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "metadata": metadata
         }
         

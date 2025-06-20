@@ -6,7 +6,7 @@ Type definitions for text-based chunking components.
 
 from typing import Dict, Any, List, Optional, Literal
 from pydantic import Field
-from datetime import datetime
+from datetime import datetime, timezone
 
 from ...common import BaseHADESModel
 

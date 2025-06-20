@@ -8,7 +8,7 @@ ensuring data consistency and maintaining an audit trail of all resolutions.
 import logging
 import hashlib
 from typing import Dict, List, Any, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import difflib
 
@@ -77,7 +77,7 @@ class ConflictResolver:
                 strategy_used=ConflictStrategy.UPDATE,
                 original_hash="",
                 new_hash=document_info.content_hash,
-                resolution_time=datetime.now(),
+                resolution_time=datetime.now(timezone.utc),
                 changes_summary="New document (no existing version found)"
             )
             return resolution
@@ -174,7 +174,7 @@ class ConflictResolver:
             strategy_used=ConflictStrategy.SKIP,
             original_hash=existing_doc['content_hash'],
             new_hash=new_doc.content_hash,
-            resolution_time=datetime.now(),
+            resolution_time=datetime.now(timezone.utc),
             changes_summary=f"Document skipped due to {conflict_type}",
             metadata={
                 'conflict_type': conflict_type,
@@ -213,7 +213,7 @@ class ConflictResolver:
             'content_hash': new_doc.content_hash,
             'size': new_doc.size,
             'modified_time': new_doc.modified_time.isoformat(),
-            'ingestion_time': datetime.now().isoformat(),
+            'ingestion_time': datetime.now(timezone.utc).isoformat(),
             'processing_status': 'pending',
             'previous_hash': existing_doc['content_hash'],
             'update_reason': conflict_type
@@ -230,7 +230,7 @@ class ConflictResolver:
             strategy_used=ConflictStrategy.UPDATE,
             original_hash=existing_doc['content_hash'],
             new_hash=new_doc.content_hash,
-            resolution_time=datetime.now(),
+            resolution_time=datetime.now(timezone.utc),
             changes_summary=changes_summary,
             metadata={
                 'conflict_type': conflict_type,
@@ -265,7 +265,7 @@ class ConflictResolver:
             'merge_strategy': 'replace_with_newer',
             'original_version': existing_doc['content_hash'],
             'merged_version': new_doc.content_hash,
-            'merge_timestamp': datetime.now().isoformat(),
+            'merge_timestamp': datetime.now(timezone.utc).isoformat(),
             'conflict_type': conflict_type
         }
         
@@ -276,7 +276,7 @@ class ConflictResolver:
             'content_hash': new_doc.content_hash,
             'size': new_doc.size,
             'modified_time': new_doc.modified_time.isoformat(),
-            'ingestion_time': datetime.now().isoformat(),
+            'ingestion_time': datetime.now(timezone.utc).isoformat(),
             'processing_status': 'pending',
             'merge_metadata': merge_metadata
         }
@@ -289,7 +289,7 @@ class ConflictResolver:
             strategy_used=ConflictStrategy.MERGE,
             original_hash=existing_doc['content_hash'],
             new_hash=new_doc.content_hash,
-            resolution_time=datetime.now(),
+            resolution_time=datetime.now(timezone.utc),
             changes_summary=f"Document merged (strategy: replace_with_newer)",
             metadata=merge_metadata
         )
@@ -316,7 +316,7 @@ class ConflictResolver:
         # Create new document entry with versioned key
         collection = self.db.collection('documents')
         
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
         new_key = f"{existing_doc['_key']}_v{timestamp}"
         
         new_doc_data = {
@@ -326,7 +326,7 @@ class ConflictResolver:
             'content_hash': new_doc.content_hash,
             'size': new_doc.size,
             'modified_time': new_doc.modified_time.isoformat(),
-            'ingestion_time': datetime.now().isoformat(),
+            'ingestion_time': datetime.now(timezone.utc).isoformat(),
             'processing_status': 'pending',
             'version_metadata': {
                 'version_type': 'conflict_duplicate',
@@ -344,7 +344,7 @@ class ConflictResolver:
             strategy_used=ConflictStrategy.KEEP_BOTH,
             original_hash=existing_doc['content_hash'],
             new_hash=new_doc.content_hash,
-            resolution_time=datetime.now(),
+            resolution_time=datetime.now(timezone.utc),
             changes_summary=f"Created new version: {new_key}",
             metadata={
                 'conflict_type': conflict_type,
@@ -411,7 +411,7 @@ class ConflictResolver:
         
         self.db.query(query, bind_vars={
             'document_id': document_id,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         })
         
         logger.debug(f"Marked chunks for reprocessing: document {document_id}")

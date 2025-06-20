@@ -28,6 +28,21 @@ venv/
 env/
 ENV/
 .env
+
+# Experimental and temporary scripts
+scripts/deprecated/
+scripts/archive/
+scripts/experiments/temp_*
+scripts/experiments/debug_*
+scripts/experiments/quick_*
+scripts/temp_*
+scripts/debug_*
+
+# Temporary test files
+test/temp_*
+test/debug_*
+**/temp_*.py
+**/debug_*.py
 .venv
 env.bak/
 venv.bak/
@@ -165,3 +180,4 @@ output/*
 
 alerts/*
 wandb/*
+.roo/mcp.json

@@ -11,7 +11,7 @@ Tests the HaystackModelEngine component implementation including:
 
 import pytest
 from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List
 
 from src.components.model_engine.engines.haystack.processor import HaystackModelEngine

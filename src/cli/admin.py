@@ -12,7 +12,7 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Any, Optional, cast
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pprint import pprint
 
 from src.storage.arango.connection import ArangoConnection, get_client
@@ -261,7 +261,7 @@ def main_verify_db() -> int:
         with open(args.output_file, "w") as f:
             json.dump({
                 "database": args.db_name,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "info": db_info
             }, f, indent=2)
         print(f"\nSaved database info to {args.output_file}")

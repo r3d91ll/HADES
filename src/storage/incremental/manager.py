@@ -11,7 +11,7 @@ import hashlib
 import time
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple, Set
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 
 from arango import ArangoClient
@@ -151,7 +151,7 @@ class IncrementalManager:
             await self.initialize()
         
         start_time = time.time()
-        batch_id = f"batch_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        batch_id = f"batch_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
         
         # Use configuration defaults if not specified
         conflict_strategy = conflict_strategy or self.config.conflict_strategy
@@ -352,7 +352,7 @@ class IncrementalManager:
                     file_path=str(file_path),
                     content_hash="",
                     size=0,
-                    modified_time=datetime.now(),
+                    modified_time=datetime.now(timezone.utc),
                     state=DocumentState.ERROR,
                     error_message=str(e)
                 )
@@ -571,7 +571,7 @@ class IncrementalManager:
         log_entry = {
             '_key': batch_id,
             'batch_id': batch_id,
-            'start_time': datetime.now().isoformat(),
+            'start_time': datetime.now(timezone.utc).isoformat(),
             'input_path': input_path,
             'status': 'running',
             'config': {
@@ -596,7 +596,7 @@ class IncrementalManager:
         collection = self.db.collection('ingestion_logs')
         
         update_data = {
-            'end_time': datetime.now().isoformat()
+            'end_time': datetime.now(timezone.utc).isoformat()
         }
         
         if error:

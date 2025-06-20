@@ -10,7 +10,7 @@ This module consolidates and replaces the previous src.types.documents module,
 providing a unified type system for all document-related operations.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Any, List, Optional, TypedDict, Union, Literal
 
@@ -584,7 +584,7 @@ class ConsolidatedDocumentSchema(BaseSchema):
         """Ensure timestamps are present and derive title from source if not provided."""
         # Set creation time if not provided
         if self.created_at is None:
-            self.created_at = datetime.now()
+            self.created_at = datetime.now(timezone.utc)
         
         # Set update time to creation time if not provided
         if self.updated_at is None:

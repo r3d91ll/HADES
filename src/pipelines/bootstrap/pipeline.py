@@ -8,7 +8,7 @@ graph construction from directory structure and file analysis.
 import logging
 from pathlib import Path
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from .config import BootstrapConfig, BootstrapResult, BootstrapMetrics
 from .directory_analyzer import DirectoryAnalyzer
@@ -53,7 +53,7 @@ class BootstrapPipeline:
         Returns:
             BootstrapResult with execution details and metrics
         """
-        start_time = datetime.now()
+        start_time = datetime.now(timezone.utc)
         errors = []
         warnings = []
         
@@ -91,7 +91,7 @@ class BootstrapPipeline:
                 warnings.append("Graph validation failed - results may be incomplete")
             
             # Calculate final metrics
-            end_time = datetime.now()
+            end_time = datetime.now(timezone.utc)
             total_time = (end_time - start_time).total_seconds()
             
             # Update metrics with discovered files

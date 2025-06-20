@@ -9,7 +9,7 @@ import logging
 import time
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Import from data ingestion stages (temporarily)
 from ..data_ingestion.stages.document_processor import DocumentProcessorStage
@@ -115,7 +115,7 @@ class BootstrapPipeline:
             # Compile results
             bootstrap_results = {
                 'status': 'success',
-                'timestamp': datetime.now().isoformat(),
+                'timestamp': datetime.now(timezone.utc).isoformat(),
                 'execution_time': time.time() - start_time,
                 'statistics': {
                     'documents_processed': len(documents.data) if documents.data else 0,
@@ -142,7 +142,7 @@ class BootstrapPipeline:
             return {
                 'status': 'failed',
                 'error': str(e),
-                'timestamp': datetime.now().isoformat(),
+                'timestamp': datetime.now(timezone.utc).isoformat(),
                 'execution_time': time.time() - start_time
             }
     
@@ -275,7 +275,7 @@ class BootstrapPipeline:
                 return {
                     'model_type': 'ISNE',
                     'parameters': getattr(self.isne_pipeline.model, 'config', {}),
-                    'timestamp': datetime.now().isoformat()
+                    'timestamp': datetime.now(timezone.utc).isoformat()
                 }
             except Exception:
                 pass
@@ -283,7 +283,7 @@ class BootstrapPipeline:
         return {
             'model_type': 'ISNE',
             'status': 'basic_info_only',
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         }
     
     def get_pipeline_status(self) -> Dict[str, Any]:

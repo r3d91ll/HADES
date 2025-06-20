@@ -31,7 +31,7 @@ def setup_logging(db_name: str):
     """Setup comprehensive logging with file and console output."""
     log_dir = Path(__file__).parent.parent / "logs" / "bootstrap"
     log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / f"full_isne_bootstrap_{db_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+    log_file = log_dir / f"full_isne_bootstrap_{db_name}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.log"
     
     # Create formatters
     detailed_formatter = logging.Formatter(

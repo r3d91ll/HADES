@@ -5,7 +5,7 @@ Unit tests for DoclingDocumentProcessor component.
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.components.docproc.docling.processor import DoclingDocumentProcessor
 from src.types.components.contracts import (

@@ -7,7 +7,7 @@ These types are used by the HaystackModelEngine implementation.
 
 from typing import Dict, Any, List, Optional, Union, Literal
 from pydantic import BaseModel, Field, validator
-from datetime import datetime
+from datetime import datetime, timezone
 
 from ...common import BaseHADESModel
 

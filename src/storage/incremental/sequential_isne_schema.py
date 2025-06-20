@@ -15,7 +15,7 @@ Key Features:
 
 import logging
 from typing import Dict, List, Any, Optional, Union
-from datetime import datetime
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from enum import Enum
 
@@ -647,7 +647,7 @@ class SequentialISNESchemaManager:
             "model_id": "schema_info",
             "version": self.schema.SCHEMA_VERSION,
             "model_type": "schema_metadata",
-            "created_at": datetime.now().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "collections": [col.name for col in self.schema.COLLECTIONS],
             "indexes": len(self.schema.INDEXES),
             "modality_support": ["code", "documentation", "config"],

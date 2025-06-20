@@ -5,7 +5,7 @@ Unit tests for CoreDocumentProcessor component.
 import pytest
 import tempfile
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any
 
 from src.components.docproc.core.processor import CoreDocumentProcessor

@@ -12,7 +12,7 @@ import numpy as np
 import networkx as nx
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple, Union
-from datetime import datetime
+from datetime import datetime, timezone
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import torch
@@ -146,7 +146,7 @@ class ModularBootstrapPipeline:
             Dictionary containing bootstrap results and metrics
         """
         logger.info(f"Starting modular bootstrap from corpus: {corpus_dir}")
-        start_time = datetime.now()
+        start_time = datetime.now(timezone.utc)
         
         # Find input files
         input_files = list(corpus_dir.glob(file_pattern))
@@ -193,7 +193,7 @@ class ModularBootstrapPipeline:
         logger.info("Phase 8: Saving results")
         self._save_bootstrap_results(embedded_chunks, enhanced_embeddings, refined_graph)
         
-        total_time = datetime.now() - start_time
+        total_time = datetime.now(timezone.utc) - start_time
         
         # Compile results
         bootstrap_results = {
@@ -225,7 +225,7 @@ class ModularBootstrapPipeline:
                 'graph_enhancer': 'isne'
             },
             'bootstrap_time': total_time.total_seconds(),
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         }
         
         # Save summary
@@ -520,7 +520,7 @@ class ModularBootstrapPipeline:
                 'chunks': chunks,
                 'embedding_dimension': embeddings.shape[1],
                 'total_chunks': len(chunks),
-                'timestamp': datetime.now().isoformat()
+                'timestamp': datetime.now(timezone.utc).isoformat()
             }, f, indent=2, default=str)
         
         logger.info(f"Saved bootstrap results to {self.output_dir}")

@@ -9,7 +9,7 @@ component according to HADES Service Architecture Section 3.7.
 import sys
 import json
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -107,7 +107,7 @@ def test_haystack_monitoring():
         all_metrics = engine.get_metrics()
         
         # Save test results
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         output_file = Path("test-out") / f"haystack_monitoring_test_{timestamp}.json"
         
         # Create output directory
@@ -116,7 +116,7 @@ def test_haystack_monitoring():
         # Save metrics
         test_results = {
             "test_info": {
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "test_description": "Haystack model engine monitoring test",
                 "component": "haystack_model_engine"
             },

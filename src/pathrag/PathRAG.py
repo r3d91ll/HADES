@@ -2,7 +2,7 @@ import asyncio
 import os
 from tqdm.asyncio import tqdm as tqdm_async
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import partial
 from typing import Type, cast
 
@@ -107,7 +107,7 @@ def always_get_an_event_loop() -> asyncio.AbstractEventLoop:
 @dataclass
 class PathRAG:
     working_dir: str = field(
-        default_factory=lambda: f"./PathRAG_cache_{datetime.now().strftime('%Y-%m-%d-%H:%M:%S')}"
+        default_factory=lambda: f"./PathRAG_cache_{datetime.now(timezone.utc).strftime('%Y-%m-%d-%H:%M:%S')}"
     )
 
     embedding_cache_config: dict = field(

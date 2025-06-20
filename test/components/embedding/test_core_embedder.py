@@ -4,7 +4,7 @@ Unit tests for Core Embedder Component
 
 import pytest
 from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Any
 
 from src.components.embedding.core.processor import CoreEmbedder

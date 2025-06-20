@@ -7,7 +7,7 @@ and provides validation for all data structures used in incremental storage.
 
 import logging
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from dataclasses import dataclass
 
 from arango import ArangoClient
@@ -435,7 +435,7 @@ class SchemaManager:
         version_doc = {
             "_key": "schema_version",
             "version": self.schema.SCHEMA_VERSION,
-            "created_at": datetime.now().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "collections": [col.name for col in self.schema.COLLECTIONS],
             "indexes": len(self.schema.INDEXES)
         }
@@ -545,7 +545,7 @@ class SchemaManager:
                 schema_version=schema_version,
                 total_documents=total_docs,
                 database_size_mb=db_size_mb,
-                last_updated=datetime.now(),
+                last_updated=datetime.now(timezone.utc),
                 uptime_seconds=0.0,  # Would need server stats for this
                 errors=[],
                 warnings=[]
@@ -561,7 +561,7 @@ class SchemaManager:
                 schema_version="unknown",
                 total_documents=0,
                 database_size_mb=0.0,
-                last_updated=datetime.now(),
+                last_updated=datetime.now(timezone.utc),
                 uptime_seconds=0.0,
                 errors=[str(e)],
                 warnings=[]

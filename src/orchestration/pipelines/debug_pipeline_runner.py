@@ -11,7 +11,7 @@ import json
 import logging
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -167,7 +167,7 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     
     # Generate run ID
-    run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     
     # Find input files
     if args.file_pattern:
@@ -212,7 +212,7 @@ def main() -> None:
     # Save summary
     summary = {
         "run_id": run_id,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "total_files": len(files),
         "total_time": overall_time,
         "files_processed": all_results

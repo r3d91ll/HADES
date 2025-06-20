@@ -13,7 +13,7 @@ regardless of the internal implementation details.
 from typing import List, Dict, Any, Optional, Union, ClassVar
 from pathlib import Path
 from pydantic import BaseModel, Field, field_validator
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 # ===== Enums =====

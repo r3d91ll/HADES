@@ -11,7 +11,7 @@ DEPRECATED: Import from specific modules instead:
 """
 
 from typing import Any, Dict, List, Optional, TypedDict, Union
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Import consolidated types for backward compatibility
 from src.types.embedding.base import EmbeddingVector, EmbeddingModelType, AdapterType, PoolingStrategy

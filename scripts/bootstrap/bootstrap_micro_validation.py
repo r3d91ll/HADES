@@ -10,7 +10,7 @@ import logging
 import sys
 import random
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 
 # Add parent directory to path
@@ -82,7 +82,7 @@ def bootstrap_micro_validation():
     # Input and output directories
     input_dir = "/home/todd/ML-Lab/Olympus/test-data3"
     output_dir = "output/micro_validation_bootstrap"
-    model_name = f"micro_validation_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    model_name = f"micro_validation_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
     
     # Verify input directory exists
     if not Path(input_dir).exists():

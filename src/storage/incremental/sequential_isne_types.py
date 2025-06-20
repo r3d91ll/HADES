@@ -7,7 +7,7 @@ Sequential-ISNE modality-specific schema architecture.
 
 from typing import List, Dict, Any, Optional, Union, Set
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from pydantic import BaseModel, Field, field_validator
 from dataclasses import dataclass

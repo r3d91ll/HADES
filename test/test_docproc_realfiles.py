@@ -10,7 +10,7 @@ import sys
 import json
 import logging
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -49,9 +49,9 @@ def test_file_processing(file_path: Path, processor_name: str = "auto"):
     input_data = DocumentProcessingInput(file_path=str(file_path))
     
     # Process file
-    start_time = datetime.now()
+    start_time = datetime.now(timezone.utc)
     result = processor.process(input_data)
-    end_time = datetime.now()
+    end_time = datetime.now(timezone.utc)
     processing_time = (end_time - start_time).total_seconds()
     
     # Display results
@@ -150,7 +150,7 @@ def main():
     
     all_results = {
         "test_info": {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "test_description": "Real file processing test for HADES docproc components",
             "files_tested": len(test_files)
         },
@@ -205,7 +205,7 @@ def main():
             }
     
     # Save comprehensive results with timestamp
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     output_file = Path("test-out") / f"docproc_realfile_results_{timestamp}.json"
     save_results_json(all_results, output_file)
     

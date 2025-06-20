@@ -9,7 +9,7 @@ import pytest
 import tempfile
 import json
 from typing import Dict, Any, List
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.components.graph_enhancement.isne.none.processor import NoneISNE
 from src.types.components.contracts import (

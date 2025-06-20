@@ -8,7 +8,7 @@ including specialized chunk types for different content types.
 from typing import Dict, List, Any, Optional, Union, TypedDict, Literal
 from enum import Enum
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class ChunkType(str, Enum):

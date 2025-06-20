@@ -12,7 +12,7 @@ from typing import Dict, Any, List, Tuple, Optional, Union
 import numpy as np
 import uuid
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 from .base import PipelineStage, PipelineStageError
 from src.orchestration.pipelines.schema import DocumentSchema, ChunkSchema, Relationship, ValidationResult, ValidationIssue, ValidationSeverity

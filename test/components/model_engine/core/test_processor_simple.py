@@ -7,7 +7,7 @@ without complex Pydantic validation issues.
 
 import pytest
 from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List
 import sys
 import os

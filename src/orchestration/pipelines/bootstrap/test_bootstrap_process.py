@@ -9,7 +9,7 @@ to examine the actual JSON output structure at each stage.
 import sys
 import logging
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
@@ -37,7 +37,7 @@ def main() -> bool:
     # Define paths (reuse the project_root already defined)
     # project_root already defined above
     corpus_dir = project_root / "test-data"
-    output_dir = project_root / "test-output" / "bootstrap-test" / datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_dir = project_root / "test-output" / "bootstrap-test" / datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     
     logger.info(f"Starting bootstrap test")
     logger.info(f"Corpus directory: {corpus_dir}")

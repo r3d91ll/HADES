@@ -6,16 +6,25 @@ This module provides the API endpoints for interacting with the HADES system.
 
 import logging
 import time
-from typing import Optional, Dict, Any, List, cast
-from fastapi import FastAPI, HTTPException, Depends
+import json
+from typing import List
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import Response, JSONResponse
+
+try:
+    from fastapi_mcp import FastApiMCP
+    FASTAPI_MCP_AVAILABLE = True
+except ImportError:
+    FastApiMCP = None
+    FASTAPI_MCP_AVAILABLE = False
 
 from src.types.api import WriteRequest, QueryRequest, WriteResponse, QueryResponse, StatusResponse, QueryResult
 from .core import PathRAGSystem
 from src.components.registry import get_global_registry
 from .isne_training_pipeline import router as isne_training_router
 from .production_pipeline import router as production_pipeline_router
+
 
 # Configure logging
 logging.basicConfig(
@@ -45,6 +54,34 @@ app.include_router(isne_training_router)
 
 # Include production pipeline endpoints  
 app.include_router(production_pipeline_router)
+
+# Disable OAuth for MCP integration to avoid long tool names
+logger.info("OAuth disabled for MCP integration to prevent tool name length issues")
+
+# Configure FastAPI-MCP without OAuth
+auth_config = None
+
+# Initialize FastAPI-MCP integration without OAuth
+if FASTAPI_MCP_AVAILABLE:
+    mcp_server = FastApiMCP(
+        app,
+        name="HADES",
+        description="Heuristic Adaptive Data Extrapolation System - Production RAG Service"
+    )
+
+    # FastAPI-MCP automatically converts FastAPI endpoints to MCP tools
+    # The production pipeline endpoints are already included via the router
+    # The tools are automatically generated from the endpoint definitions
+
+    # Mount the MCP server with registered tools
+    try:
+        mcp_server.mount()
+        logger.info("✓ FastAPI-MCP integration enabled with registered HADES tools")
+    except Exception as e:
+        logger.error(f"Failed to mount FastAPI-MCP: {e}")
+        logger.info("Continuing without FastAPI-MCP integration")
+else:
+    logger.warning("fastapi_mcp not available - MCP integration disabled")
 
 # PathRAG system instance
 _pathrag_system = None
@@ -172,7 +209,10 @@ def generate_api_metrics() -> str:
 
 
 @app.post("/write", response_model=WriteResponse)
-async def write(request: WriteRequest, system: PathRAGSystem = Depends(get_pathrag_system)) -> WriteResponse:
+async def write(
+    request: WriteRequest, 
+    system: PathRAGSystem = Depends(get_pathrag_system)
+) -> WriteResponse:
     """
     Write/update data in the knowledge graph.
     
@@ -200,7 +240,10 @@ async def write(request: WriteRequest, system: PathRAGSystem = Depends(get_pathr
 
 
 @app.post("/query", response_model=QueryResponse)
-async def query(request: QueryRequest, system: PathRAGSystem = Depends(get_pathrag_system)) -> QueryResponse:
+async def query(
+    request: QueryRequest, 
+    system: PathRAGSystem = Depends(get_pathrag_system)
+) -> QueryResponse:
     """
     Query the PathRAG system and get results.
     
@@ -239,6 +282,76 @@ async def query(request: QueryRequest, system: PathRAGSystem = Depends(get_pathr
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# OAuth discovery endpoint removed to prevent long MCP tool names
+
+
+@app.get("/")
+async def root():
+    """
+    Root endpoint providing API information.
+    
+    Returns:
+        Basic API information and available endpoints
+    """
+    return {
+        "name": "HADES API",
+        "version": "0.1.0",
+        "description": "Heuristic Adaptive Data Extrapolation System - Production RAG Service",
+        "endpoints": {
+            "POST /write": "Write/update data in the knowledge graph",
+            "POST /query": "Query the PathRAG system",
+            "GET /status": "Check system status",
+            "GET /metrics": "Prometheus metrics",
+            "GET /health": "Health check endpoint",
+            "GET /docs": "OpenAPI documentation",
+            "GET /redoc": "ReDoc documentation"
+        }
+    }
+
+
+@app.post("/register")
+async def register(request: Request):
+    """
+    Client registration endpoint for MCP.
+    
+    For lab environment, accepts any registration and returns a simple response.
+    """
+    try:
+        # Get the request body to see what's being sent
+        body = await request.json()
+        
+        # Validate required fields
+        if not isinstance(body, dict):
+            return JSONResponse(
+                status_code=400,
+                content={"error": "invalid_request", "error_description": "Invalid request format"}
+            )
+        
+        logger.info(f"Registration request received: {body}")
+        
+        # For lab environment, always succeed with minimal response
+        return {
+            "client_id": body.get("client_id", "hades-client"),
+            "client_secret": None,  # No secret needed for lab
+            "redirect_uris": body.get("redirect_uris", []),
+            "grant_types": [],
+            "response_types": [],
+            "scope": "all",
+            "token_endpoint_auth_method": "none"
+        }
+    except json.JSONDecodeError:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "invalid_request", "error_description": "Invalid JSON"}
+        )
+    except Exception as e:
+        logger.error(f"Error processing registration: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "server_error", "error_description": "Internal server error"}
+        )
+
+
 @app.get("/status", response_model=StatusResponse)
 async def status(system: PathRAGSystem = Depends(get_pathrag_system)) -> StatusResponse:
     """
@@ -259,6 +372,17 @@ async def status(system: PathRAGSystem = Depends(get_pathrag_system)) -> StatusR
     except Exception as e:
         logger.error(f"Error getting status: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/health")
+async def health():
+    """
+    Health check endpoint.
+    
+    Returns:
+        Simple health status
+    """
+    return {"status": "healthy", "service": "HADES API"}
 
 
 @app.get("/metrics")

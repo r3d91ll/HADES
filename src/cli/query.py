@@ -11,7 +11,7 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Any, Optional, cast
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.storage.arango.connection import ArangoConnection
 from src.ingest.repository.arango_repository import ArangoRepository
@@ -168,7 +168,7 @@ def main() -> int:
             # Convert to serializable format
             serializable = {
                 "query": args.query,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "results": [
                     {
                         "id": doc.document_id,

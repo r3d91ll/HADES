@@ -9,7 +9,7 @@ import logging
 import time
 import traceback
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, Any, Optional, List, Tuple, Union, TypeVar, Generic
 
@@ -59,7 +59,7 @@ class PipelineStageError(Exception):
         self.stage_name = stage_name
         self.original_error = original_error
         self.context = context or {}
-        self.timestamp = datetime.now().isoformat()
+        self.timestamp = datetime.now(timezone.utc).isoformat()
         
         # Format detailed error message
         detailed_message = f"Error in stage '{stage_name}': {message}"
@@ -137,7 +137,7 @@ class PipelineStageResult(Generic[T]):
         self.end_time = end_time
         self.execution_time = (end_time - start_time) if (start_time and end_time) else None
         self.metadata = metadata or {}
-        self.timestamp = datetime.now().isoformat()
+        self.timestamp = datetime.now(timezone.utc).isoformat()
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert result to dictionary representation.

@@ -11,7 +11,7 @@ import asyncio
 import logging
 import sys
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Add parent directory to path
 sys.path.append(str(Path(__file__).parent.parent))
@@ -22,7 +22,7 @@ from src.isne.bootstrap.config import BootstrapConfig
 # Configure logging
 log_dir = Path("logs/bootstrap")
 log_dir.mkdir(parents=True, exist_ok=True)
-log_file = log_dir / f"full_dataset_bootstrap_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+log_file = log_dir / f"full_dataset_bootstrap_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.log"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -41,7 +41,7 @@ def bootstrap_full_dataset():
     # Input and output directories
     input_dir = "/home/todd/ML-Lab/Olympus/test-data3"
     output_dir = "output/full_dataset_bootstrap"
-    model_name = f"full_dataset_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    model_name = f"full_dataset_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
     
     # Verify input directory exists
     if not Path(input_dir).exists():

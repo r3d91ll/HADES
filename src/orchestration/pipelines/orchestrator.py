@@ -7,7 +7,7 @@ parallel processing capabilities.
 
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional, Union, TypeVar, Generic, Sequence
 
 from src.alerts import AlertManager, AlertLevel
@@ -451,7 +451,7 @@ class Pipeline(Generic[T, U]):
         context = {
             "pipeline_name": self.name,
             "stage_name": error.stage_name,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "error_message": str(error),
         }
         

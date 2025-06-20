@@ -6,7 +6,7 @@ Type definitions for GPU-accelerated "chonky" chunking components.
 
 from typing import Dict, Any, List, Optional, Literal
 from pydantic import Field, validator
-from datetime import datetime
+from datetime import datetime, timezone
 
 from ...common import BaseHADESModel
 

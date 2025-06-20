@@ -8,7 +8,7 @@ model state management, and enhancement with trained models.
 import pytest
 import numpy as np
 from typing import Dict, Any, List
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.components.graph_enhancement.isne.training.processor import ISNETrainingEnhancer
 from src.types.components.contracts import (

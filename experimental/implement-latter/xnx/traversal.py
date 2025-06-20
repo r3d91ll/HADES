@@ -8,7 +8,7 @@ in the XnX documentation.
 
 import logging
 from typing import Dict, List, Any, Optional, Union
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -176,7 +176,7 @@ def traverse_with_temporal_xnx(
     
     # Use current time if not specified
     if valid_at is None:
-        valid_at = datetime.now().isoformat()
+        valid_at = datetime.now(timezone.utc).isoformat()
 
     # Check if the start node exists
     if not db_connection.collection_exists(nodes_collection):

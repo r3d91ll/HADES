@@ -10,7 +10,7 @@ import asyncio
 import torch
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 
 from arango.database import StandardDatabase
@@ -85,7 +85,7 @@ class ModelUpdater:
         """
         logger.info(f"Starting incremental model update: +{new_nodes} nodes")
         
-        start_time = datetime.now()
+        start_time = datetime.now(timezone.utc)
         training_job_id = f"incremental_{batch_id}_{start_time.strftime('%Y%m%d_%H%M%S')}"
         
         try:
@@ -123,7 +123,7 @@ class ModelUpdater:
             # Update model metadata
             await self._update_model_metadata(new_version, training_result)
             
-            processing_time = (datetime.now() - start_time).total_seconds()
+            processing_time = (datetime.now(timezone.utc) - start_time).total_seconds()
             
             result = ModelUpdateResult(
                 success=True,
@@ -471,7 +471,7 @@ class ModelUpdater:
         
         # Generate version ID
         version_number = await self._get_next_version_number()
-        version_id = f"v{version_number}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        version_id = f"v{version_number}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
         
         # Mark previous model as not current
         if self.current_version:
@@ -503,7 +503,7 @@ class ModelUpdater:
                 'training_epochs': training_result['epochs'],
                 'converged': training_result['converged']
             },
-            'created_at': datetime.now().isoformat(),
+            'created_at': datetime.now(timezone.utc).isoformat(),
             'created_by': 'incremental_updater',
             'description': f'Incremental update: +{new_nodes} nodes',
             'parent_version': self.current_version,
@@ -627,7 +627,7 @@ class ModelUpdater:
             '_key': training_job_id,
             'model_id': self.current_version or 'initial',
             'training_job_id': training_job_id,
-            'start_time': datetime.now().isoformat(),
+            'start_time': datetime.now(timezone.utc).isoformat(),
             'training_data_hash': 'incremental',
             'data_version': 'current',
             'training_config': {
@@ -651,7 +651,7 @@ class ModelUpdater:
         
         try:
             collection.update(training_job_id, {
-                'end_time': datetime.now().isoformat(),
+                'end_time': datetime.now(timezone.utc).isoformat(),
                 'status': 'failed',
                 'error_message': error
             })

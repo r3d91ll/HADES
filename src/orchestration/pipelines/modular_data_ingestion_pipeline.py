@@ -10,7 +10,7 @@ import json
 import time
 from typing import Dict, List, Any, Optional, Tuple, TypedDict, cast, Union
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.orchestration.core.pipeline_config import (
     PipelineConfigLoader, 
@@ -250,7 +250,7 @@ class ModularDataIngestionPipeline:
             cast(List[Dict[str, Any]], self.stats["errors"]).append({
                 "stage": "pipeline",
                 "message": str(e),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             })
             self.alert_manager.alert(
                 message=f"Modular data ingestion pipeline failed: {e}",
@@ -284,7 +284,7 @@ class ModularDataIngestionPipeline:
             cast(List[Dict[str, Any]], self.stats["errors"]).append({
                 "stage": "document_processing",
                 "message": str(e),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             })
             return []
     
@@ -325,7 +325,7 @@ class ModularDataIngestionPipeline:
             cast(List[Dict[str, Any]], self.stats["errors"]).append({
                 "stage": "chunking",
                 "message": str(e),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             })
             return []
     
@@ -379,7 +379,7 @@ class ModularDataIngestionPipeline:
                         'embedding_metadata': {
                             'model': self.stats['component_info']['embedder'],
                             'dimension': len(chunk_schema.embedding) if chunk_schema.embedding else 0,
-                            'timestamp': datetime.now().isoformat()
+                            'timestamp': datetime.now(timezone.utc).isoformat()
                         }
                     }
                     embedded_chunks.append(chunk_dict)
@@ -402,7 +402,7 @@ class ModularDataIngestionPipeline:
             cast(List[Dict[str, Any]], self.stats["errors"]).append({
                 "stage": "embedding",
                 "message": str(e),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             })
             return chunks  # Return original chunks without embeddings
     
@@ -458,11 +458,11 @@ class ModularDataIngestionPipeline:
                         'embedding_metadata': {
                             'model': self.stats['component_info']['embedder'],
                             'dimension': len(chunk_schema.embedding) if chunk_schema.embedding else 0,
-                            'timestamp': datetime.now().isoformat()
+                            'timestamp': datetime.now(timezone.utc).isoformat()
                         },
                         'graph_metadata': {
                             'enhancer': self.stats['component_info']['graph_enhancer'],
-                            'enhanced_at': datetime.now().isoformat()
+                            'enhanced_at': datetime.now(timezone.utc).isoformat()
                         },
                         'relationships': getattr(chunk_schema, 'relationships', {})
                     }
@@ -486,7 +486,7 @@ class ModularDataIngestionPipeline:
             cast(List[Dict[str, Any]], self.stats["errors"]).append({
                 "stage": "graph_enhancement",
                 "message": str(e),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             })
             return embedded_chunks  # Return chunks without enhancement
     
@@ -560,7 +560,7 @@ class ModularDataIngestionPipeline:
             cast(List[Dict[str, Any]], self.stats["errors"]).append({
                 "stage": "storage",
                 "message": str(e),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             })
             return {}
     
@@ -605,7 +605,7 @@ class ModularDataIngestionPipeline:
             'total_time': total_time,
             'storage_results': storage_results or {},
             'success': len(self.stats['errors']) == 0,
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'debug_enabled': self.enable_debug,
             'debug_output_dir': str(self.debug_output_dir) if self.debug_output_dir else None
         }

@@ -56,7 +56,7 @@ class XnXIdentityToken:
     relationship_weight: float
     
     # When the token was created
-    created_at: datetime = datetime.now()
+    created_at: datetime = datetime.now(timezone.utc)
     
     # How long the token is valid for
     expiration_minutes: int = 60
@@ -68,7 +68,7 @@ class XnXIdentityToken:
     def is_valid(self) -> bool:
         """Check if the token is still valid."""
         expiration_time = self.created_at + timedelta(minutes=self.expiration_minutes)
-        return datetime.now() < expiration_time
+        return datetime.now(timezone.utc) < expiration_time
     
     @property
     def effective_weight(self) -> float:
@@ -81,7 +81,7 @@ class XnXIdentityToken:
             return 0.0
             
         total_lifetime = timedelta(minutes=self.expiration_minutes)
-        elapsed = datetime.now() - self.created_at
+        elapsed = datetime.now(timezone.utc) - self.created_at
         remaining_ratio = 1 - (elapsed / total_lifetime)
         
         # Weight decay formula - linear decay in this simple implementation

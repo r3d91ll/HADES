@@ -9,7 +9,7 @@ import time
 import logging
 from pathlib import Path
 from typing import Dict, Any, Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
@@ -110,7 +110,7 @@ class TrainingRunMetrics:
         """Export all training metrics to Prometheus format."""
         lines = [
             f'# Training run metrics for {self.model_name}',
-            f'# Generated at {datetime.now().isoformat()}',
+            f'# Generated at {datetime.now(timezone.utc).isoformat()}',
             '',
             f'# HELP isne_training_total_epochs Total epochs completed',
             f'# TYPE isne_training_total_epochs counter',
@@ -257,7 +257,7 @@ class ISNEEpochMonitor:
             f.write('\n'.join(prometheus_lines))
         
         # Also save timestamped snapshot
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         snapshot_file = self.prometheus_dir / f"isne_training_{timestamp}.prom"
         with open(snapshot_file, 'w') as f:
             f.write('\n'.join(prometheus_lines))

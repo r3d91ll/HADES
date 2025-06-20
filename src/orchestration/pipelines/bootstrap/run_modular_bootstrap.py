@@ -11,7 +11,7 @@ import logging
 import json
 import argparse
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent.parent
@@ -159,7 +159,7 @@ def main():
         
         # Run bootstrap
         logger.info("Starting modular bootstrap pipeline...")
-        start_time = datetime.now()
+        start_time = datetime.now(timezone.utc)
         
         results = run_modular_bootstrap(
             corpus_dir=corpus_dir,
@@ -168,7 +168,7 @@ def main():
             file_pattern=args.file_pattern
         )
         
-        end_time = datetime.now()
+        end_time = datetime.now(timezone.utc)
         total_time = end_time - start_time
         
         # Log results

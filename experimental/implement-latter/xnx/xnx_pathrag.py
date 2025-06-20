@@ -15,7 +15,7 @@ Citation for original PathRAG:
 
 import sys
 from typing import Dict, List, Any, Optional, Union, Callable
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 
 # Import from original PathRAG

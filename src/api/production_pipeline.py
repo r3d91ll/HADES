@@ -12,7 +12,7 @@ import logging
 import asyncio
 from pathlib import Path
 from typing import Dict, Any, Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel, Field
@@ -24,7 +24,7 @@ sys.path.append(str(Path(__file__).parent.parent / "pipelines" / "production"))
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/production", tags=["production"])
+router = APIRouter(prefix="/prod", tags=["production"])
 
 # Request/Response Models
 class BootstrapRequest(BaseModel):
@@ -87,7 +87,7 @@ def update_pipeline_status(operation_id: str, status: str, progress: Optional[st
         if details:
             _pipeline_status[operation_id].details.update(details)
         if status in ["completed", "failed"]:
-            _pipeline_status[operation_id].end_time = datetime.now()
+            _pipeline_status[operation_id].end_time = datetime.now(timezone.utc)
 
 async def run_bootstrap_pipeline(request: BootstrapRequest, operation_id: str):
     """Run bootstrap pipeline in background."""
@@ -176,7 +176,7 @@ async def run_model_application_pipeline(request: ModelApplicationRequest, opera
         logger.error(f"Model application pipeline failed: {e}")
         update_pipeline_status(operation_id, "failed", f"Error: {str(e)}")
 
-async def run_semantic_collection_pipeline(request: SemanticCollectionRequest, operation_id: str):
+async def run_collection_pipeline(request: SemanticCollectionRequest, operation_id: str):
     """Run semantic collection building in background."""
     try:
         update_pipeline_status(operation_id, "running", "Building semantic collections")
@@ -206,13 +206,13 @@ async def bootstrap_data(request: BootstrapRequest, background_tasks: Background
     This endpoint processes the ISNE test dataset and creates a graph structure
     ready for ISNE training.
     """
-    operation_id = f"bootstrap_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    operation_id = f"bootstrap_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
     
     # Initialize status
     _pipeline_status[operation_id] = PipelineStatus(
         operation="bootstrap",
         status="starting",
-        start_time=datetime.now()
+        start_time=datetime.now(timezone.utc)
     )
     
     # Start background task
@@ -222,7 +222,7 @@ async def bootstrap_data(request: BootstrapRequest, background_tasks: Background
         success=True,
         message=f"Bootstrap pipeline started with ID: {operation_id}",
         execution_time_seconds=0.0,
-        details={"operation_id": operation_id, "status_endpoint": f"/api/v1/production/status/{operation_id}"}
+        details={"operation_id": operation_id, "status_endpoint": f"/prod/status/{operation_id}"}
     )
 
 @router.post("/train", response_model=PipelineResponse)
@@ -232,13 +232,13 @@ async def train_isne_model(request: TrainingRequest, background_tasks: Backgroun
     
     This endpoint trains a memory-efficient ISNE model on the bootstrapped graph data.
     """
-    operation_id = f"training_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    operation_id = f"training_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
     
     # Initialize status
     _pipeline_status[operation_id] = PipelineStatus(
         operation="training",
         status="starting",
-        start_time=datetime.now()
+        start_time=datetime.now(timezone.utc)
     )
     
     # Start background task
@@ -248,7 +248,7 @@ async def train_isne_model(request: TrainingRequest, background_tasks: Backgroun
         success=True,
         message=f"Training pipeline started with ID: {operation_id}",
         execution_time_seconds=0.0,
-        details={"operation_id": operation_id, "status_endpoint": f"/api/v1/production/status/{operation_id}"}
+        details={"operation_id": operation_id, "status_endpoint": f"/prod/status/{operation_id}"}
     )
 
 @router.post("/apply-model", response_model=PipelineResponse)
@@ -258,13 +258,13 @@ async def apply_isne_model(request: ModelApplicationRequest, background_tasks: B
     
     This endpoint applies the trained model to enhance embeddings and discover new edges.
     """
-    operation_id = f"application_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    operation_id = f"application_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
     
     # Initialize status
     _pipeline_status[operation_id] = PipelineStatus(
         operation="model_application",
         status="starting", 
-        start_time=datetime.now()
+        start_time=datetime.now(timezone.utc)
     )
     
     # Start background task
@@ -274,33 +274,33 @@ async def apply_isne_model(request: ModelApplicationRequest, background_tasks: B
         success=True,
         message=f"Model application pipeline started with ID: {operation_id}",
         execution_time_seconds=0.0,
-        details={"operation_id": operation_id, "status_endpoint": f"/api/v1/production/status/{operation_id}"}
+        details={"operation_id": operation_id, "status_endpoint": f"/prod/status/{operation_id}"}
     )
 
 @router.post("/build-collections", response_model=PipelineResponse)
-async def build_semantic_collections(request: SemanticCollectionRequest, background_tasks: BackgroundTasks):
+async def build_collections(request: SemanticCollectionRequest, background_tasks: BackgroundTasks):
     """
     Build semantic collections for production use.
     
     This endpoint creates organized collections for code, documentation, and semantic analysis.
     """
-    operation_id = f"collections_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    operation_id = f"collections_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
     
     # Initialize status
     _pipeline_status[operation_id] = PipelineStatus(
         operation="semantic_collections",
         status="starting",
-        start_time=datetime.now()
+        start_time=datetime.now(timezone.utc)
     )
     
     # Start background task
-    background_tasks.add_task(run_semantic_collection_pipeline, request, operation_id)
+    background_tasks.add_task(run_collection_pipeline, request, operation_id)
     
     return PipelineResponse(
         success=True,
         message=f"Semantic collection pipeline started with ID: {operation_id}",
         execution_time_seconds=0.0,
-        details={"operation_id": operation_id, "status_endpoint": f"/api/v1/production/status/{operation_id}"}
+        details={"operation_id": operation_id, "status_endpoint": f"/prod/status/{operation_id}"}
     )
 
 @router.get("/status/{operation_id}", response_model=PipelineStatus)
@@ -312,12 +312,12 @@ async def get_pipeline_status(operation_id: str):
     return _pipeline_status[operation_id]
 
 @router.get("/status", response_model=List[PipelineStatus])
-async def list_pipeline_operations():
+async def list_operations():
     """List all pipeline operations and their status."""
     return list(_pipeline_status.values())
 
-@router.post("/run-complete-pipeline", response_model=PipelineResponse)
-async def run_complete_pipeline(
+@router.post("/run-pipeline", response_model=PipelineResponse)
+async def run_pipeline(
     input_dir: str,
     database_prefix: str = "hades_production",
     background_tasks: BackgroundTasks = None
@@ -331,13 +331,13 @@ async def run_complete_pipeline(
     3. Apply model
     4. Build semantic collections
     """
-    operation_id = f"complete_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    operation_id = f"complete_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
     
     # Initialize status
     _pipeline_status[operation_id] = PipelineStatus(
         operation="complete_pipeline",
         status="starting",
-        start_time=datetime.now()
+        start_time=datetime.now(timezone.utc)
     )
     
     # Define pipeline steps
@@ -402,7 +402,7 @@ async def run_complete_pipeline(
         execution_time_seconds=0.0,
         details={
             "operation_id": operation_id, 
-            "status_endpoint": f"/api/v1/production/status/{operation_id}",
+            "status_endpoint": f"/prod/status/{operation_id}",
             "expected_duration": "15-30 minutes"
         }
     )
