@@ -53,6 +53,25 @@ Before declaring a module complete, perform the following reviews:
 - **Test files** belong in the `test/` directory
 - **Benchmark files** belong in the `benchmark/` directory
 - **Utility scripts** not directly related to a module or code within the `src/` directory belong in the `scripts/` directory
+- **Temporary/one-time files** belong in the `temp-utils/` directory (ensure this directory is in `.gitignore`)
+
+#### Centralized Architecture Pattern
+
+- **All types** belong in `src/types/` directory - this directory mirrors the `src/` structure (excluding itself and `src/config/`)
+- **All configurations** belong in `src/config/` directory - this directory mirrors the `src/` structure (excluding itself and `src/types/`)
+- This mirroring pattern is similar to test directory organization and enables:
+  - Centralized type management for easy maintenance
+  - Centralized configuration management ready for frontend integration
+  - Predictable structure for finding types/config for any module
+
+### Post-Compression Protocol
+
+When conversation context is compressed:
+
+1. **Re-read this CLAUDE.md file completely** - Refresh understanding of workspace rules, development protocols, and project structure
+2. **Run tree-sitter scan** - Get current codebase state and understand what's been worked on
+3. **Identify current task** - Determine the current/last task being performed and work state
+4. **Verify workspace organization** - Check that no temporary files are in workspace root, all temp files are in `temp-utils/` directory
 
 ### Development Workflow Requirements
 
