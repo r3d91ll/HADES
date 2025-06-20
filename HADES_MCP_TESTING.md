@@ -10,7 +10,7 @@ This document serves as a comprehensive testing checklist for all MCP HADES tool
 
 - [ ] Verify HADES server is running on port 8595
 - [ ] Confirm MCP integration is active
-- [ ] Test data directory prepared: `/path/to/test/data`
+- [ ] Test data directory prepared: `/home/todd/ML-Lab/Olympus/sequential-ISNE-testdata/isne-testdata`
 - [ ] ArangoDB connection verified
 - [ ] Test databases available: `test_training_db`, `test_production_db`
 
