@@ -95,8 +95,6 @@ get_uptime() {
         echo "Not running"
     fi
 }
-
-# Check if port is in use
 check_port() {
     if command -v netstat >/dev/null 2>&1; then
         if netstat -tlnp 2>/dev/null | grep -q ":$HADES_PORT "; then

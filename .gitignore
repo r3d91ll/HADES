@@ -181,3 +181,4 @@ output/*
 alerts/*
 wandb/*
 .roo/mcp.json
+.hades.pid

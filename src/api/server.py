@@ -7,7 +7,7 @@ This module provides the API endpoints for interacting with the HADES system.
 import logging
 import time
 import json
-from typing import List
+from typing import List, Dict, Any, Union
 from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, JSONResponse
@@ -286,7 +286,7 @@ async def query(
 
 
 @app.get("/")
-async def root():
+async def root() -> Dict[str, Any]:
     """
     Root endpoint providing API information.
     
@@ -310,23 +310,18 @@ async def root():
 
 
 @app.post("/register")
-async def register(request: Request):
+async def register(request: Request) -> Union[Dict[str, Any], JSONResponse]:
     """
     Client registration endpoint for MCP.
     
     For lab environment, accepts any registration and returns a simple response.
+    
+    ⚠️ WARNING: This endpoint has no authentication or validation.
+    DO NOT use in production environments.
     """
     try:
         # Get the request body to see what's being sent
         body = await request.json()
-        
-        # Validate required fields
-        if not isinstance(body, dict):
-            return JSONResponse(
-                status_code=400,
-                content={"error": "invalid_request", "error_description": "Invalid request format"}
-            )
-        
         logger.info(f"Registration request received: {body}")
         
         # For lab environment, always succeed with minimal response
@@ -375,7 +370,7 @@ async def status(system: PathRAGSystem = Depends(get_pathrag_system)) -> StatusR
 
 
 @app.get("/health")
-async def health():
+async def health() -> Dict[str, str]:
     """
     Health check endpoint.
     

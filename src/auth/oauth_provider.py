@@ -274,6 +274,7 @@ class MinimalOAuthProvider:
             
             # Generate client credentials
             # Generate URL-safe tokens
+            # Generate URL-safe tokens
             client_id = f"client_{self.token_manager.generate_token(8).replace('+', '-').replace('/', '_').replace('=', '')}"
             client_secret = self.token_manager.generate_token(32)
             
