@@ -151,7 +151,7 @@ start_server() {
     sleep 2
     
     # Find the actual Python process (child of the bash process)
-    local server_pid=$(pgrep -P "$bash_pid" -f "python.*working_isne_server" | head -1)
+    local server_pid=$(pgrep -P "$bash_pid" -f "python.*src.api.server" | head -1)
     
     # If we couldn't find the child, use the bash PID
     if [[ -z "$server_pid" ]]; then
@@ -202,7 +202,7 @@ stop_server() {
         local count=0
         while kill -0 "$pid" 2>/dev/null && [[ $count -lt 10 ]]; do
             sleep 1
-            ((count++))
+            count=$((count + 1))
         done
         
         # Force kill if still running
@@ -235,7 +235,7 @@ stop_server() {
             log "Found process $port_pid using port $HADES_PORT"
             
             # Check if it's a Python process running our server
-            if ps -p "$port_pid" -o cmd= 2>/dev/null | grep -q "working_isne_server"; then
+            if ps -p "$port_pid" -o cmd= 2>/dev/null | grep -q "src.api.server"; then
                 log "Terminating HADES process $port_pid..."
                 kill "$port_pid" 2>/dev/null || true
                 
@@ -269,7 +269,9 @@ stop_server() {
     if [[ "$stopped" == "true" ]]; then
         success "HADES server stopped successfully"
     else
-        if ! check_port; then
+        if check_port; then
+            warning "Port still in use but could not stop process"
+        else
             success "No HADES server was running"
         fi
     fi
@@ -342,8 +344,24 @@ show_status() {
 # Restart server
 restart_server() {
     log "Restarting HADES server..."
+    
+    # Temporarily disable exit on error for stop_server
+    set +e
     stop_server
-    sleep 2
+    local stop_result=$?
+    set -e
+    
+    # Wait for clean shutdown
+    log "Waiting for clean shutdown..."
+    sleep 5
+    
+    # Make sure port is available before starting
+    if check_port; then
+        warning "Port $HADES_PORT still in use, waiting..."
+        sleep 3
+    fi
+    
+    log "Starting server..."
     start_server
 }
 

@@ -309,7 +309,7 @@ async def root() -> Dict[str, Any]:
     }
 
 
-@app.post("/register")
+@app.post("/register", response_model=None)
 async def register(request: Request) -> Union[Dict[str, Any], JSONResponse]:
     """
     Client registration endpoint for MCP.
