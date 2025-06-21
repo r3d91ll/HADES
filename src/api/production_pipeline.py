@@ -78,7 +78,7 @@ class PipelineStatus(BaseModel):
 _pipeline_status: Dict[str, PipelineStatus] = {}
 
 def update_pipeline_status(operation_id: str, status: str, progress: Optional[str] = None, 
-                          details: Optional[Dict[str, Any]] = None):
+                          details: Optional[Dict[str, Any]] = None) -> None:
     """Update pipeline operation status."""
     if operation_id in _pipeline_status:
         _pipeline_status[operation_id].status = status

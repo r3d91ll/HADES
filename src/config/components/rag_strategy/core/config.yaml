@@ -1,0 +1,55 @@
+---
+# Core RAG Component Configuration
+# Basic RAG implementation for baseline comparisons
+
+version: 1
+
+component:
+  enabled: true
+  implementation: "core"
+  type: "baseline"
+  description: "Core RAG implementation for baseline comparisons"
+
+# Core RAG settings
+core_rag:
+  # Retrieval configuration
+  retrieval:
+    method: "similarity"  # Options: similarity, keyword, hybrid
+    top_k: 10
+    similarity_threshold: 0.3
+    max_context_tokens: 2000
+    
+  # Generation settings
+  generation:
+    enable_generation: true
+    max_answer_length: 500
+    temperature: 0.7
+    context_aggregation: "simple_concat"
+
+# Supported modes
+modes:
+  supported: ["naive", "local", "global", "hybrid"]
+  default: "hybrid"
+  
+# Performance settings
+performance:
+  cache:
+    enable_cache: true
+    cache_size_mb: 256
+  parallel:
+    enable_parallel: false
+    max_workers: 2
+
+# Integration (minimal for core RAG)
+integration:
+  storage:
+    type: "memory"
+  embedder:
+    type: "cpu"
+  graph_enhancer:
+    type: "none"
+
+# Monitoring
+monitoring:
+  enable_metrics: true
+  track_basic_stats: true

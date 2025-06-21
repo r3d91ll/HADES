@@ -30,6 +30,8 @@ from .contracts import (
     QueryOutput,
     ModelEngineInput,
     ModelEngineOutput,
+    RAGStrategyInput,
+    RAGStrategyOutput,
     ComponentType
 )
 
@@ -800,5 +802,132 @@ class ModelEngine(Protocol):
             
         Returns:
             Estimated processing time in seconds
+        """
+        ...
+
+
+# ===== RAG Strategy Protocol =====
+
+@runtime_checkable
+class RAGStrategy(BaseComponent, Protocol):
+    """
+    Protocol for RAG strategy components.
+    
+    RAG strategies implement different retrieval-augmented generation approaches
+    such as PathRAG, GraphRAG, LiteRAG, etc. They combine retrieval and generation
+    to provide comprehensive answers to user queries.
+    """
+    
+    @abstractmethod
+    def retrieve_and_generate(self, input_data: RAGStrategyInput) -> RAGStrategyOutput:
+        """
+        Perform RAG retrieval and generation according to the contract.
+        
+        Args:
+            input_data: Input data conforming to RAGStrategyInput contract
+            
+        Returns:
+            Output data conforming to RAGStrategyOutput contract
+            
+        Raises:
+            RAGError: If RAG processing fails
+        """
+        ...
+    
+    @abstractmethod
+    def retrieve_only(self, input_data: RAGStrategyInput) -> RAGStrategyOutput:
+        """
+        Perform only retrieval without generation.
+        
+        Args:
+            input_data: Input data conforming to RAGStrategyInput contract
+            
+        Returns:
+            Output with results but no generated_answer
+        """
+        ...
+    
+    @abstractmethod
+    def get_supported_modes(self) -> List[str]:
+        """
+        Get list of supported RAG modes.
+        
+        Returns:
+            List of supported mode strings (e.g., ['naive', 'hybrid', 'pathrag'])
+        """
+        ...
+    
+    @abstractmethod
+    def supports_mode(self, mode: str) -> bool:
+        """
+        Check if strategy supports the given mode.
+        
+        Args:
+            mode: RAG mode to check
+            
+        Returns:
+            True if mode is supported, False otherwise
+        """
+        ...
+    
+    @abstractmethod
+    def initialize_knowledge_base(self, storage_config: Dict[str, Any]) -> bool:
+        """
+        Initialize the knowledge base for retrieval.
+        
+        Args:
+            storage_config: Storage configuration for knowledge base
+            
+        Returns:
+            True if initialization successful
+        """
+        ...
+    
+    @abstractmethod
+    def get_knowledge_base_stats(self) -> Dict[str, Any]:
+        """
+        Get statistics about the knowledge base.
+        
+        Returns:
+            Dictionary containing knowledge base statistics
+        """
+        ...
+    
+    @abstractmethod
+    def estimate_retrieval_time(self, input_data: RAGStrategyInput) -> float:
+        """
+        Estimate time for retrieval operation.
+        
+        Args:
+            input_data: Input data to estimate for
+            
+        Returns:
+            Estimated retrieval time in seconds
+        """
+        ...
+    
+    @abstractmethod
+    def estimate_generation_time(self, input_data: RAGStrategyInput) -> float:
+        """
+        Estimate time for generation operation.
+        
+        Args:
+            input_data: Input data to estimate for
+            
+        Returns:
+            Estimated generation time in seconds
+        """
+        ...
+    
+    @abstractmethod
+    def get_optimal_context_size(self, query_type: str) -> int:
+        """
+        Get optimal context size for query type.
+        
+        Args:
+            query_type: Type of query (e.g., 'factual', 'analytical', 'comparison')
+            
+        Returns:
+            Optimal context size in tokens
         """
         ...

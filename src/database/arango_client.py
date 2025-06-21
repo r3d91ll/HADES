@@ -290,6 +290,76 @@ class ArangoClient:
             self._stats['last_error'] = str(e)
             raise ArangoOperationError(error_msg)
     
+    def create_database(self, name: str) -> bool:
+        """
+        Create a database.
+        
+        Args:
+            name: Database name
+            
+        Returns:
+            True if database was created successfully
+            
+        Raises:
+            ArangoOperationError: If database creation fails
+        """
+        try:
+            if not self._sys_db:
+                # Connect to system database if not already connected
+                self.connect()
+                
+            # Check if database already exists
+            if self._sys_db.has_database(name):
+                logger.info(f"Database {name} already exists")
+                return True
+                
+            # Create the database
+            self._sys_db.create_database(name)
+            logger.info(f"Created database: {name}")
+            self._stats['databases_created'] = self._stats.get('databases_created', 0) + 1
+            return True
+            
+        except DatabaseCreateError as e:
+            error_msg = f"Failed to create database {name}: {e}"
+            logger.error(error_msg)
+            self._stats['errors'] += 1
+            self._stats['last_error'] = str(e)
+            raise ArangoOperationError(error_msg)
+        except Exception as e:
+            error_msg = f"Unexpected error creating database {name}: {e}"
+            logger.error(error_msg)
+            self._stats['errors'] += 1
+            self._stats['last_error'] = str(e)
+            raise ArangoOperationError(error_msg)
+    
+    def connect_to_database(self, database_name: str) -> bool:
+        """
+        Connect to a specific database.
+        
+        Args:
+            database_name: Name of database to connect to
+            
+        Returns:
+            True if connection successful
+        """
+        try:
+            # First ensure we're connected to the system
+            if not self._client:
+                self.connect()
+                
+            # Connect to the specific database
+            self._db = self._client.db(database_name, username=self.username, password=self.password)
+            self.database_name = database_name
+            
+            # Test the connection
+            self._db.properties()
+            logger.info(f"Successfully connected to database: {database_name}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to connect to database {database_name}: {e}")
+            return False
+    
     def execute_aql(self, query: str, bind_vars: Optional[Dict[str, Any]] = None, **kwargs) -> Any:
         """
         Execute AQL query.

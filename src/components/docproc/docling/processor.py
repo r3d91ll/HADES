@@ -146,8 +146,8 @@ class DoclingDocumentProcessor(DocumentProcessor):
                     return True
                 except ImportError:
                     return False
-            
-            return True
+            else:
+                return True
             
         except Exception as e:
             self.logger.error(f"Health check failed: {e}")

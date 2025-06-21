@@ -1,5 +1,5 @@
-"""ISNE pipeline implementations."""
+"""Empty module. ISNE pipeline functionality has moved to src/isne/training/pipeline.py."""
 
-from .isne_pipeline import ISNEPipeline
+# Empty pipeline directory - functionality moved to src/isne/training/pipeline.py
 
-__all__ = ['ISNEPipeline']
+__all__ = []

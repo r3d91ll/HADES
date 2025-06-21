@@ -1,0 +1,129 @@
+---
+# PathRAG Component Configuration
+# Based on "PathRAG: Pruning Graph-based Retrieval Augmented Generation with Relational Paths"
+
+version: 1
+
+component:
+  enabled: true
+  implementation: "pathrag"
+  type: "graph_based"
+  description: "PathRAG implementation with flow-based pruning"
+
+# Core PathRAG Algorithm Parameters
+pathrag:
+  # Flow-based pruning parameters (from paper)
+  flow_decay_factor: 0.85  # α - resource propagation decay factor
+  pruning_threshold: 0.1   # θ - early stopping threshold
+  max_path_length: 5       # Maximum path length for exploration
+  max_iterations: 10       # Maximum iterations for resource propagation
+  
+  # Query processing parameters
+  retrieval:
+    modes: ["naive", "local", "global", "hybrid", "pathrag"]
+    default_mode: "pathrag"
+    top_k: 40
+    max_context_tokens: 4000
+    
+  # Path scoring and selection
+  path_scoring:
+    method: "reliability"      # Path scoring method
+    confidence_threshold: 0.3  # Minimum confidence for path inclusion
+    diversity_penalty: 0.2     # Penalty for similar paths
+    path_aggregation: "weighted_average"
+    
+  # Resource allocation settings
+  resource_allocation:
+    initial_distribution: "uniform"  # How to distribute initial resources
+    convergence_threshold: 0.001     # Convergence criteria for iterations
+    normalize_resources: true        # Whether to normalize resource values
+
+# Integration with HADES components
+integration:
+  # Storage backend configuration
+  storage:
+    type: "arangodb"
+    config:
+      database_name: "hades_pathrag"
+      enable_transactions: true
+      batch_size: 100
+    
+  # Embedding system configuration  
+  embedder:
+    type: "modernbert"
+    config:
+      model_name: "answerdotai/ModernBERT-base"
+      dimension: 768
+      batch_size: 32
+      normalize_embeddings: true
+      
+  # Graph enhancement configuration
+  graph_enhancer:
+    type: "isne"
+    config:
+      model_path: "./models/isne_model.pt"
+      output_dim: 64
+      similarity_threshold: 0.3
+      enhancement_mode: "inference"
+
+# Performance and optimization settings
+performance:
+  # Caching configuration
+  cache:
+    enable_query_cache: true
+    enable_embedding_cache: true
+    enable_path_cache: true
+    cache_size_mb: 1024
+    
+  # Parallel processing
+  parallel:
+    enable_parallel_retrieval: true
+    max_workers: 4
+    batch_processing: true
+    
+  # Memory management
+  memory:
+    max_graph_nodes: 1000000
+    max_cached_embeddings: 100000
+    gc_frequency: 100  # Garbage collection frequency
+
+# Quality and evaluation settings
+quality:
+  # Answer generation settings
+  generation:
+    enable_answer_generation: true
+    context_aggregation: "path_weighted"
+    max_answer_length: 1000
+    temperature: 0.7
+    
+  # Quality metrics to track
+  metrics:
+    track_comprehensiveness: true
+    track_diversity: true
+    track_logicality: true
+    track_relevance: true
+    track_coherence: true
+
+# Experimental features
+experimental:
+  enable_adaptive_pruning: false    # Adaptive threshold adjustment
+  enable_multi_hop_reasoning: true  # Multi-hop path reasoning
+  enable_path_explanations: true    # Generate explanations for paths
+  enable_confidence_calibration: false  # Calibrate confidence scores
+
+# Debug and monitoring
+debug:
+  enabled: false
+  log_level: "INFO"
+  save_intermediate_results: false
+  track_resource_flow: false
+  visualize_paths: false
+  
+monitoring:
+  enable_metrics: true
+  metrics_interval: 10
+  alert_on_errors: true
+  alert_thresholds:
+    retrieval_time: 5.0
+    generation_time: 10.0
+    error_rate: 0.1

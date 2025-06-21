@@ -1,6 +1,5 @@
 """ISNE training implementations."""
 
-from .trainer import ISNETrainer
-from .sampler import NeighborSampler
+from .pipeline import ISNETrainingPipeline, ISNETrainingConfig, TrainingResult
 
-__all__ = ['ISNETrainer', 'NeighborSampler']
+__all__ = ['ISNETrainingPipeline', 'ISNETrainingConfig', 'TrainingResult']

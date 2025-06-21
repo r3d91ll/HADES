@@ -21,7 +21,8 @@ from src.types.components.protocols import (
     Embedder,
     GraphEnhancer,
     ModelEngine,
-    Storage
+    Storage,
+    RAGStrategy
 )
 
 
@@ -64,7 +65,8 @@ class ComponentRegistry:
             "storage": {},
             "graph_engine": {},
             "schemas": {},
-            "database": {}
+            "database": {},
+            "rag_strategy": {}
         }
         self._type_mapping = {
             ComponentType.DOCPROC: "docproc",
@@ -75,7 +77,8 @@ class ComponentRegistry:
             ComponentType.STORAGE: "storage",
             ComponentType.GRAPH_ENGINE: "graph_engine",
             ComponentType.SCHEMAS: "schemas",
-            ComponentType.DATABASE: "database"
+            ComponentType.DATABASE: "database",
+            ComponentType.RAG_STRATEGY: "rag_strategy"
         }
         
         logger.info("Initialized component registry")

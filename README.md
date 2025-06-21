@@ -30,7 +30,7 @@ HADES is a production-ready graph-based RAG system with advanced ISNE (Inductive
 
 ### Project Organization
 
-```
+```directory
 HADES/
 ├── src/                    # Core source code
 │   ├── api/               # FastAPI server and endpoints
@@ -166,6 +166,7 @@ status = production_tools.wait_for_completion(result["operation_id"])
 ## 📈 Production Results
 
 Recent successful production run:
+
 - **91,165 enhanced embeddings** created from ISNE test dataset
 - **ISNE-discovered edges** for improved graph connectivity
 - **Semantic collections** built: 258 classes, 592 modules, 383 tests, 179 concepts
@@ -175,12 +176,14 @@ Recent successful production run:
 ## 🗂️ Workspace Organization
 
 ### Before Cleanup
+
 - 70+ scattered scripts in root directory
 - Mixed production and experimental code
 - No API integration
 - Difficult maintenance
 
 ### After Organization
+
 - **4 logical categories**: production, experiments, bootstrap, archive
 - **FastAPI endpoints** with background processing
 - **MCP tools** for external integration
@@ -190,6 +193,7 @@ Recent successful production run:
 ## 💡 Usage Patterns
 
 ### Development
+
 ```bash
 # Test experimental features
 python scripts/experiments/quick_test_isne_training.py
@@ -199,6 +203,7 @@ python scripts/bootstrap/bootstrap_micro_validation.py
 ```
 
 ### Production
+
 ```bash
 # API-driven operations (recommended)
 curl -X POST "http://localhost:8595/api/v1/production/train" \
@@ -230,9 +235,60 @@ python src/pipelines/production/train_isne_memory_efficient.py --epochs 100
 6. **Automated Testing**: Comprehensive test suite with coverage requirements
 7. **Scalable Structure**: Easy to add new components and operations
 
+## 🗺️ Development Roadmap
+
+### Phase 1: Core Infrastructure ✅ COMPLETE
+
+- ✅ **Database Creation & Management** - Core storage functionality
+- ✅ **ISNE Model Training & Application** - Model creation and enhancement capabilities  
+- ✅ **Critical Infrastructure Fixes** - Bootstrap imports, database connectivity, error handling
+- ✅ **MCP Endpoint Functionality** - All endpoints operational and tested
+
+### Phase 2: Authentication & Basic PathRAG (3-4 weeks)
+
+- 🔄 **Authentication Framework** - Token-based auth for MCP endpoints
+- 🔄 **Configuration Management** - Environment-aware, hierarchical configs
+- 🔄 **Database Factory Pattern** - Centralized database management
+- 🔄 **Basic PathRAG Search** - Directory structure-based graph with organic growth
+- 🔄 **Classification Framework** - Syntactically correct placeholders for future research
+
+### Phase 3: Enhanced Storage & Complete PathRAG (3-4 weeks)
+
+- 🔮 **Enhanced Storage Manager** - ISNE-enhanced data storage and semantic collections
+- 🔮 **Complete PathRAG Implementation** - Multi-mode search (naive, local, global, hybrid)
+- 🔮 **Graph Enhancement System** - Organic edge discovery and graph evolution
+- 🔮 **Performance Optimization** - Search and storage performance tuning
+
+### Phase 4: Production Deployment (2-3 weeks)
+
+- 🔮 **Agent Management Foundation** - Basic agent lifecycle and monitoring
+- 🔮 **Full Automation Pipelines** - End-to-end workflow automation
+- 🔮 **Production Hardening** - Security, monitoring, and deployment optimization
+- 🔮 **Evaluation Framework** - Comprehensive RAG system assessment
+
+### Phase 4.5: Evaluation & Decision Point
+
+- 🔍 **RAG System Evaluation** - Assess directory graph effectiveness using `benchmark/rag/`
+- 🔍 **User Satisfaction Analysis** - Measure cross-domain discovery and retrieval quality
+- 🔍 **Phase 5 Decision** - Data-driven decision on advanced classification research need
+
+### Phase 5: Advanced Classification Research (8-10 weeks, CONDITIONAL)
+
+- 🔬 **Annif-Bootstrapped Training Data** - Generate 100k+ high-quality classifications
+- 🔬 **Custom 7B Model Training** - Fine-tune for interdisciplinary classification
+- 🔬 **Bridge Keyword System** - Abstract concepts for cross-domain connections  
+- 🔬 **Integration & Evaluation** - Compare against simple approaches with rigorous metrics
+
+### Priority Items
+
+1. **Basic Authentication Infrastructure** - Simple token-based auth for MCP endpoints to prepare for future agent/RBAC implementation without major architectural changes
+2. **Pipeline Naming Consistency** - Rename `run_pipeline` to `bootstrap_isne_pipeline` for clarity
+3. **Storage Module Integration** - Complete the database → ISNE → storage workflow
+
 ## 🎯 Production Ready
 
 HADES is now production-ready with:
+
 - ✅ **Organized codebase** with clear architecture
 - ✅ **API endpoints** for all major operations
 - ✅ **Background processing** with status tracking
