@@ -1,5 +1,5 @@
 """Database modules for HADES."""
 
-from .arango_client import ArangoConnection
+from .arango_client import ArangoClient
 
-__all__ = ['ArangoConnection']
+__all__ = ['ArangoClient']
