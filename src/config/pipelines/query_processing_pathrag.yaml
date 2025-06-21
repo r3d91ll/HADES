@@ -1,0 +1,138 @@
+---
+# PathRAG Query Processing Pipeline Configuration
+# Complete query pipeline with PathRAG strategy
+
+pipeline:
+  name: "pathrag_query_processing"
+  version: "1.0.0"
+  description: "Query processing pipeline using PathRAG strategy"
+  type: "query"
+
+# Component selection and configuration
+components:
+  # Storage component (for retrieval)
+  storage:
+    implementation: "arangodb"
+    config_ref: "components/storage/arangodb/config"
+    fallback: "memory"
+    enabled: true
+    config:
+      database_name: "hades_pathrag"
+      enable_transactions: true
+      batch_size: 100
+  
+  # Embedding component (for query embeddings)
+  embedder:
+    implementation: "modernbert"
+    config_ref: "components/embedding/core/config"
+    fallback: "cpu"
+    enabled: true
+    config:
+      model_name: "answerdotai/ModernBERT-base"
+      dimension: 768
+      batch_size: 32
+      normalize_embeddings: true
+  
+  # Graph enhancement component (ISNE)
+  graph_enhancer:
+    implementation: "isne"
+    config_ref: "components/graph_enhancement/isne/core/config"
+    fallback: "none"
+    enabled: true
+    config:
+      model_path: "./models/isne_model.pt"
+      output_dim: 64
+      similarity_threshold: 0.3
+      enhancement_mode: "inference"
+  
+  # RAG strategy component (PathRAG)
+  rag_strategy:
+    implementation: "pathrag"
+    config_ref: "components/rag_strategy/pathrag/config"
+    fallback: "core"
+    enabled: true
+    config:
+      flow_decay_factor: 0.85
+      pruning_threshold: 0.1
+      max_path_length: 5
+      default_mode: "pathrag"
+      top_k: 40
+
+# Pipeline execution settings
+execution:
+  mode: "sequential"  # Components run in sequence
+  timeout: 30         # 30 second timeout
+  retry_on_failure: true
+  max_retries: 3
+
+# A/B Testing variants for experimentation
+ab_test_variants:
+  pathrag_vs_core:
+    pathrag_variant:
+      weight: 70
+      description: "PathRAG with flow-based pruning"
+      overrides:
+        rag_strategy:
+          implementation: "pathrag"
+          config:
+            default_mode: "pathrag"
+            flow_decay_factor: 0.85
+    
+    core_variant:
+      weight: 30
+      description: "Core RAG baseline"
+      overrides:
+        rag_strategy:
+          implementation: "core"
+          config:
+            retrieval_method: "similarity"
+  
+  isne_vs_no_enhancement:
+    isne_variant:
+      weight: 50
+      description: "PathRAG with ISNE enhancement"
+      overrides:
+        graph_enhancer:
+          implementation: "isne"
+    
+    no_enhancement_variant:
+      weight: 50
+      description: "PathRAG without graph enhancement"
+      overrides:
+        graph_enhancer:
+          implementation: "none"
+
+# Quality assurance settings
+quality:
+  validation:
+    enable_input_validation: true
+    enable_output_validation: true
+    enable_component_health_checks: true
+  
+  metrics:
+    track_query_processing_time: true
+    track_retrieval_quality: true
+    track_answer_quality: true
+    track_path_diversity: true
+
+# Global settings
+global:
+  enable_validation: true
+  continue_on_errors: false
+  max_parallel_workers: 4
+  
+# Debug and monitoring
+debug:
+  enabled: false
+  save_intermediate: false
+  output_directory: "./debug-query-output"
+  log_level: "INFO"
+
+monitoring:
+  enable_alerts: true
+  enable_metrics: true
+  metrics_export_interval: 60
+  alert_thresholds:
+    query_processing_time: 10.0
+    retrieval_error_rate: 0.05
+    generation_error_rate: 0.03

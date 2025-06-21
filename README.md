@@ -30,7 +30,7 @@ HADES is a production-ready graph-based RAG system with advanced ISNE (Inductive
 
 ### Project Organization
 
-```
+```directory
 HADES/
 ├── src/                    # Core source code
 │   ├── api/               # FastAPI server and endpoints

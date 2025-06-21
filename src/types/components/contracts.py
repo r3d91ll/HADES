@@ -29,6 +29,7 @@ class ComponentType(str, Enum):
     SCHEMAS = "schemas"
     MODEL_ENGINE = "model_engine"
     GRAPH_ENGINE = "graph_engine"
+    RAG_STRATEGY = "rag_strategy"
     UNKNOWN = "unknown"
 
 class ProcessingStatus(str, Enum):
@@ -517,4 +518,120 @@ class ModelEngineOutput(BaseModel):
     @classmethod
     def validate_results_count(cls, v: List[ModelInferenceResult]) -> List[ModelInferenceResult]:
         """Validate results."""
+        return v
+
+
+# ===== RAG Strategy Contracts =====
+
+class RAGMode(str, Enum):
+    """RAG strategy mode enumeration."""
+    NAIVE = "naive"
+    LOCAL = "local"
+    GLOBAL = "global"
+    HYBRID = "hybrid"
+    PATHRAG = "pathrag"
+
+class PathInfo(BaseModel):
+    """Information about a path in the knowledge graph."""
+    path_id: str
+    nodes: List[str]
+    edges: List[str]
+    path_score: float = Field(ge=0.0, le=1.0)
+    reliability_score: float = Field(ge=0.0, le=1.0)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+class RAGStrategyInput(BaseModel):
+    """Input contract for RAG strategy components."""
+    query: str
+    mode: RAGMode = RAGMode.HYBRID
+    top_k: int = Field(default=10, ge=1, le=100)
+    
+    # Query processing parameters
+    query_embedding: Optional[List[float]] = None
+    query_keywords: Optional[List[str]] = None
+    
+    # Path-based parameters (for PathRAG)
+    max_path_length: int = Field(default=5, ge=1, le=10)
+    flow_decay_factor: float = Field(default=0.85, gt=0.0, le=1.0)
+    pruning_threshold: float = Field(default=0.1, gt=0.0, le=1.0)
+    
+    # Context parameters
+    max_token_for_context: int = Field(default=4000, ge=100, le=8000)
+    include_metadata: bool = True
+    
+    # Processing options
+    search_options: Dict[str, Any] = Field(default_factory=dict)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator('query')
+    @classmethod
+    def validate_query(cls, v: str) -> str:
+        """Ensure query is not empty."""
+        if not v.strip():
+            raise ValueError("Query cannot be empty")
+        return v.strip()
+
+class RAGResult(BaseModel):
+    """Individual RAG retrieval result with path information."""
+    item_id: str
+    content: str
+    score: float = Field(ge=0.0, le=1.0)
+    
+    # Standard retrieval metadata
+    chunk_metadata: Optional[Dict[str, Any]] = None
+    document_metadata: Optional[Dict[str, Any]] = None
+    
+    # Path-based metadata (for PathRAG)
+    path_info: Optional[PathInfo] = None
+    graph_context: Optional[Dict[str, Any]] = None
+    
+    # Enhanced metadata
+    relevance_score: float = Field(ge=0.0, le=1.0)
+    diversity_score: float = Field(ge=0.0, le=1.0)
+    
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+class RAGStrategyOutput(BaseModel):
+    """Output contract for RAG strategy components."""
+    query: str
+    mode: RAGMode
+    results: List[RAGResult]
+    
+    # Answer generation
+    generated_answer: Optional[str] = None
+    answer_confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    
+    # Path information (for PathRAG)
+    paths_explored: List[PathInfo] = Field(default_factory=list)
+    graph_stats: Dict[str, Any] = Field(default_factory=dict)
+    
+    # Processing metadata
+    metadata: ComponentMetadata
+    retrieval_stats: Dict[str, Any] = Field(default_factory=dict)
+    query_processing_time: Optional[float] = Field(default=None, ge=0.0)
+    
+    # Quality metrics
+    comprehensiveness_score: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    diversity_score: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    logicality_score: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    
+    errors: List[str] = Field(default_factory=list)
+    total_results: int = 0
+
+    @field_validator('total_results')
+    @classmethod
+    def set_total_results(cls, v: int, info: Any) -> int:
+        """Auto-calculate total results."""
+        if hasattr(info, 'data') and info.data:
+            return len(info.data.get('results', []))
+        return 0
+
+    @field_validator('results')
+    @classmethod
+    def validate_results_sorted(cls, v: List[RAGResult]) -> List[RAGResult]:
+        """Ensure results are sorted by score (descending)."""
+        if len(v) > 1:
+            scores = [result.score for result in v]
+            if scores != sorted(scores, reverse=True):
+                raise ValueError("Results must be sorted by score in descending order")
         return v
