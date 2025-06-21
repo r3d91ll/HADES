@@ -124,6 +124,9 @@ async def start_training(request: TrainingRequest, background_tasks: BackgroundT
             message=f"Training job {job_id} started successfully"
         )
         
+    except HTTPException:
+        # Re-raise HTTP exceptions (like 422 validation errors) without modification
+        raise
     except Exception as e:
         logger.error(f"Failed to start training: {e}")
         raise HTTPException(status_code=500, detail=str(e))
