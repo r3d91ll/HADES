@@ -166,6 +166,7 @@ status = production_tools.wait_for_completion(result["operation_id"])
 ## 📈 Production Results
 
 Recent successful production run:
+
 - **91,165 enhanced embeddings** created from ISNE test dataset
 - **ISNE-discovered edges** for improved graph connectivity
 - **Semantic collections** built: 258 classes, 592 modules, 383 tests, 179 concepts
@@ -175,12 +176,14 @@ Recent successful production run:
 ## 🗂️ Workspace Organization
 
 ### Before Cleanup
+
 - 70+ scattered scripts in root directory
 - Mixed production and experimental code
 - No API integration
 - Difficult maintenance
 
 ### After Organization
+
 - **4 logical categories**: production, experiments, bootstrap, archive
 - **FastAPI endpoints** with background processing
 - **MCP tools** for external integration
@@ -190,6 +193,7 @@ Recent successful production run:
 ## 💡 Usage Patterns
 
 ### Development
+
 ```bash
 # Test experimental features
 python scripts/experiments/quick_test_isne_training.py
@@ -199,6 +203,7 @@ python scripts/bootstrap/bootstrap_micro_validation.py
 ```
 
 ### Production
+
 ```bash
 # API-driven operations (recommended)
 curl -X POST "http://localhost:8595/api/v1/production/train" \
@@ -230,9 +235,36 @@ python src/pipelines/production/train_isne_memory_efficient.py --epochs 100
 6. **Automated Testing**: Comprehensive test suite with coverage requirements
 7. **Scalable Structure**: Easy to add new components and operations
 
+## 🗺️ Development Roadmap
+
+### Phase 1: Core Infrastructure (Current)
+
+- ✅ **Database Creation & Management** - Core storage functionality
+- ✅ **ISNE Model Training & Application** - Model creation and enhancement capabilities  
+- 🔄 **Storage Module Completion** - Add data to existing databases with ISNE models
+- 🔄 **Basic User Authentication** - Token-based auth for MCP server agent access
+
+### Phase 2: Search & Security
+
+- 🔮 **PathRAG Search Algorithm** - Query and retrieval functionality
+- 🔮 **RBAC Implementation** - Role-based access control for agents
+- 🔮 **Advanced Authentication** - Multi-tenant support and permissions
+
+### Phase 3: Full Automation
+
+- 🔮 **Complete Data Ingestion Pipeline** - End-to-end workflow automation
+- 🔮 **Agent Management System** - Full agent lifecycle and monitoring
+
+### Priority Items
+
+1. **Basic Authentication Infrastructure** - Simple token-based auth for MCP endpoints to prepare for future agent/RBAC implementation without major architectural changes
+2. **Pipeline Naming Consistency** - Rename `run_pipeline` to `bootstrap_isne_pipeline` for clarity
+3. **Storage Module Integration** - Complete the database → ISNE → storage workflow
+
 ## 🎯 Production Ready
 
 HADES is now production-ready with:
+
 - ✅ **Organized codebase** with clear architecture
 - ✅ **API endpoints** for all major operations
 - ✅ **Background processing** with status tracking

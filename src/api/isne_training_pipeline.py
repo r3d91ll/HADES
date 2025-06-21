@@ -80,7 +80,10 @@ async def start_training(request: TrainingRequest, background_tasks: BackgroundT
         
         # Check if job already exists
         if job_id in active_jobs:
-            raise HTTPException(status_code=400, detail=f"Job {job_id} already exists")
+            raise HTTPException(
+                status_code=422, 
+                detail=f"Job ID '{job_id}' already exists. Please use a different job_id or omit for auto-generation."
+            )
         
         # Prepare config overrides
         overrides = {}

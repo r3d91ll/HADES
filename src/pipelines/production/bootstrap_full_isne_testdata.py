@@ -590,5 +590,70 @@ def main():
         print(f"   Need at least 10 nodes and 5 edges")
 
 
+class FullISNETestDataBootstrap:
+    """
+    API-compatible wrapper for ISNETestDataBootstrapper.
+    This class provides the interface expected by the production pipeline API.
+    """
+    
+    def __init__(self, input_dir: str, database_name: str = None):
+        self.input_dir = Path(input_dir)
+        self.database_name = database_name or "isne_testdata_full"
+        self.bootstrapper = ISNETestDataBootstrapper(db_name=self.database_name)
+        
+    def run_full_bootstrap(self, similarity_threshold: float = 0.8, debug_logging: bool = False):
+        """
+        Run the full bootstrap process compatible with API expectations.
+        
+        Args:
+            similarity_threshold: Threshold for similarity edges
+            debug_logging: Enable debug logging
+            
+        Returns:
+            dict: Bootstrap results and statistics
+        """
+        # Setup logging if requested
+        if debug_logging:
+            setup_logging(self.database_name)
+            
+        logger.info(f"Starting API bootstrap process")
+        logger.info(f"Input directory: {self.input_dir}")
+        logger.info(f"Target database: {self.database_name}")
+        logger.info(f"Similarity threshold: {similarity_threshold}")
+        
+        # Validate input directory
+        if not self.input_dir.exists():
+            raise ValueError(f"Input directory does not exist: {self.input_dir}")
+            
+        if not self.input_dir.is_dir():
+            raise ValueError(f"Input path is not a directory: {self.input_dir}")
+            
+        # Run the bootstrap process
+        try:
+            stats = self.bootstrapper.process_dataset(self.input_dir)
+            
+            # Add API-specific metadata
+            stats.update({
+                'api_version': '1.0',
+                'bootstrap_method': 'full_isne_testdata',
+                'input_directory': str(self.input_dir),
+                'target_database': self.database_name,
+                'similarity_threshold_used': similarity_threshold,
+                'success': True
+            })
+            
+            logger.info(f"Bootstrap completed successfully")
+            logger.info(f"Files processed: {stats.get('files_processed', 0)}")
+            logger.info(f"Total nodes: {stats.get('total_nodes', 0)}")
+            logger.info(f"Total edges: {stats.get('total_edges', 0)}")
+            
+            return stats
+            
+        except Exception as e:
+            logger.error(f"Bootstrap failed: {e}")
+            logger.debug("Bootstrap error details", exc_info=True)
+            raise Exception(f"Bootstrap process failed: {str(e)}")
+
+
 if __name__ == "__main__":
     main()
