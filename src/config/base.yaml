@@ -1,0 +1,134 @@
+# Base Configuration for HADES
+# This file contains default configuration values that apply across all environments
+
+# API Server Configuration
+api:
+  title: "HADES API"
+  description: "Simple API for the HADES knowledge graph retrieval system"
+  server:
+    host: "0.0.0.0"
+    port: 8595
+    reload: false
+    timeout: 30
+  
+  cors:
+    enabled: true
+    origins: ["http://localhost:3000", "http://127.0.0.1:3000"]
+  
+  cli:
+    default_host: "127.0.0.1"
+    default_port: 8000
+
+# Database Configuration
+database:
+  arango:
+    host: "127.0.0.1"
+    port: 8529
+    username: "root"
+    password: ""  # SECURITY WARNING: Change in production! Use HADES_DATABASE_ARANGO_PASSWORD env var
+    default_database: "hades"
+    use_ssl: false
+    timeout: 30
+    max_retries: 3
+    retry_delay: 1.0
+    connection_pool_size: 10
+
+# vLLM Configuration  
+vllm:
+  server:
+    host: "localhost"
+    port: 8000
+    tensor_parallel_size: 1
+    gpu_memory_utilization: 0.9
+    max_model_len: 8192
+  
+  generation:
+    max_tokens: 1024
+    temperature: 0.7
+    top_p: 0.9
+    top_k: 40
+    context_window: 8192
+
+# Chunking Configuration
+chunking:
+  defaults:
+    chunk_size: 512
+    chunk_overlap: 50
+    min_chunk_size: 100
+  
+  text:
+    max_tokens: 512
+    overlap_tokens: 50
+    min_chunk_size: 100
+  
+  code:
+    max_tokens: 512
+    overlap_lines: 2
+    min_chunk_size: 50
+
+# Embedding Configuration
+embedding:
+  defaults:
+    model_name: "all-MiniLM-L6-v2"
+    batch_size: 32
+    max_length: 512
+    timeout: 30
+  
+  gpu:
+    memory_utilization: 0.8
+    performance:
+      time_per_batch: 0.05
+      complexity_factor_threshold: 50000
+      max_complexity_factor: 1.5
+
+# PathRAG Configuration
+pathrag:
+  query:
+    top_k: 10
+    max_path_length: 5
+    flow_decay_factor: 0.85
+    pruning_threshold: 0.1
+    max_token_for_context: 4000
+  
+  graph:
+    similarity_threshold: 0.7
+    max_iterations: 10
+
+# ISNE Training Configuration
+isne:
+  training:
+    epochs: 50
+    batch_size: 512
+    learning_rate: 0.001
+    hidden_dim: 256
+    num_layers: 4
+  
+  application:
+    similarity_threshold: 0.85
+    max_edges_per_node: 10
+
+# Performance Configuration
+performance:
+  timeouts:
+    default: 30
+    api_request: 120
+    embedding_generation: 300
+    training: 3600
+  
+  retry:
+    max_attempts: 3
+    delay: 1.0
+    backoff_factor: 2.0
+
+# Logging Configuration  
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file_logging: true
+  console_logging: true
+
+# Version Information
+version:
+  hades: "2.0.0"
+  config_schema: "1.0.0"
+  last_updated: "2025-06-21"

@@ -80,7 +80,8 @@ class ConfigurationManager:
         environment: Optional[str] = None,
         config_dir: Optional[Path] = None,
         auto_load: bool = True,
-        watch_for_changes: bool = False
+        watch_for_changes: bool = False,
+        strict_validation: bool = False
     ):
         """
         Initialize the Configuration Manager.
@@ -90,10 +91,12 @@ class ConfigurationManager:
             config_dir: Custom configuration directory (defaults to src/config)
             auto_load: Whether to automatically load configuration on initialization
             watch_for_changes: Whether to watch for configuration file changes (future feature)
+            strict_validation: Whether to raise exceptions on critical validation errors
         """
         self.config_dir = config_dir or CONFIG_DIR
         self.environment = environment or os.getenv('HADES_ENVIRONMENT') or 'development'
         self.watch_for_changes = watch_for_changes
+        self.strict_validation = strict_validation
         
         # Configuration state
         self.state = ConfigurationState(environment=self.environment)
@@ -146,7 +149,7 @@ class ConfigurationManager:
             self._apply_overrides()
             
             # 6. Validate configuration
-            self._validate_configuration()
+            self.validate(strict=self.strict_validation)
             
             self.state.last_loaded = datetime.now(timezone.utc)
             loading_time = (self.state.last_loaded - start_time).total_seconds()
@@ -265,21 +268,36 @@ class ConfigurationManager:
             )
     
     def _apply_environment_variables(self) -> None:
-        """Apply environment variables with HADES_ prefix."""
+        """Apply environment variables with HADES_ prefix using robust parsing."""
         env_overrides: Dict[str, Any] = {}
         
-        for key, value in os.environ.items():
-            if key.startswith('HADES_'):
-                # Convert HADES_API_SERVER_HOST to api.server.host
-                config_key = key[6:].lower().replace('_', '.')  # Remove HADES_ prefix
-                
-                # Try to parse as number or boolean
-                parsed_value = self._parse_env_value(value)
-                
-                # Set in nested structure
-                self._set_nested_value(env_overrides, config_key, parsed_value)
-                
-                logger.debug(f"Applied environment variable: {key} -> {config_key} = {parsed_value}")
+        # Collect all HADES environment variables
+        hades_env_vars = {k: v for k, v in os.environ.items() if k.startswith('HADES_')}
+        
+        # Sort by length (longest first) to avoid naming conflicts
+        # This ensures HADES_API_SERVER_HOST is processed before HADES_API_SERVER
+        sorted_env_vars = sorted(hades_env_vars.items(), key=lambda x: len(x[0]), reverse=True)
+        
+        processed_keys: set[str] = set()
+        
+        for key, value in sorted_env_vars:
+            # Remove HADES_ prefix and convert to lowercase
+            config_key_parts = key[6:].lower().split('_')
+            config_key = '.'.join(config_key_parts)
+            
+            # Check for conflicts with already processed keys
+            if self._has_config_key_conflict(config_key, processed_keys):
+                logger.warning(f"Skipping environment variable {key}: conflicts with existing configuration path")
+                continue
+            
+            # Try to parse as number or boolean
+            parsed_value = self._parse_env_value(value)
+            
+            # Set in nested structure
+            self._set_nested_value(env_overrides, config_key, parsed_value)
+            processed_keys.add(config_key)
+            
+            logger.debug(f"Applied environment variable: {key} -> {config_key} = {parsed_value}")
         
         if env_overrides:
             self.state.config_data = merge_configs(self.state.config_data, env_overrides)
@@ -311,12 +329,20 @@ class ConfigurationManager:
     
     def _validate_configuration(self) -> None:
         """Validate the complete configuration."""
-        # Basic validation - ensure required sections exist
-        required_sections = ['api', 'database', 'components']
+        # Clear previous validation errors
+        self.state.validation_errors.clear()
         
+        # Critical validation - ensure required sections exist
+        required_sections = ['api', 'database']
         for section in required_sections:
             if section not in self.state.config_data:
                 self.state.validation_errors.append(f"Missing required section: {section}")
+        
+        # Validate critical API configuration
+        self._validate_api_config()
+        
+        # Validate critical database configuration  
+        self._validate_database_config()
         
         # Validate component configurations have required fields
         if 'components' in self.state.config_data:
@@ -340,6 +366,85 @@ class ConfigurationManager:
                         check_versions(value, current_path)
         
         check_versions(config)
+    
+    def _is_critical_error(self, error: str) -> bool:
+        """Determine if a validation error is critical and should prevent startup."""
+        critical_patterns = [
+            "Missing required section",
+            "Missing api.server.host",
+            "Missing api.server.port", 
+            "Missing database.arango.host",
+            "Missing database.arango.port",
+            "Invalid api.server.host",
+            "Invalid api.server.port",
+            "Invalid database.arango.host",
+            "Invalid database.arango.port",
+            "SECURITY:",
+            "connection failed",
+            "authentication failed"
+        ]
+        
+        return any(pattern.lower() in error.lower() for pattern in critical_patterns)
+    
+    def _validate_api_config(self) -> None:
+        """Validate critical API configuration."""
+        if 'api' not in self.state.config_data:
+            return
+            
+        api_config = self.state.config_data['api']
+        
+        # Validate server configuration
+        if 'server' in api_config:
+            server_config = api_config['server']
+            
+            # Check required server fields
+            if 'host' not in server_config:
+                self.state.validation_errors.append("Missing api.server.host configuration")
+            elif not isinstance(server_config['host'], str) or not server_config['host'].strip():
+                self.state.validation_errors.append("Invalid api.server.host: must be non-empty string")
+                
+            if 'port' not in server_config:
+                self.state.validation_errors.append("Missing api.server.port configuration")
+            elif not isinstance(server_config['port'], int) or not (1 <= server_config['port'] <= 65535):
+                self.state.validation_errors.append("Invalid api.server.port: must be integer between 1-65535")
+        else:
+            self.state.validation_errors.append("Missing api.server configuration section")
+    
+    def _validate_database_config(self) -> None:
+        """Validate critical database configuration."""
+        if 'database' not in self.state.config_data:
+            return
+            
+        db_config = self.state.config_data['database']
+        
+        # Validate ArangoDB configuration
+        if 'arango' in db_config:
+            arango_config = db_config['arango']
+            
+            # Check required database fields
+            if 'host' not in arango_config:
+                self.state.validation_errors.append("Missing database.arango.host configuration")
+            elif not isinstance(arango_config['host'], str) or not arango_config['host'].strip():
+                self.state.validation_errors.append("Invalid database.arango.host: must be non-empty string")
+                
+            if 'port' not in arango_config:
+                self.state.validation_errors.append("Missing database.arango.port configuration")
+            elif not isinstance(arango_config['port'], int) or not (1 <= arango_config['port'] <= 65535):
+                self.state.validation_errors.append("Invalid database.arango.port: must be integer between 1-65535")
+                
+            if 'username' not in arango_config:
+                self.state.validation_errors.append("Missing database.arango.username configuration")
+            elif not isinstance(arango_config['username'], str):
+                self.state.validation_errors.append("Invalid database.arango.username: must be string")
+                
+            # Security validation for production environment
+            if self.environment == 'production':
+                if 'password' in arango_config and arango_config['password'] == "":
+                    self.state.validation_errors.append("SECURITY: Empty database password not allowed in production environment")
+                if 'use_ssl' in arango_config and not arango_config['use_ssl']:
+                    self.state.validation_errors.append("SECURITY: SSL should be enabled in production environment")
+        else:
+            self.state.validation_errors.append("Missing database.arango configuration section")
     
     def get(self, key: str, default: Any = None) -> Any:
         """
@@ -411,15 +516,29 @@ class ConfigurationManager:
         logger.info("Reloading configuration")
         self.load_configuration()
     
-    def validate(self) -> bool:
+    def validate(self, strict: bool = False) -> bool:
         """
         Validate current configuration.
         
+        Args:
+            strict: If True, raise exception on validation errors
+            
         Returns:
             True if configuration is valid, False otherwise
+            
+        Raises:
+            ValueError: If strict=True and validation errors exist
         """
         self._validate_configuration()
-        return len(self.state.validation_errors) == 0
+        is_valid = len(self.state.validation_errors) == 0
+        
+        if not is_valid and strict:
+            critical_errors = [err for err in self.state.validation_errors if self._is_critical_error(err)]
+            if critical_errors:
+                error_msg = f"Critical configuration validation failed:\n" + "\n".join(f"  - {err}" for err in critical_errors)
+                raise ValueError(error_msg)
+        
+        return is_valid
     
     def get_validation_errors(self) -> List[str]:
         """Get list of configuration validation errors."""
@@ -468,6 +587,17 @@ class ConfigurationManager:
             'validation_errors_count': len(self.state.validation_errors),
             'validation_errors': self.state.validation_errors
         }
+    
+    def _has_config_key_conflict(self, config_key: str, processed_keys: set) -> bool:
+        """Check if a config key would conflict with already processed keys."""
+        # Check if this key is a prefix of any processed key
+        # or if any processed key is a prefix of this key
+        for processed_key in processed_keys:
+            if (config_key.startswith(processed_key + '.') or 
+                processed_key.startswith(config_key + '.') or
+                config_key == processed_key):
+                return True
+        return False
     
     # Helper methods
     
