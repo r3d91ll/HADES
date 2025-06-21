@@ -237,23 +237,47 @@ python src/pipelines/production/train_isne_memory_efficient.py --epochs 100
 
 ## 🗺️ Development Roadmap
 
-### Phase 1: Core Infrastructure (Current)
+### Phase 1: Core Infrastructure ✅ COMPLETE
 
 - ✅ **Database Creation & Management** - Core storage functionality
 - ✅ **ISNE Model Training & Application** - Model creation and enhancement capabilities  
-- 🔄 **Storage Module Completion** - Add data to existing databases with ISNE models
-- 🔄 **Basic User Authentication** - Token-based auth for MCP server agent access
+- ✅ **Critical Infrastructure Fixes** - Bootstrap imports, database connectivity, error handling
+- ✅ **MCP Endpoint Functionality** - All endpoints operational and tested
 
-### Phase 2: Search & Security
+### Phase 2: Authentication & Basic PathRAG (3-4 weeks)
 
-- 🔮 **PathRAG Search Algorithm** - Query and retrieval functionality
-- 🔮 **RBAC Implementation** - Role-based access control for agents
-- 🔮 **Advanced Authentication** - Multi-tenant support and permissions
+- 🔄 **Authentication Framework** - Token-based auth for MCP endpoints
+- 🔄 **Configuration Management** - Environment-aware, hierarchical configs
+- 🔄 **Database Factory Pattern** - Centralized database management
+- 🔄 **Basic PathRAG Search** - Directory structure-based graph with organic growth
+- 🔄 **Classification Framework** - Syntactically correct placeholders for future research
 
-### Phase 3: Full Automation
+### Phase 3: Enhanced Storage & Complete PathRAG (3-4 weeks)
 
-- 🔮 **Complete Data Ingestion Pipeline** - End-to-end workflow automation
-- 🔮 **Agent Management System** - Full agent lifecycle and monitoring
+- 🔮 **Enhanced Storage Manager** - ISNE-enhanced data storage and semantic collections
+- 🔮 **Complete PathRAG Implementation** - Multi-mode search (naive, local, global, hybrid)
+- 🔮 **Graph Enhancement System** - Organic edge discovery and graph evolution
+- 🔮 **Performance Optimization** - Search and storage performance tuning
+
+### Phase 4: Production Deployment (2-3 weeks)
+
+- 🔮 **Agent Management Foundation** - Basic agent lifecycle and monitoring
+- 🔮 **Full Automation Pipelines** - End-to-end workflow automation
+- 🔮 **Production Hardening** - Security, monitoring, and deployment optimization
+- 🔮 **Evaluation Framework** - Comprehensive RAG system assessment
+
+### Phase 4.5: Evaluation & Decision Point
+
+- 🔍 **RAG System Evaluation** - Assess directory graph effectiveness using `benchmark/rag/`
+- 🔍 **User Satisfaction Analysis** - Measure cross-domain discovery and retrieval quality
+- 🔍 **Phase 5 Decision** - Data-driven decision on advanced classification research need
+
+### Phase 5: Advanced Classification Research (8-10 weeks, CONDITIONAL)
+
+- 🔬 **Annif-Bootstrapped Training Data** - Generate 100k+ high-quality classifications
+- 🔬 **Custom 7B Model Training** - Fine-tune for interdisciplinary classification
+- 🔬 **Bridge Keyword System** - Abstract concepts for cross-domain connections  
+- 🔬 **Integration & Evaluation** - Compare against simple approaches with rigorous metrics
 
 ### Priority Items
 
