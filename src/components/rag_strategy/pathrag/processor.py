@@ -15,7 +15,7 @@ The implementation includes:
 import asyncio
 import logging
 import time
-from typing import Dict, Any, List, Optional, Set, Tuple
+from typing import Dict, Any, List, Optional, Set, Tuple, Union
 from datetime import datetime, timezone
 import networkx as nx
 import numpy as np
@@ -65,9 +65,9 @@ class PathRAGProcessor:
         self.config: Dict[str, Any] = {}
         
         # HADES components (will be initialized during configure)
-        self.storage = None
-        self.embedder = None
-        self.graph_enhancer = None
+        self.storage: Optional[Any] = None
+        self.embedder: Optional[Any] = None
+        self.graph_enhancer: Optional[Any] = None
         
         # PathRAG state
         self.knowledge_graph: Optional[nx.Graph] = None
@@ -238,20 +238,20 @@ class PathRAGProcessor:
         """
         try:
             # Check component initialization
-            if not all([self.storage, self.embedder, self.graph_enhancer]):
+            if not all([self.storage is not None, self.embedder is not None, self.graph_enhancer is not None]):
                 logger.warning("PathRAG components not properly initialized")
                 return False
             
             # Check component health
-            if self.storage and hasattr(self.storage, 'health_check') and not self.storage.health_check():
+            if self.storage is not None and hasattr(self.storage, 'health_check') and not self.storage.health_check():
                 logger.warning("Storage component health check failed")
                 return False
             
-            if self.embedder and hasattr(self.embedder, 'health_check') and not self.embedder.health_check():
+            if self.embedder is not None and hasattr(self.embedder, 'health_check') and not self.embedder.health_check():
                 logger.warning("Embedder component health check failed")
                 return False
                 
-            if self.graph_enhancer and hasattr(self.graph_enhancer, 'health_check') and not self.graph_enhancer.health_check():
+            if self.graph_enhancer is not None and hasattr(self.graph_enhancer, 'health_check') and not self.graph_enhancer.health_check():
                 logger.warning("Graph enhancer component health check failed")
                 return False
             
@@ -278,11 +278,11 @@ class PathRAGProcessor:
         }
         
         # Add component metrics if available
-        if self.storage and hasattr(self.storage, 'get_metrics'):
+        if self.storage is not None and hasattr(self.storage, 'get_metrics'):
             metrics["storage_metrics"] = self.storage.get_metrics()
-        if self.embedder and hasattr(self.embedder, 'get_metrics'):
+        if self.embedder is not None and hasattr(self.embedder, 'get_metrics'):
             metrics["embedder_metrics"] = self.embedder.get_metrics()
-        if self.graph_enhancer and hasattr(self.graph_enhancer, 'get_metrics'):
+        if self.graph_enhancer is not None and hasattr(self.graph_enhancer, 'get_metrics'):
             metrics["graph_enhancer_metrics"] = self.graph_enhancer.get_metrics()
         
         return metrics
@@ -356,9 +356,12 @@ class PathRAGProcessor:
                     status=ProcessingStatus.SUCCESS
                 ),
                 retrieval_stats={
-                    "relevant_nodes_found": len(relevant_nodes),
+                    "entity_nodes_found": len(relevant_nodes.get("entity_nodes", [])),
+                    "relationship_nodes_found": len(relevant_nodes.get("relationship_nodes", [])),
+                    "total_relevant_nodes": len(relevant_nodes.get("entity_nodes", [])) + len(relevant_nodes.get("relationship_nodes", [])),
                     "paths_explored": len(paths_explored),
-                    "results_generated": len(results)
+                    "results_generated": len(results),
+                    "mode": input_data.mode.value
                 },
                 query_processing_time=processing_time,
                 total_results=len(results)
@@ -480,9 +483,10 @@ class PathRAGProcessor:
         """Load or compute embeddings for all nodes."""
         # This is a placeholder - implement based on embedder component
         # For now, create random embeddings
-        for node_id in self.knowledge_graph.nodes():
-            # In real implementation, load from storage or compute with embedder
-            self.node_embeddings[node_id] = np.random.random(768).tolist()
+        if self.knowledge_graph is not None:
+            for node_id in self.knowledge_graph.nodes():
+                # In real implementation, load from storage or compute with embedder
+                self.node_embeddings[node_id] = np.random.random(768).tolist()
         
         logger.info(f"Loaded embeddings for {len(self.node_embeddings)} nodes")
     
@@ -530,13 +534,53 @@ class PathRAGProcessor:
     
     # ===== PathRAG Algorithm Implementation =====
     
-    def _extract_keywords(self, query: str) -> List[str]:
-        """Extract keywords from query (placeholder implementation)."""
-        # Simple keyword extraction - in real implementation use LLM or NLP
+    def _extract_keywords(self, query: str) -> Dict[str, List[str]]:
+        """Extract hierarchical keywords from query using LLM-based approach."""
+        try:
+            # Use LLM for sophisticated keyword extraction
+            return self._llm_keyword_extraction(query)
+        except Exception as e:
+            logger.warning(f"LLM keyword extraction failed: {e}, falling back to simple extraction")
+            return self._simple_keyword_extraction(query)
+    
+    def _llm_keyword_extraction(self, query: str) -> Dict[str, List[str]]:
+        """Extract keywords using LLM with hierarchical structure."""
+        # Keyword extraction prompt based on legacy implementation
+        extraction_prompt = f"""
+Extract keywords from the following query in a hierarchical manner:
+
+Query: "{query}"
+
+Please provide keywords in JSON format with:
+- "high_level_keywords" for overarching concepts or themes
+- "low_level_keywords" for specific entities or details
+
+Example format:
+{{
+    "high_level_keywords": ["concept1", "theme2"],
+    "low_level_keywords": ["entity1", "detail2", "specific3"]
+}}
+
+Keywords:"""
+        
+        # Placeholder for LLM call - integrate with model_engine when available
+        # For now, fall back to simple extraction
+        return self._simple_keyword_extraction(query)
+    
+    def _simple_keyword_extraction(self, query: str) -> Dict[str, List[str]]:
+        """Simple keyword extraction fallback."""
         stop_words = {"the", "is", "are", "was", "were", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by"}
         words = query.lower().split()
         keywords = [word.strip('.,!?;:') for word in words if word not in stop_words and len(word) > 2]
-        return keywords[:10]  # Limit to top 10 keywords
+        
+        # Split into high-level and low-level based on word length and commonality
+        high_level = [word for word in keywords if len(word) > 6][:5]
+        low_level = [word for word in keywords if len(word) <= 6][:10]
+        
+        return {
+            "high_level_keywords": high_level,
+            "low_level_keywords": low_level
+        }
     
     def _get_query_embedding(self, query: str) -> List[float]:
         """Get embedding for query."""
@@ -544,55 +588,104 @@ class PathRAGProcessor:
         embedding: List[float] = np.random.random(768).tolist()
         return embedding
     
-    def _retrieve_relevant_nodes(self, query_embedding: List[float], keywords: List[str], top_k: int) -> List[str]:
-        """Retrieve relevant nodes using embedding similarity."""
-        # Placeholder implementation using random selection
-        # In real implementation, compute cosine similarity with node embeddings
+    def _retrieve_relevant_nodes(self, query_embedding: List[float], keywords: Dict[str, List[str]], top_k: int) -> Dict[str, List[str]]:
+        """Retrieve relevant nodes using hierarchical keyword strategy."""
+        results: Dict[str, List[str]] = {
+            "entity_nodes": [],
+            "relationship_nodes": []
+        }
+        
         if self.knowledge_graph is None:
-            return []
-        all_nodes = list(self.knowledge_graph.nodes())
-        return all_nodes[:min(top_k, len(all_nodes))]
+            return results
+        
+        # Get entity nodes using low-level keywords (local search)
+        entity_nodes = self._get_entity_nodes_by_keywords(
+            keywords.get("low_level_keywords", []), top_k
+        )
+        
+        # Get relationship nodes using high-level keywords (global search)  
+        relationship_nodes = self._get_relationship_nodes_by_keywords(
+            keywords.get("high_level_keywords", []), top_k
+        )
+        
+        results["entity_nodes"] = entity_nodes
+        results["relationship_nodes"] = relationship_nodes
+        
+        return results
     
-    def _pathrag_retrieval(self, relevant_nodes: List[str], input_data: RAGStrategyInput) -> Tuple[List[RAGResult], List[PathInfo]]:
+    def _get_entity_nodes_by_keywords(self, keywords: List[str], top_k: int) -> List[str]:
+        """Get entity nodes using low-level keywords for local search."""
+        # Placeholder - implement entity search using embedding similarity
+        if not keywords or self.knowledge_graph is None:
+            return []
+        
+        entity_nodes = [node for node in self.knowledge_graph.nodes() 
+                       if any(keyword.lower() in str(node).lower() for keyword in keywords)]
+        return entity_nodes[:top_k]
+    
+    def _get_relationship_nodes_by_keywords(self, keywords: List[str], top_k: int) -> List[str]:
+        """Get relationship nodes using high-level keywords for global search."""
+        # Placeholder - implement relationship search using embedding similarity
+        if not keywords or self.knowledge_graph is None:
+            return []
+        
+        # For now, return nodes that might represent relationships
+        relationship_nodes = [node for node in self.knowledge_graph.nodes() 
+                            if any(keyword.lower() in str(node).lower() for keyword in keywords)]
+        return relationship_nodes[:top_k]
+    
+    def _pathrag_retrieval(self, relevant_nodes: Dict[str, List[str]], input_data: RAGStrategyInput) -> Tuple[List[RAGResult], List[PathInfo]]:
         """Perform PathRAG-specific retrieval with flow-based pruning."""
-        # Implementation of the core PathRAG algorithm
+        # Combine entity and relationship nodes for comprehensive retrieval
+        all_relevant_nodes = relevant_nodes.get("entity_nodes", []) + relevant_nodes.get("relationship_nodes", [])
+        
+        if not all_relevant_nodes:
+            return [], []
         
         # Step 1: Initialize resource allocation
-        resources = self._initialize_resource_allocation(relevant_nodes)
+        resources = self._initialize_resource_allocation(all_relevant_nodes)
         
-        # Step 2: Flow-based pruning with decay penalty
+        # Step 2: Flow-based pruning with decay penalty (core PathRAG algorithm)
         pruned_resources = self._flow_based_pruning(
             resources,
-            decay_factor=input_data.flow_decay_factor,
-            threshold=input_data.pruning_threshold,
+            decay_factor=getattr(input_data, 'flow_decay_factor', self.config.get('flow_decay_factor', 0.8)),
+            threshold=getattr(input_data, 'pruning_threshold', self.config.get('pruning_threshold', 0.3)),
             max_iterations=self.config.get('max_iterations', 10)
         )
         
-        # Step 3: Extract and score paths
-        paths = self._extract_paths_between_nodes(
+        # Step 3: Multi-hop path exploration (legacy algorithm integration)
+        paths = self._find_most_related_edges_from_entities(
             list(pruned_resources.keys()),
-            max_length=input_data.max_path_length
+            max_length=getattr(input_data, 'max_path_length', self.config.get('max_path_length', 5))
         )
         
-        scored_paths = self._score_paths_by_reliability(paths, pruned_resources)
+        # Step 4: Score paths by reliability using resource values
+        scored_paths = self._score_paths_by_reliability_data(paths, pruned_resources)
         
-        # Step 4: Convert paths to results
-        results = self._paths_to_results(scored_paths[:input_data.top_k])
+        # Step 5: Convert paths to results with context building
+        results = self._paths_to_results_with_context(scored_paths[:input_data.top_k])
         
-        # Step 5: Create path info for output
-        path_infos = self._create_path_infos(scored_paths)
+        # Step 6: Create path info for output
+        path_infos = self._create_path_infos_from_data(scored_paths)
         
         return results, path_infos
     
-    def _standard_retrieval(self, relevant_nodes: List[str], input_data: RAGStrategyInput) -> Tuple[List[RAGResult], List[PathInfo]]:
-        """Perform standard retrieval (non-PathRAG modes)."""
-        # Simple implementation for non-PathRAG modes
-        results = []
+    def _standard_retrieval(self, relevant_nodes: Dict[str, List[str]], input_data: RAGStrategyInput) -> Tuple[List[RAGResult], List[PathInfo]]:
+        """Perform standard retrieval (non-PathRAG modes) with hybrid approach."""
+        results: List[RAGResult] = []
         
-        for i, node_id in enumerate(relevant_nodes[:input_data.top_k]):
+        # Handle hybrid retrieval mode (local + global)
+        if input_data.mode.value in ["hybrid", "local", "global"]:
+            return self._hybrid_retrieval_strategy(relevant_nodes, input_data)
+        
+        # Naive mode - simple node retrieval
+        all_nodes = relevant_nodes.get("entity_nodes", []) + relevant_nodes.get("relationship_nodes", [])
+        
+        for i, node_id in enumerate(all_nodes[:input_data.top_k]):
             if self.knowledge_graph is None:
                 continue
-            node_data = self.knowledge_graph.nodes[node_id]
+            
+            node_data = self.knowledge_graph.nodes.get(node_id, {})
             
             result = RAGResult(
                 item_id=node_id,
@@ -605,6 +698,106 @@ class PathRAGProcessor:
             results.append(result)
         
         return results, []  # No path info for standard retrieval
+    
+    def _hybrid_retrieval_strategy(self, relevant_nodes: Dict[str, List[str]], input_data: RAGStrategyInput) -> Tuple[List[RAGResult], List[PathInfo]]:
+        """Implement hybrid retrieval strategy (legacy algorithm)."""
+        results: List[RAGResult] = []
+        
+        # Local context from entity nodes (low-level keywords)
+        entity_results = self._build_local_context(
+            relevant_nodes.get("entity_nodes", []), 
+            input_data.top_k // 2
+        )
+        
+        # Global context from relationship nodes (high-level keywords)
+        relationship_results = self._build_global_context(
+            relevant_nodes.get("relationship_nodes", []), 
+            input_data.top_k // 2
+        )
+        
+        # Combine contexts with weighting
+        entity_weight = self.config.get('context', {}).get('weights', {}).get('entity_context', 0.4)
+        relationship_weight = self.config.get('context', {}).get('weights', {}).get('relationship_context', 0.4)
+        
+        # Weight and combine results
+        for result in entity_results:
+            result.score *= entity_weight
+            result.metadata['context_type'] = 'local_entity'
+            results.append(result)
+        
+        for result in relationship_results:
+            result.score *= relationship_weight
+            result.metadata['context_type'] = 'global_relationship'
+            results.append(result)
+        
+        # Sort by combined score
+        results.sort(key=lambda x: x.score, reverse=True)
+        
+        return results[:input_data.top_k], []
+    
+    def _build_local_context(self, entity_nodes: List[str], top_k: int) -> List[RAGResult]:
+        """Build local context from entity nodes."""
+        results = []
+        
+        for i, node_id in enumerate(entity_nodes[:top_k]):
+            if self.knowledge_graph is None:
+                continue
+            
+            node_data = self.knowledge_graph.nodes.get(node_id, {})
+            
+            # Build entity-focused content
+            content_parts = []
+            if 'description' in node_data:
+                content_parts.append(f"Entity: {node_data['description']}")
+            if 'content' in node_data:
+                content_parts.append(f"Content: {node_data['content']}")
+            
+            content = "; ".join(content_parts) if content_parts else f"Entity: {node_id}"
+            
+            result = RAGResult(
+                item_id=f"local_{node_id}",
+                content=content,
+                score=max(0.1, 1.0 - (i * 0.1)),
+                relevance_score=max(0.1, 1.0 - (i * 0.1)),
+                diversity_score=0.6,
+                metadata={"context_type": "local", "node_id": node_id}
+            )
+            results.append(result)
+        
+        return results
+    
+    def _build_global_context(self, relationship_nodes: List[str], top_k: int) -> List[RAGResult]:
+        """Build global context from relationship nodes."""
+        results = []
+        
+        for i, node_id in enumerate(relationship_nodes[:top_k]):
+            if self.knowledge_graph is None:
+                continue
+            
+            # Build relationship-focused content by exploring connections
+            neighbors = list(self.knowledge_graph.neighbors(node_id))
+            
+            content_parts = [f"Relationship hub: {node_id}"]
+            if neighbors:
+                content_parts.append(f"Connected to: {', '.join(neighbors[:5])}")
+            
+            node_data = self.knowledge_graph.nodes.get(node_id, {})
+            if 'description' in node_data:
+                content_parts.append(f"Description: {node_data['description']}")
+            
+            content = "; ".join(content_parts)
+            
+            result = RAGResult(
+                item_id=f"global_{node_id}",
+                content=content,
+                score=max(0.1, 1.0 - (i * 0.1)),
+                relevance_score=max(0.1, 1.0 - (i * 0.1)),
+                diversity_score=0.7,
+                metadata={"context_type": "global", "node_id": node_id, "neighbors": len(neighbors)}
+            )
+            results.append(result)
+        
+        return results
     
     def _initialize_resource_allocation(self, start_nodes: List[str]) -> Dict[str, float]:
         """Initialize resource allocation for flow-based pruning."""
@@ -658,93 +851,326 @@ class PathRAGProcessor:
         # Filter nodes above threshold
         return {node: resource for node, resource in resources.items() if resource >= threshold}
     
-    def _extract_paths_between_nodes(self, nodes: List[str], max_length: int) -> List[List[str]]:
-        """Extract paths between high-resource nodes."""
-        paths = []
+    def _find_most_related_edges_from_entities(self, nodes: List[str], max_length: int) -> List[Dict[str, Any]]:
+        """Find most related edges using multi-hop reasoning (legacy algorithm)."""
+        if self.knowledge_graph is None or len(nodes) < 2:
+            return []
         
-        for i, start_node in enumerate(nodes):
-            for end_node in nodes[i+1:]:
-                try:
-                    # Find shortest path (up to max_length)
-                    if nx.has_path(self.knowledge_graph, start_node, end_node):
-                        path = nx.shortest_path(self.knowledge_graph, start_node, end_node)
-                        if len(path) <= max_length:
-                            paths.append(path)
-                except nx.NetworkXNoPath:
+        paths_with_stats = []
+        
+        # Process entity pairs for multi-hop path discovery
+        for i, source_node in enumerate(nodes):
+            for target_node in nodes[i+1:]:
+                if source_node == target_node:
                     continue
+                
+                # Find paths between entity pairs
+                entity_paths = self._find_paths_between_entities(
+                    source_node, target_node, max_length
+                )
+                
+                for path_data in entity_paths:
+                    paths_with_stats.append(path_data)
+        
+        # Sort by path score and return top paths
+        paths_with_stats.sort(key=lambda x: x.get('score', 0), reverse=True)
+        return paths_with_stats[:50]  # Limit to top 50 paths
+    
+    def _find_paths_between_entities(self, source: str, target: str, max_hops: int) -> List[Dict[str, Any]]:
+        """Find paths between two entities with multi-hop reasoning."""
+        paths: List[Dict[str, Any]] = []
+        
+        if not nx.has_path(self.knowledge_graph, source, target):
+            return paths
+        
+        # Try different hop lengths (1-hop, 2-hop, 3-hop)
+        for hop_length in range(1, min(max_hops + 1, 4)):
+            try:
+                # Use BFS to find paths of specific length
+                hop_paths = self._find_paths_with_hops(source, target, hop_length)
+                
+                for path in hop_paths:
+                    path_data = self._create_path_data_with_narrative(path, hop_length)
+                    if path_data:
+                        paths.append(path_data)
+                        
+            except Exception as e:
+                logger.debug(f"Error finding {hop_length}-hop path from {source} to {target}: {e}")
+                continue
         
         return paths
     
-    def _score_paths_by_reliability(self, paths: List[List[str]], resources: Dict[str, float]) -> List[Tuple[List[str], float]]:
-        """Score paths by reliability using resource values."""
-        scored_paths = []
+    def _find_paths_with_hops(self, source: str, target: str, target_hops: int) -> List[List[str]]:
+        """Find all paths with specific number of hops using BFS."""
+        if target_hops <= 0 or self.knowledge_graph is None:
+            return []
         
-        for path in paths:
+        # BFS to find paths of exact length
+        queue = deque([(source, [source])])
+        paths: List[List[str]] = []
+        
+        while queue:
+            current_node, current_path = queue.popleft()
+            
+            if len(current_path) == target_hops + 1:
+                if current_node == target:
+                    paths.append(current_path)
+                continue
+            
+            if len(current_path) > target_hops + 1:
+                continue
+            
+            # Explore neighbors
+            if self.knowledge_graph is not None:
+                for neighbor in self.knowledge_graph.neighbors(current_node):
+                    if neighbor not in current_path:  # Avoid cycles
+                        new_path = current_path + [neighbor]
+                        queue.append((neighbor, new_path))
+        
+        return paths[:10]  # Limit paths per hop length
+    
+    def _create_path_data_with_narrative(self, path: List[str], hop_length: int) -> Optional[Dict[str, Any]]:
+        """Create path data with narrative description (legacy algorithm)."""
+        if len(path) < 2 or self.knowledge_graph is None:
+            return None
+        
+        # Build narrative description based on path length
+        narrative = self._build_path_narrative(path, hop_length)
+        
+        # Calculate path score using weighted BFS approach
+        path_score = self._calculate_path_score_weighted_bfs(path)
+        
+        return {
+            'path': path,
+            'hop_length': hop_length,
+            'narrative': narrative,
+            'score': path_score,
+            'path_type': f'{hop_length}_hop',
+            'source': path[0],
+            'target': path[-1],
+            'intermediate_nodes': path[1:-1] if len(path) > 2 else []
+        }
+    
+    def _build_path_narrative(self, path: List[str], hop_length: int) -> str:
+        """Build narrative description of path (legacy algorithm pattern)."""
+        if len(path) < 2 or self.knowledge_graph is None:
+            return ""
+        
+        # Get node data for narrative building
+        source_data = self.knowledge_graph.nodes.get(path[0], {})
+        target_data = self.knowledge_graph.nodes.get(path[-1], {})
+        
+        source_desc = source_data.get('description', f'entity {path[0]}')
+        target_desc = target_data.get('description', f'entity {path[-1]}')
+        
+        if hop_length == 1:
+            # Direct connection
+            edge_data = self.knowledge_graph.get_edge_data(path[0], path[1], {})
+            edge_desc = edge_data.get('description', 'connected to')
+            narrative = f"The entity {path[0]} ({source_desc}) is {edge_desc} {path[1]} ({target_desc})"
+            
+        elif hop_length == 2:
+            # 2-hop connection
+            bridge_node = path[1]
+            bridge_data = self.knowledge_graph.nodes.get(bridge_node, {})
+            bridge_desc = bridge_data.get('description', f'entity {bridge_node}')
+            
+            edge1_data = self.knowledge_graph.get_edge_data(path[0], path[1], {})
+            edge2_data = self.knowledge_graph.get_edge_data(path[1], path[2], {})
+            
+            edge1_desc = edge1_data.get('description', 'connected to')
+            edge2_desc = edge2_data.get('description', 'connected to')
+            
+            narrative = (f"The entity {path[0]} ({source_desc}) is {edge1_desc} "
+                        f"{bridge_node} ({bridge_desc}), which is {edge2_desc} "
+                        f"{path[2]} ({target_desc})")
+            
+        elif hop_length == 3:
+            # 3-hop connection
+            bridge1_node = path[1]
+            bridge2_node = path[2]
+            
+            bridge1_data = self.knowledge_graph.nodes.get(bridge1_node, {})
+            bridge2_data = self.knowledge_graph.nodes.get(bridge2_node, {})
+            
+            bridge1_desc = bridge1_data.get('description', f'entity {bridge1_node}')
+            bridge2_desc = bridge2_data.get('description', f'entity {bridge2_node}')
+            
+            narrative = (f"The entity {path[0]} ({source_desc}) connects through "
+                        f"{bridge1_node} ({bridge1_desc}) and {bridge2_node} ({bridge2_desc}) "
+                        f"to reach {path[-1]} ({target_desc})")
+        else:
+            # Longer paths - simplified narrative
+            intermediate = ' -> '.join(path[1:-1])
+            narrative = f"The entity {path[0]} connects to {path[-1]} through path: {intermediate}"
+        
+        return narrative
+    
+    def _calculate_path_score_weighted_bfs(self, path: List[str]) -> float:
+        """Calculate path score using weighted BFS approach (legacy algorithm)."""
+        if len(path) < 2:
+            return 0.0
+        
+        # Initialize with high score, apply decay for longer paths
+        base_score = 1.0
+        decay_factor = self.config.get('flow_decay_factor', 0.8)
+        
+        # Apply decay based on path length
+        length_penalty = decay_factor ** (len(path) - 1)
+        
+        # Calculate edge weights along path
+        edge_score = 1.0
+        if self.knowledge_graph is not None:
+            for i in range(len(path) - 1):
+                edge_data = self.knowledge_graph.get_edge_data(path[i], path[i+1], {})
+                edge_weight = edge_data.get('weight', 1.0)
+                edge_score *= edge_weight
+        
+        # Final score combines base score, length penalty, and edge weights
+        final_score = base_score * length_penalty * edge_score
+        
+        return float(final_score)
+    
+    def _score_paths_by_reliability_data(self, path_data_list: List[Dict[str, Any]], resources: Dict[str, float]) -> List[Dict[str, Any]]:
+        """Score paths by reliability using resource values and path characteristics."""
+        scored_paths: List[Dict[str, Any]] = []
+        
+        for path_data in path_data_list:
+            path = path_data.get('path', [])
             if len(path) < 2:
                 continue
             
-            # Calculate path reliability as average resource values
+            # Calculate reliability based on resource allocation
             path_resources = [resources.get(node, 0.0) for node in path]
-            reliability_score = sum(path_resources) / len(path_resources)
+            resource_score = sum(path_resources) / len(path_resources) if path_resources else 0.0
             
-            scored_paths.append((path, reliability_score))
+            # Combine with existing path score from BFS algorithm
+            bfs_score = path_data.get('score', 0.0)
+            
+            # Weighted combination of resource and BFS scores
+            reliability_score = (resource_score * 0.6) + (bfs_score * 0.4)
+            
+            # Apply path length penalty (prefer shorter, more direct paths)
+            length_penalty = 1.0 / (1.0 + len(path) * 0.1)
+            final_score = reliability_score * length_penalty
+            
+            # Update path data with final score
+            updated_path_data = path_data.copy()
+            updated_path_data['reliability_score'] = reliability_score
+            updated_path_data['final_score'] = final_score
+            updated_path_data['resource_score'] = resource_score
+            updated_path_data['length_penalty'] = length_penalty
+            
+            scored_paths.append(updated_path_data)
         
-        # Sort by reliability score (descending)
-        scored_paths.sort(key=lambda x: x[1], reverse=True)
+        # Sort by final score (descending)
+        scored_paths.sort(key=lambda x: x.get('final_score', 0.0), reverse=True)
+        
+        logger.debug(f"Scored {len(scored_paths)} paths with reliability scores")
         return scored_paths
     
-    def _paths_to_results(self, scored_paths: List[Tuple[List[str], float]]) -> List[RAGResult]:
-        """Convert scored paths to RAG results."""
+    def _paths_to_results_with_context(self, path_data_list: List[Dict[str, Any]]) -> List[RAGResult]:
+        """Convert path data to RAG results with rich context."""
         results = []
         
-        for i, (path, score) in enumerate(scored_paths):
-            # Aggregate content from path nodes
-            path_content = []
+        for i, path_data in enumerate(path_data_list):
+            path = path_data.get('path', [])
+            score = path_data.get('score', 0.0)
+            narrative = path_data.get('narrative', '')
+            hop_length = path_data.get('hop_length', 1)
+            
+            if len(path) < 2:
+                continue
+            
+            # Build rich content using narrative and node details
+            content_parts = []
+            
+            # Add narrative description
+            if narrative:
+                content_parts.append(f"Path Description: {narrative}")
+            
+            # Add node details
+            node_details = []
             for node_id in path:
                 if self.knowledge_graph is None:
                     continue
-                node_data = self.knowledge_graph.nodes[node_id]
-                content = node_data.get('content', f'Content for {node_id}')
-                path_content.append(content)
+                node_data = self.knowledge_graph.nodes.get(node_id, {})
+                node_content = node_data.get('content', '')
+                node_desc = node_data.get('description', '')
+                
+                if node_content or node_desc:
+                    detail = f"{node_id}: {node_desc or node_content}"
+                    node_details.append(detail)
             
-            aggregated_content = " -> ".join(path_content)
+            if node_details:
+                content_parts.append("Node Details: " + "; ".join(node_details))
             
-            # Create path info
+            aggregated_content = "\n".join(content_parts)
+            
+            # Create path info with rich metadata
             path_info = PathInfo(
-                path_id=f"path_{i}",
+                path_id=f"pathrag_path_{i}",
                 nodes=path,
                 edges=[f"{path[j]}-{path[j+1]}" for j in range(len(path)-1)],
                 path_score=score,
                 reliability_score=score,
-                metadata={"path_length": len(path)}
+                metadata={
+                    "path_length": len(path),
+                    "hop_length": hop_length,
+                    "path_type": path_data.get('path_type', 'unknown'),
+                    "narrative": narrative
+                }
             )
             
+            # Calculate diversity score based on unique concepts
+            unique_nodes = len(set(path))
+            diversity_score = unique_nodes / len(path) if len(path) > 0 else 0.0
+            
             result = RAGResult(
-                item_id=f"path_result_{i}",
+                item_id=f"pathrag_result_{i}",
                 content=aggregated_content,
                 score=score,
                 path_info=path_info,
                 relevance_score=score,
-                diversity_score=min(1.0, len(set(path)) / len(path)),  # Diversity based on unique nodes
-                metadata={"path_nodes": path, "path_length": len(path)}
+                diversity_score=diversity_score,
+                metadata={
+                    "path_nodes": path,
+                    "path_length": len(path),
+                    "hop_length": hop_length,
+                    "algorithm": "pathrag_multihop",
+                    "narrative": narrative
+                }
             )
             
             results.append(result)
         
         return results
     
-    def _create_path_infos(self, scored_paths: List[Tuple[List[str], float]]) -> List[PathInfo]:
-        """Create PathInfo objects for output."""
+    def _create_path_infos_from_data(self, path_data_list: List[Dict[str, Any]]) -> List[PathInfo]:
+        """Create PathInfo objects from path data."""
         path_infos = []
         
-        for i, (path, score) in enumerate(scored_paths):
+        for i, path_data in enumerate(path_data_list):
+            path = path_data.get('path', [])
+            if len(path) < 2:
+                continue
+            
             path_info = PathInfo(
-                path_id=f"explored_path_{i}",
+                path_id=f"pathrag_explored_{i}",
                 nodes=path,
                 edges=[f"{path[j]}-{path[j+1]}" for j in range(len(path)-1)],
-                path_score=score,
-                reliability_score=score,
-                metadata={"exploration_order": i, "path_length": len(path)}
+                path_score=path_data.get('final_score', 0.0),
+                reliability_score=path_data.get('reliability_score', 0.0),
+                metadata={
+                    "exploration_order": i,
+                    "path_length": len(path),
+                    "hop_length": path_data.get('hop_length', 1),
+                    "path_type": path_data.get('path_type', 'unknown'),
+                    "narrative": path_data.get('narrative', ''),
+                    "resource_score": path_data.get('resource_score', 0.0),
+                    "bfs_score": path_data.get('score', 0.0),
+                    "length_penalty": path_data.get('length_penalty', 1.0)
+                }
             )
             path_infos.append(path_info)
         

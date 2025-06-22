@@ -1,0 +1,75 @@
+# Development Environment Configuration
+# Overrides base configuration for development environment
+
+# API Server - enable reload and debug features
+api:
+  server:
+    reload: true
+    port: 8595
+    debug: true
+  
+  cors:
+    origins: ["*"]  # Allow all origins in development
+
+# Database - use local development database
+database:
+  arango:
+    default_database: "hades_dev"
+    create_if_not_exists: true
+    connection_pool_size: 5  # Smaller pool for development
+
+# vLLM - reduced resource usage for development
+vllm:
+  server:
+    gpu_memory_utilization: 0.7  # Leave room for other processes
+    tensor_parallel_size: 1
+  
+  generation:
+    max_tokens: 512  # Smaller for faster responses
+
+# Chunking - smaller chunks for faster processing
+chunking:
+  defaults:
+    chunk_size: 256
+    chunk_overlap: 25
+
+# Embedding - smaller batches for development
+embedding:
+  defaults:
+    batch_size: 16
+    timeout: 60  # Longer timeout for debugging
+
+# PathRAG - simpler configuration for development
+pathrag:
+  query:
+    top_k: 5
+    max_path_length: 3
+    max_token_for_context: 2000
+
+# ISNE Training - faster training for development
+isne:
+  training:
+    epochs: 10
+    batch_size: 128
+    learning_rate: 0.01  # Higher learning rate for faster convergence
+
+# Performance - more lenient timeouts for debugging
+performance:
+  timeouts:
+    api_request: 300  # 5 minutes for debugging
+    embedding_generation: 600  # 10 minutes
+    training: 7200  # 2 hours
+
+# Logging - debug level for development
+logging:
+  level: "DEBUG"
+  console_logging: true
+  file_logging: true
+  log_sql_queries: true
+
+# Development-specific features
+development:
+  auto_reload: true
+  debug_mode: true
+  profiling_enabled: false
+  mock_external_services: false

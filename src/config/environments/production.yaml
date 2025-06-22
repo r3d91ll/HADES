@@ -1,0 +1,135 @@
+# Production Environment Configuration
+# Optimized for production deployment with security and performance
+
+# API Server - production security and performance
+api:
+  server:
+    host: "0.0.0.0"
+    port: 8595
+    reload: false
+    debug: false
+    timeout: 60
+    max_connections: 1000
+    keepalive_timeout: 5
+  
+  security:
+    enable_auth: true
+    cors:
+      origins: []  # Restrict CORS in production
+    rate_limiting:
+      enabled: true
+      requests_per_minute: 1000
+
+# Database - production database configuration
+database:
+  arango:
+    default_database: "hades_prod"
+    create_if_not_exists: false  # Don't auto-create in production
+    connection_pool_size: 50
+    timeout: 10
+    max_retries: 5
+    retry_delay: 2.0
+
+# vLLM - optimized for production throughput
+vllm:
+  server:
+    gpu_memory_utilization: 0.95
+    tensor_parallel_size: 2  # Use multiple GPUs if available
+    max_model_len: 16384
+  
+  generation:
+    max_tokens: 2048
+    temperature: 0.7
+    context_window: 16384
+
+# Chunking - optimized chunk sizes for production
+chunking:
+  defaults:
+    chunk_size: 1024
+    chunk_overlap: 100
+
+# Embedding - high-throughput configuration
+embedding:
+  defaults:
+    batch_size: 64
+    timeout: 120
+    max_length: 1024
+  
+  gpu:
+    memory_utilization: 0.9
+
+# PathRAG - full capability for production
+pathrag:
+  query:
+    top_k: 20
+    max_path_length: 7
+    max_token_for_context: 8000
+  
+  graph:
+    similarity_threshold: 0.75
+
+# ISNE Training - production training configuration
+isne:
+  training:
+    epochs: 100
+    batch_size: 1024
+    learning_rate: 0.0001  # Conservative learning rate
+    early_stopping_patience: 10
+    checkpoint_frequency: 10
+
+# Performance - production timeouts
+performance:
+  timeouts:
+    default: 30
+    api_request: 120
+    embedding_generation: 600
+    training: 14400  # 4 hours max
+  
+  retry:
+    max_attempts: 5
+    delay: 2.0
+    backoff_factor: 1.5
+
+# Logging - info level for production
+logging:
+  level: "INFO"
+  console_logging: false
+  file_logging: true
+  log_sql_queries: false
+  structured_logging: true
+  log_rotation: true
+
+# Monitoring and Observability
+monitoring:
+  metrics:
+    enabled: true
+    port: 9090
+    endpoint: "/metrics"
+  
+  health_checks:
+    enabled: true
+    interval: 30
+    timeout: 10
+  
+  alerts:
+    enabled: true
+    notification_channels: ["email", "slack"]
+
+# Security Configuration
+security:
+  encryption:
+    at_rest: true
+    in_transit: true
+  
+  authentication:
+    token_expiry: 3600  # 1 hour
+    refresh_token_expiry: 86400  # 24 hours
+  
+  audit_logging: true
+
+# Production-specific features
+production:
+  auto_scaling: false
+  load_balancing: false
+  backup_enabled: true
+  disaster_recovery: true

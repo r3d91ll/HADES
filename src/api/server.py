@@ -24,30 +24,45 @@ from .core import PathRAGSystem
 from src.components.registry import get_global_registry
 from .isne_training_pipeline import router as isne_training_router
 from .production_pipeline import router as production_pipeline_router
+from src.config.manager import get_config_manager
 
 
-# Configure logging
+# Initialize configuration manager
+config_manager = get_config_manager()
+
+# Configure logging with settings from configuration
+log_level = config_manager.get('logging.level', 'INFO')
+log_format = config_manager.get('logging.format', "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=getattr(logging, log_level.upper()),
+    format=log_format,
 )
 logger = logging.getLogger(__name__)
 
-# Initialize FastAPI app
+# Initialize FastAPI app with configuration
+app_title = config_manager.get('api.title', 'HADES API')
+app_description = config_manager.get('api.description', 'Simple API for the HADES knowledge graph retrieval system')
+app_version = config_manager.get('version.hades', '2.0.0')
+
 app = FastAPI(
-    title="HADES API",
-    description="Simple API for the HADES knowledge graph retrieval system",
-    version="0.1.0",
+    title=app_title,
+    description=app_description,
+    version=app_version,
 )
 
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
-    allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
-)
+# Configure CORS middleware from configuration
+cors_origins = config_manager.get('api.cors.origins', ["*"])
+cors_enabled = config_manager.get('api.cors.enabled', True)
+
+if cors_enabled:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 # Include ISNE training endpoints
 app.include_router(isne_training_router)
@@ -423,5 +438,21 @@ hades_metrics_collection_errors_total{{error="collection_failed"}} 1
 
 if __name__ == "__main__":
     import uvicorn
-    logger.info("Starting HADES API server")
-    uvicorn.run("src.api.server:app", host="0.0.0.0", port=8595, reload=True)
+    
+    # Get server configuration from config manager
+    server_host = config_manager.get('api.server.host', '0.0.0.0')
+    server_port = config_manager.get('api.server.port', 8595)
+    server_reload = config_manager.get('api.server.reload', False)
+    server_timeout = config_manager.get('api.server.timeout', 30)
+    
+    logger.info(f"Starting HADES API server on {server_host}:{server_port}")
+    logger.info(f"Environment: {config_manager.environment}")
+    logger.info(f"Reload enabled: {server_reload}")
+    
+    uvicorn.run(
+        "src.api.server:app", 
+        host=server_host, 
+        port=server_port, 
+        reload=server_reload,
+        timeout_keep_alive=server_timeout
+    )

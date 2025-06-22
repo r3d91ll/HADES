@@ -1,0 +1,77 @@
+# Testing Environment Configuration
+# Optimized for automated testing and CI/CD pipelines
+
+# API Server - consistent testing configuration
+api:
+  server:
+    port: 8596  # Different port to avoid conflicts
+    reload: false
+    debug: false
+    timeout: 10  # Shorter timeouts for tests
+
+# Database - isolated test database
+database:
+  arango:
+    default_database: "hades_test"
+    create_if_not_exists: true
+    cleanup_on_exit: true  # Clean up test data
+
+# vLLM - minimal resource usage for testing
+vllm:
+  server:
+    gpu_memory_utilization: 0.5
+    tensor_parallel_size: 1
+  
+  generation:
+    max_tokens: 256
+    temperature: 0.0  # Deterministic responses for testing
+
+# Chunking - smaller chunks for faster tests
+chunking:
+  defaults:
+    chunk_size: 128
+    chunk_overlap: 10
+
+# Embedding - minimal configuration for tests
+embedding:
+  defaults:
+    batch_size: 8
+    timeout: 30
+    model_name: "all-MiniLM-L6-v2"  # Lightweight model
+
+# PathRAG - simplified for testing
+pathrag:
+  query:
+    top_k: 3
+    max_path_length: 2
+    max_token_for_context: 1000
+
+# ISNE Training - minimal training for tests
+isne:
+  training:
+    epochs: 2
+    batch_size: 32
+    learning_rate: 0.1  # High learning rate for quick convergence
+
+# Performance - strict timeouts for tests
+performance:
+  timeouts:
+    default: 10
+    api_request: 30
+    embedding_generation: 60
+    training: 300  # 5 minutes max for test training
+
+# Logging - warning level to reduce noise in tests
+logging:
+  level: "WARNING"
+  console_logging: false
+  file_logging: true
+  log_sql_queries: false
+
+# Testing-specific configuration
+testing:
+  mock_external_services: true
+  deterministic_seeds: true
+  parallel_execution: false
+  cleanup_after_tests: true
+  test_data_isolation: true
