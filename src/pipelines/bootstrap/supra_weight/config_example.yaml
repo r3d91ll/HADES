@@ -1,0 +1,71 @@
+# Example configuration for supra-weight bootstrap pipeline
+
+database:
+  url: "http://localhost:8529"
+  username: "root"
+  password: ""
+  database: "isne_bootstrap"
+
+bootstrap:
+  # Batch processing settings
+  batch_size: 1000
+  similarity_batch_size: 500
+  
+  # Edge constraints
+  max_edges_per_node: 50
+  min_edge_weight: 0.3
+  
+  # File processing (for directory input)
+  file_extensions:
+    - ".py"
+    - ".js"
+    - ".ts"
+    - ".md"
+    - ".json"
+    - ".yaml"
+
+supra_weight:
+  # Aggregation method: adaptive, weighted_sum, max, harmonic_mean
+  aggregation_method: "adaptive"
+  
+  # Minimum semantic similarity for edge creation
+  semantic_threshold: 0.5
+  
+  # Importance weights for different relationship types
+  # Higher values mean more importance in final weight calculation
+  importance_weights:
+    co_location: 1.0      # Same directory
+    import: 0.95          # Import/dependency relationships
+    structural: 0.9       # AST-based relationships
+    reference: 0.85       # Documentation references
+    semantic: 0.7         # Content similarity
+    sequential: 0.6       # Sequential chunks
+    temporal: 0.5         # Time-based relationships
+
+density:
+  # Target graph density (edges / possible edges)
+  # None for no global density limit
+  target_density: 0.1
+  
+  # Factor for local density control
+  # Higher values allow denser local clusters
+  local_density_factor: 2.0
+
+# Processing settings
+processing:
+  # Use GPU for embedding similarity computation
+  use_gpu: true
+  
+  # Include file content in nodes (for relationship detection)
+  include_content: true
+  
+  # Maximum file size to include content (1MB)
+  max_content_size: 1048576
+
+# Progress reporting
+reporting:
+  # Show progress bar
+  show_progress: true
+  
+  # Progress update interval (number of pairs)
+  progress_interval: 1000

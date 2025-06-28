@@ -1,0 +1,173 @@
+# Configuration for ANT/STS enhanced supra-weight bootstrap pipeline
+# This configuration emphasizes theory-practice bridges and semantic links
+
+database:
+  url: "http://localhost:8529"
+  username: "root"
+  password: ""
+  database: "isne_ant_sts"
+
+bootstrap:
+  # Batch processing settings
+  batch_size: 1000
+  similarity_batch_size: 500
+  
+  # Edge constraints - relaxed for theory-practice bridges
+  max_edges_per_node: 100  # Higher limit for research papers
+  min_edge_weight: 0.3     # Lower threshold to capture novel bridges
+  
+  # File processing for mixed content
+  file_extensions:
+    # Code files
+    - ".py"
+    - ".js"
+    - ".ts"
+    - ".java"
+    - ".cpp"
+    - ".h"
+    # Documentation
+    - ".md"
+    - ".rst"
+    - ".txt"
+    # Data/Config
+    - ".json"
+    - ".yaml"
+    - ".xml"
+    # Research papers (if extracted as text)
+    - ".tex"
+    - ".bib"
+
+supra_weight:
+  # Adaptive aggregation for theory-practice synergies
+  aggregation_method: "adaptive"
+  
+  # Lower thresholds for discovering novel bridges
+  semantic_threshold: 0.4  # Novel discovery bridges (0.4-0.6)
+  
+  # Adjusted weights for ANT/STS perspective
+  importance_weights:
+    co_location: 0.8        # Less important for theory-practice
+    import: 0.9             # Code dependencies
+    structural: 0.85        # AST relationships
+    reference: 1.0          # HIGHEST - theory citations & docs
+    semantic: 0.95          # HIGH - conceptual bridges
+    sequential: 0.5         # Less important across domains
+    temporal: 0.6           # Moderate for research evolution
+
+# Theory-practice bridge detection
+theory_practice:
+  enabled: true
+  # Similarity thresholds for different bridge types
+  thresholds:
+    high_confidence: 0.8      # Direct theory → implementation
+    cross_domain: 0.6         # Cross-domain conceptual bridges
+    novel_discovery: 0.4      # Unexpected connections
+  
+  # Expected bridge categories
+  bridge_types:
+    - theory_to_implementation
+    - documentation_bridge
+    - concept_translation
+    - actor_network_formation
+    - black_box_inscription
+    - sociotechnical_assembly
+    - knowledge_inscription
+
+# ANT/STS specific settings
+actor_network:
+  # Track heterogeneous networks
+  track_actor_types: true
+  actor_categories:
+    - human         # Developers, researchers
+    - non_human     # Code, papers, infrastructure
+    - hybrid        # Documentation, interfaces
+  
+  # Network stabilization tracking
+  track_stabilization: true
+  stabilization_indicators:
+    - version_control
+    - api_stability
+    - citation_count
+    - dependency_count
+
+density:
+  # Relaxed density for rich semantic networks
+  target_density: 0.15  # Higher than typical
+  
+  # Allow denser local clusters for theory domains
+  local_density_factor: 3.0
+  
+  # Special handling for bridge nodes
+  bridge_node_bonus: 20  # Extra edges for nodes bridging domains
+
+# Expected semantic bridge patterns
+semantic_bridges:
+  # High-confidence (>0.8)
+  high_confidence:
+    - "Actor-Network Theory papers ↔ Network analysis code"
+    - "Complex systems theory ↔ Multi-layer graph implementations"
+    - "Knowledge representation ↔ Data structure definitions"
+    - "Graph theory papers ↔ Graph algorithm implementations"
+  
+  # Cross-domain (0.6-0.8)
+  cross_domain:
+    - "Social media STS ↔ Data processing pipelines"
+    - "Complex systems ↔ ISNE embedding architectures"
+    - "ANT assemblages ↔ Software component interactions"
+    - "Knowledge inscription ↔ Code documentation practices"
+  
+  # Novel discovery (0.4-0.6)
+  novel_discovery:
+    - "STS methodology ↔ Software development practices"
+    - "Actor-network formation ↔ Code dependency networks"
+    - "Translation processes ↔ Data transformation pipelines"
+    - "Technological mediation ↔ API interface design"
+
+# Processing settings optimized for mixed content
+processing:
+  # GPU for similarity computation
+  use_gpu: true
+  
+  # Include content for bridge detection
+  include_content: true
+  max_content_size: 2097152  # 2MB for research papers
+  
+  # Special handling for different node types
+  node_type_detection:
+    theory_indicators:
+      - "abstract"
+      - "introduction"
+      - "methodology"
+      - "conclusion"
+      - "references"
+    practice_indicators:
+      - "import"
+      - "function"
+      - "class"
+      - "return"
+      - "implementation"
+    documentation_indicators:
+      - "usage"
+      - "example"
+      - "tutorial"
+      - "guide"
+      - "readme"
+
+# Validation goals
+validation:
+  # Minimum bridges to consider successful
+  min_theory_practice_bridges: 100
+  
+  # Expected relationship distribution
+  expected_distribution:
+    reference: 0.25      # Many theory-practice references
+    semantic: 0.35       # High semantic similarity
+    structural: 0.15     # Some structural relationships
+    co_location: 0.10    # Less important
+    other: 0.15          # Import, sequential, temporal
+  
+  # Bridge quality metrics
+  bridge_quality:
+    min_high_confidence: 20     # At least 20 strong bridges
+    min_cross_domain: 50        # At least 50 cross-domain
+    min_novel_discovery: 30     # At least 30 novel connections

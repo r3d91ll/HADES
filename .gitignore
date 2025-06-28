@@ -184,3 +184,11 @@ wandb/*
 .hades.pid
 
 things_we_need_to_talk_ablut.md
+bootstrap_graph_builder/incremental_groups/*
+bootstrap_graph_builder/phase2_metadata.json
+bootstrap_graph_builder/processing_order.json
+bootstrap_graph_builder/graph_statistics.json
+bootstrap_graph_builder/bootstrap_metadata.json
+bootstrap_graph_builder/all_chunks.json
+bootstrap_graph_builder/incremental_thermal/*
+bootstrap_graph_builder/streaming_chunks/*
