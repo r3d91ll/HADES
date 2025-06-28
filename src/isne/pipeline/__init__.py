@@ -2,4 +2,4 @@
 
 # Empty pipeline directory - functionality moved to src/isne/training/pipeline.py
 
-__all__ = []
+__all__: list[str] = []

@@ -28,17 +28,17 @@ active_jobs: Dict[str, Dict[str, Any]] = {}
 class TrainingRequest(BaseModel):
     """Request model for ISNE training."""
     
-    # Optional config overrides
-    data_dir: Optional[str] = Field(None, description="Data directory override")
-    data_percentage: Optional[float] = Field(None, ge=0.01, le=1.0, description="Data percentage (0.01-1.0)")
-    epochs: Optional[int] = Field(None, ge=1, le=200, description="Number of training epochs")
-    learning_rate: Optional[float] = Field(None, gt=0, le=0.1, description="Learning rate")
-    batch_size: Optional[int] = Field(None, ge=1, le=512, description="Batch size")
-    model_name: Optional[str] = Field(None, description="Custom model name")
-    enable_evaluation: Optional[bool] = Field(None, description="Enable post-training evaluation")
+    # Optional config overrides - removing all Optional with defaults to avoid schema issues
+    data_dir: str = Field(default="", description="Data directory override")
+    data_percentage: float = Field(default=0.1, ge=0.01, le=1.0, description="Data percentage (0.01-1.0)")
+    epochs: int = Field(default=50, ge=1, le=200, description="Number of training epochs")
+    learning_rate: float = Field(default=0.001, gt=0, le=0.1, description="Learning rate")
+    batch_size: int = Field(default=64, ge=1, le=512, description="Batch size")
+    model_name: str = Field(default="", description="Custom model name")
+    enable_evaluation: bool = Field(default=False, description="Enable post-training evaluation")
     
     # Job configuration
-    job_id: Optional[str] = Field(None, description="Custom job ID (auto-generated if not provided)")
+    job_id: str = Field(default="", description="Custom job ID (auto-generated if not provided)")
 
 
 class TrainingResponse(BaseModel):
@@ -66,7 +66,7 @@ class JobStatusResponse(BaseModel):
     results: Optional[Dict[str, Any]] = None
 
 
-@router.post("/train", response_model=TrainingResponse)
+@router.post("/train", response_model=TrainingResponse, operation_id="start_training")
 async def start_training(request: TrainingRequest, background_tasks: BackgroundTasks):
     """
     Start ISNE training pipeline.
@@ -76,7 +76,7 @@ async def start_training(request: TrainingRequest, background_tasks: BackgroundT
     """
     try:
         # Generate job ID if not provided
-        job_id = request.job_id or f"training_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
+        job_id = request.job_id.strip() if request.job_id.strip() else f"training_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
         
         # Check if job already exists
         if job_id in active_jobs:
@@ -85,21 +85,21 @@ async def start_training(request: TrainingRequest, background_tasks: BackgroundT
                 detail=f"Job ID '{job_id}' already exists. Please use a different job_id or omit for auto-generation."
             )
         
-        # Prepare config overrides
+        # Prepare config overrides (treat empty strings as "not provided")
         overrides = {}
-        if request.data_dir is not None:
+        if request.data_dir.strip():
             overrides["data.data_dir"] = request.data_dir
-        if request.data_percentage is not None:
+        if request.data_percentage != 0.1:  # Only override if different from default
             overrides["data.data_percentage"] = request.data_percentage
-        if request.epochs is not None:
+        if request.epochs != 50:  # Only override if different from default
             overrides["training.epochs"] = request.epochs
-        if request.learning_rate is not None:
+        if request.learning_rate != 0.001:  # Only override if different from default
             overrides["training.learning_rate"] = request.learning_rate
-        if request.batch_size is not None:
+        if request.batch_size != 64:  # Only override if different from default
             overrides["training.batch_size"] = request.batch_size
-        if request.model_name is not None:
+        if request.model_name.strip():
             overrides["model.target_model.name"] = request.model_name
-        if request.enable_evaluation is not None:
+        if request.enable_evaluation != False:  # Only override if True
             overrides["evaluation.enabled"] = request.enable_evaluation
         
         # Initialize job tracking
@@ -132,7 +132,7 @@ async def start_training(request: TrainingRequest, background_tasks: BackgroundT
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/jobs/{job_id}", response_model=JobStatusResponse)
+@router.get("/jobs/{job_id}", response_model=JobStatusResponse, operation_id="get_job_status")
 async def get_job_status(job_id: str):
     """
     Get status of a training job.
@@ -156,7 +156,7 @@ async def get_job_status(job_id: str):
     )
 
 
-@router.get("/jobs", response_model=Dict[str, JobStatusResponse])
+@router.get("/jobs", response_model=Dict[str, JobStatusResponse], operation_id="list_jobs")
 async def list_jobs():
     """
     List all training jobs.
@@ -179,7 +179,7 @@ async def list_jobs():
     return jobs
 
 
-@router.delete("/jobs/{job_id}")
+@router.delete("/jobs/{job_id}", operation_id="cancel_job")
 async def cancel_job(job_id: str):
     """
     Cancel a training job.

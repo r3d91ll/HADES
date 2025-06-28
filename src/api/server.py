@@ -14,10 +14,13 @@ from fastapi.responses import Response, JSONResponse
 
 try:
     from fastapi_mcp import FastApiMCP
+    from .utils import CleanedFastApiMCP, CLEANED_FASTAPI_MCP_AVAILABLE
     FASTAPI_MCP_AVAILABLE = True
 except ImportError:
     FastApiMCP = None
+    CleanedFastApiMCP = None  # type: ignore[assignment,misc]
     FASTAPI_MCP_AVAILABLE = False
+    CLEANED_FASTAPI_MCP_AVAILABLE = False
 
 from src.types.api import WriteRequest, QueryRequest, WriteResponse, QueryResponse, StatusResponse, QueryResult
 from .core import PathRAGSystem
@@ -70,6 +73,10 @@ app.include_router(isne_training_router)
 # Include production pipeline endpoints  
 app.include_router(production_pipeline_router)
 
+# Include multi-engine RAG endpoints
+from .engines.router import router as engines_router
+app.include_router(engines_router)
+
 # Disable OAuth for MCP integration to avoid long tool names
 logger.info("OAuth disabled for MCP integration to prevent tool name length issues")
 
@@ -77,8 +84,9 @@ logger.info("OAuth disabled for MCP integration to prevent tool name length issu
 auth_config = None
 
 # Initialize FastAPI-MCP integration without OAuth
-if FASTAPI_MCP_AVAILABLE:
-    mcp_server = FastApiMCP(
+if FASTAPI_MCP_AVAILABLE and CLEANED_FASTAPI_MCP_AVAILABLE:
+    # Use the cleaned FastAPI-MCP wrapper to fix schema issues
+    mcp_server = CleanedFastApiMCP(
         app,
         name="HADES",
         description="Heuristic Adaptive Data Extrapolation System - Production RAG Service"
@@ -91,7 +99,22 @@ if FASTAPI_MCP_AVAILABLE:
     # Mount the MCP server with registered tools
     try:
         mcp_server.mount()
-        logger.info("✓ FastAPI-MCP integration enabled with registered HADES tools")
+        logger.info("✓ FastAPI-MCP integration enabled with cleaned schemas for HADES tools")
+    except Exception as e:
+        logger.error(f"Failed to mount FastAPI-MCP: {e}")
+        logger.info("Continuing without FastAPI-MCP integration")
+elif FASTAPI_MCP_AVAILABLE:
+    # Fall back to standard FastAPI-MCP if cleaned version is not available
+    logger.warning("Cleaned FastAPI-MCP wrapper not available, using standard version")
+    mcp_server = FastApiMCP(
+        app,
+        name="HADES",
+        description="Heuristic Adaptive Data Extrapolation System - Production RAG Service"
+    )
+
+    try:
+        mcp_server.mount()
+        logger.info("✓ FastAPI-MCP integration enabled with standard schemas for HADES tools")
     except Exception as e:
         logger.error(f"Failed to mount FastAPI-MCP: {e}")
         logger.info("Continuing without FastAPI-MCP integration")
@@ -223,7 +246,7 @@ def generate_api_metrics() -> str:
         return ""
 
 
-@app.post("/write", response_model=WriteResponse)
+@app.post("/write", response_model=WriteResponse, operation_id="write")
 async def write(
     request: WriteRequest, 
     system: PathRAGSystem = Depends(get_pathrag_system)
@@ -254,7 +277,7 @@ async def write(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/query", response_model=QueryResponse)
+@app.post("/query", response_model=QueryResponse, operation_id="query")
 async def query(
     request: QueryRequest, 
     system: PathRAGSystem = Depends(get_pathrag_system)
@@ -300,7 +323,7 @@ async def query(
 # OAuth discovery endpoint removed to prevent long MCP tool names
 
 
-@app.get("/")
+@app.get("/", operation_id="root")
 async def root() -> Dict[str, Any]:
     """
     Root endpoint providing API information.
@@ -318,13 +341,17 @@ async def root() -> Dict[str, Any]:
             "GET /status": "Check system status",
             "GET /metrics": "Prometheus metrics",
             "GET /health": "Health check endpoint",
+            "GET /engines/": "List available RAG engines",
+            "POST /engines/{engine_type}/retrieve": "Engine-specific retrieval",
+            "POST /engines/compare": "Compare multiple engines",
+            "POST /engines/experiments": "Start A/B testing experiments",
             "GET /docs": "OpenAPI documentation",
             "GET /redoc": "ReDoc documentation"
         }
     }
 
 
-@app.post("/register", response_model=None)
+@app.post("/register", response_model=None, operation_id="register")
 async def register(request: Request) -> Union[Dict[str, Any], JSONResponse]:
     """
     Client registration endpoint for MCP.
@@ -362,7 +389,7 @@ async def register(request: Request) -> Union[Dict[str, Any], JSONResponse]:
         )
 
 
-@app.get("/status", response_model=StatusResponse)
+@app.get("/status", response_model=StatusResponse, operation_id="status")
 async def status(system: PathRAGSystem = Depends(get_pathrag_system)) -> StatusResponse:
     """
     Check the system status.
@@ -384,7 +411,7 @@ async def status(system: PathRAGSystem = Depends(get_pathrag_system)) -> StatusR
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/health")
+@app.get("/health", operation_id="health")
 async def health() -> Dict[str, str]:
     """
     Health check endpoint.
@@ -395,7 +422,129 @@ async def health() -> Dict[str, str]:
     return {"status": "healthy", "service": "HADES API"}
 
 
-@app.get("/metrics")
+@app.get("/debug/mcp-tools", operation_id="debug_mcp_tools")
+async def debug_mcp_tools() -> Dict[str, Any]:
+    """
+    Debug endpoint to inspect generated MCP tools and their schemas.
+    
+    Returns:
+        Information about all generated MCP tools including schema validation
+    """
+    try:
+        global mcp_server
+        
+        if not hasattr(mcp_server, 'tools') or not mcp_server.tools:
+            return {"error": "No MCP tools available", "tools": []}
+        
+        tools_info = []
+        for i, tool in enumerate(mcp_server.tools):
+            tool_name = getattr(tool, 'name', f'tool_{i}')
+            tool_description = getattr(tool, 'description', 'No description')
+            
+            # Get input schema if available
+            input_schema = None
+            schema_issues = []
+            schema_hash = None
+            
+            if hasattr(tool, 'inputSchema') and tool.inputSchema:
+                input_schema = tool.inputSchema
+                
+                # Create a hash of the schema for identification
+                import hashlib
+                schema_str = json.dumps(input_schema, sort_keys=True)
+                schema_hash = hashlib.md5(schema_str.encode()).hexdigest()[:8]
+                
+                # Validate the schema if we have the cleaned MCP wrapper
+                if hasattr(mcp_server, '_validate_json_schema_2020_12'):
+                    schema_issues = mcp_server._validate_json_schema_2020_12(input_schema)
+            
+            tools_info.append({
+                "hades_index": i,  # HADES internal index
+                "name": tool_name,
+                "description": tool_description,
+                "has_input_schema": input_schema is not None,
+                "input_schema": input_schema,
+                "schema_issues": schema_issues,
+                "schema_hash": schema_hash,
+                "operation_id": getattr(tool, 'operation_id', None) if hasattr(tool, 'operation_id') else None
+            })
+        
+        # Count tools with issues
+        tools_with_issues = [t for t in tools_info if t["schema_issues"]]
+        
+        # Create a mapping guide for Claude Code
+        claude_code_mapping = {}
+        for i, tool in enumerate(tools_info):
+            claude_code_mapping[tool["name"]] = {
+                "hades_index": i,
+                "schema_hash": tool["schema_hash"],
+                "has_issues": bool(tool["schema_issues"])
+            }
+        
+        return {
+            "total_hades_tools": len(tools_info),
+            "tools_with_schema_issues": len(tools_with_issues),
+            "problematic_tools": [
+                {
+                    "hades_index": t["hades_index"],
+                    "name": t["name"],
+                    "issues": t["schema_issues"],
+                    "schema_hash": t["schema_hash"]
+                } for t in tools_with_issues
+            ],
+            "claude_code_mapping_guide": claude_code_mapping,
+            "all_tools": tools_info,
+            "identification_help": {
+                "message": "To identify which HADES tool is Claude Code's tool 91:",
+                "steps": [
+                    "1. In Claude Code, try to use a tool that might be tool 91",
+                    "2. Check the tool name in the error message or response",
+                    "3. Match the tool name with 'claude_code_mapping_guide' above",
+                    "4. Look for tools with 'has_issues': true in the mapping"
+                ]
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in debug MCP tools endpoint: {e}")
+        return {"error": str(e), "tools": []}
+
+
+@app.get("/debug/list-tools", operation_id="list_hades_tools")
+async def list_hades_tools() -> Dict[str, Any]:
+    """
+    Simple endpoint to list all HADES tool names for identification.
+    
+    Returns:
+        List of HADES tool names and their HADES indices
+    """
+    try:
+        global mcp_server
+        
+        if not hasattr(mcp_server, 'tools') or not mcp_server.tools:
+            return {"error": "No MCP tools available", "tools": []}
+        
+        tool_list = []
+        for i, tool in enumerate(mcp_server.tools):
+            tool_name = getattr(tool, 'name', f'tool_{i}')
+            tool_list.append({
+                "hades_index": i,
+                "name": tool_name,
+                "operation_id": getattr(tool, 'operation_id', None) if hasattr(tool, 'operation_id') else None
+            })
+        
+        return {
+            "message": "All HADES tools (use this to identify which is Claude Code's tool 91)",
+            "total_tools": len(tool_list),
+            "tools": tool_list
+        }
+        
+    except Exception as e:
+        logger.error(f"Error listing HADES tools: {e}")
+        return {"error": str(e), "tools": []}
+
+
+@app.get("/metrics", operation_id="metrics")
 async def metrics() -> Response:
     """
     Unified Prometheus metrics endpoint for all HADES components.

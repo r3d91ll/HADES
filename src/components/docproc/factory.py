@@ -33,6 +33,8 @@ def create_docproc_component(
     """
     config = config or {}
     
+    processor: DocumentProcessor
+    
     if component_type == "core":
         processor = CoreDocumentProcessor()
         if hasattr(processor, 'configure'):

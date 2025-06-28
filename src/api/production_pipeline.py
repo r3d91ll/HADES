@@ -19,8 +19,8 @@ from pydantic import BaseModel, Field
 
 # Import our production pipeline modules
 import sys
-# Add the production pipelines directory to path
-sys.path.append(str(Path(__file__).parent.parent / "pipelines" / "production"))
+# Add the pipelines directory to path  
+sys.path.append(str(Path(__file__).parent.parent))
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +30,8 @@ router = APIRouter(prefix="/prod", tags=["production"])
 class BootstrapRequest(BaseModel):
     """Request for bootstrapping data from ISNE test dataset."""
     input_dir: str = Field(..., description="Path to ISNE test dataset directory")
-    database_name: str = Field(default=None, description="Target database name (uses config default if not provided)")
-    similarity_threshold: float = Field(default=None, description="Similarity threshold for edge creation (uses config default if not provided)")
+    database_name: Optional[str] = Field(default=None, description="Target database name (uses config default if not provided)")
+    similarity_threshold: Optional[float] = Field(default=None, description="Similarity threshold for edge creation (uses config default if not provided)")
     debug_logging: bool = Field(default=False, description="Enable debug logging")
     config_overrides: Dict[str, Any] = Field(default={}, description="Configuration overrides")
 
@@ -94,21 +94,47 @@ async def run_bootstrap_pipeline(request: BootstrapRequest, operation_id: str):
     try:
         update_pipeline_status(operation_id, "running", "Initializing bootstrap pipeline")
         
-        # Import and run bootstrap script
-        from bootstrap_full_isne_testdata import FullISNETestDataBootstrap
+        # Import and run bootstrap pipeline
+        from pipelines.bootstrap.supra_weight import SupraWeightBootstrapPipeline
         
         update_pipeline_status(operation_id, "running", "Processing ISNE test dataset")
         
-        bootstrap = FullISNETestDataBootstrap(
-            input_dir=request.input_dir,
-            database_name=request.database_name
-        )
+        # Create config for bootstrap pipeline
+        config = {
+            "database": {
+                "url": "http://localhost:8529",
+                "username": "root", 
+                "password": "",
+                "database": request.database_name or "isne_bootstrap"
+            },
+            "bootstrap": {
+                "batch_size": 1000,
+                "max_edges_per_node": 50,
+                "min_edge_weight": request.similarity_threshold or 0.3,
+                "file_extensions": [".py", ".md", ".json"]
+            },
+            "supra_weight": {
+                "aggregation_method": "adaptive",
+                "semantic_threshold": request.similarity_threshold or 0.5
+            },
+            "density": {
+                "target_density": 0.1,
+                "local_density_factor": 2.0
+            }
+        }
+        
+        # Override with any custom config
+        if request.config_overrides:
+            import json
+            config = json.loads(json.dumps(config))  # Deep copy
+            for key, value in request.config_overrides.items():
+                if key in config:
+                    config[key].update(value)
+        
+        bootstrap = SupraWeightBootstrapPipeline(config)
         
         # Run the bootstrap process
-        result = bootstrap.run_full_bootstrap(
-            similarity_threshold=request.similarity_threshold,
-            debug_logging=request.debug_logging
-        )
+        result = bootstrap.run(request.input_dir)
         
         update_pipeline_status(operation_id, "completed", "Bootstrap completed successfully", result)
         
@@ -198,7 +224,7 @@ async def run_collection_pipeline(request: SemanticCollectionRequest, operation_
 
 # API Endpoints
 
-@router.post("/bootstrap", response_model=PipelineResponse)
+@router.post("/bootstrap", response_model=PipelineResponse, operation_id="bootstrap")
 async def bootstrap_data(request: BootstrapRequest, background_tasks: BackgroundTasks):
     """
     Bootstrap ISNE test dataset into ArangoDB.
@@ -225,7 +251,7 @@ async def bootstrap_data(request: BootstrapRequest, background_tasks: Background
         details={"operation_id": operation_id, "status_endpoint": f"/prod/status/{operation_id}"}
     )
 
-@router.post("/train", response_model=PipelineResponse)
+@router.post("/train", response_model=PipelineResponse, operation_id="train_model")
 async def train_isne_model(request: TrainingRequest, background_tasks: BackgroundTasks):
     """
     Train ISNE model on graph data.
@@ -251,7 +277,7 @@ async def train_isne_model(request: TrainingRequest, background_tasks: Backgroun
         details={"operation_id": operation_id, "status_endpoint": f"/prod/status/{operation_id}"}
     )
 
-@router.post("/apply-model", response_model=PipelineResponse)
+@router.post("/apply-model", response_model=PipelineResponse, operation_id="apply_model")
 async def apply_isne_model(request: ModelApplicationRequest, background_tasks: BackgroundTasks):
     """
     Apply trained ISNE model to create production database.
@@ -277,7 +303,7 @@ async def apply_isne_model(request: ModelApplicationRequest, background_tasks: B
         details={"operation_id": operation_id, "status_endpoint": f"/prod/status/{operation_id}"}
     )
 
-@router.post("/build-collections", response_model=PipelineResponse)
+@router.post("/build-collections", response_model=PipelineResponse, operation_id="build_collections")
 async def build_collections(request: SemanticCollectionRequest, background_tasks: BackgroundTasks):
     """
     Build semantic collections for production use.
@@ -303,7 +329,7 @@ async def build_collections(request: SemanticCollectionRequest, background_tasks
         details={"operation_id": operation_id, "status_endpoint": f"/prod/status/{operation_id}"}
     )
 
-@router.get("/status/{operation_id}", response_model=PipelineStatus)
+@router.get("/status/{operation_id}", response_model=PipelineStatus, operation_id="get_status")
 async def get_pipeline_status(operation_id: str):
     """Get status of a running pipeline operation."""
     if operation_id not in _pipeline_status:
@@ -311,12 +337,12 @@ async def get_pipeline_status(operation_id: str):
     
     return _pipeline_status[operation_id]
 
-@router.get("/status", response_model=List[PipelineStatus])
+@router.get("/status", response_model=List[PipelineStatus], operation_id="list_operations")
 async def list_operations():
     """List all pipeline operations and their status."""
     return list(_pipeline_status.values())
 
-@router.post("/run-pipeline", response_model=PipelineResponse)
+@router.post("/run-pipeline", response_model=PipelineResponse, operation_id="run_pipeline")
 async def run_pipeline(
     input_dir: str,
     database_prefix: str = "hades_production",

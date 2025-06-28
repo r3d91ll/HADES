@@ -148,7 +148,6 @@ class DoclingDocumentProcessor(DocumentProcessor):
                     return False
             else:
                 return True
-            
         except Exception as e:
             self.logger.error(f"Health check failed: {e}")
             return False

@@ -863,3 +863,23 @@ class TestClass:
         # Keep only last 50 errors to prevent memory growth
         if len(self._stats["errors"]) > 50:
             self._stats["errors"] = self._stats["errors"][-50:]
+    
+    def get_metrics(self) -> Dict[str, Any]:
+        """
+        Get processing metrics.
+        
+        Returns:
+            Dictionary containing processing metrics
+        """
+        return {
+            "total_files_processed": self._stats.get("total_files_processed", 0),
+            "successful_files": self._stats.get("successful_files", 0),
+            "failed_files": self._stats.get("failed_files", 0),
+            "total_classes": self._stats.get("total_classes", 0),
+            "total_functions": self._stats.get("total_functions", 0),
+            "total_methods": self._stats.get("total_methods", 0),
+            "total_imports": self._stats.get("total_imports", 0),
+            "total_relationships": self._stats.get("total_relationships", 0),
+            "errors": len(self._stats.get("errors", [])),
+            "last_updated": self._stats.get("last_updated", "")
+        }
