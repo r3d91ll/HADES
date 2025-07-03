@@ -1,0 +1,143 @@
+# PathRAG Configuration
+# This configuration defines the PathRAG strategy parameters for HADES
+
+pathrag:
+  # Core PathRAG Algorithm Parameters
+  flow_decay_factor: 0.8                # Resource flow decay factor (0.0-1.0)
+  pruning_threshold: 0.3                 # Resource pruning threshold (0.0-1.0)
+  max_path_length: 5                     # Maximum path length for exploration
+  max_iterations: 10                     # Maximum resource allocation iterations
+  convergence_threshold: 0.001           # Resource flow convergence threshold
+
+  # Multi-hop Reasoning Configuration
+  multihop:
+    enable_1hop: true                    # Enable 1-hop path exploration
+    enable_2hop: true                    # Enable 2-hop path exploration  
+    enable_3hop: true                    # Enable 3-hop path exploration
+    max_paths_per_pair: 3                # Maximum paths between entity pairs
+    path_scoring_method: "weighted_bfs"  # Path scoring algorithm
+    
+  # Hybrid Retrieval Configuration
+  retrieval:
+    modes: ["naive", "local", "global", "hybrid", "pathrag"]
+    default_mode: "hybrid"
+    local_search_enabled: true           # Enable entity-based local search
+    global_search_enabled: true         # Enable relationship-based global search
+    context_combination_method: "weighted_merge"
+    
+    # Keywords Extraction
+    keyword_extraction:
+      max_high_level_keywords: 10        # Maximum high-level (conceptual) keywords
+      max_low_level_keywords: 15         # Maximum low-level (specific) keywords
+      use_llm_extraction: true           # Use LLM for keyword extraction
+      fallback_to_simple: true          # Fallback to simple extraction if LLM fails
+    
+  # Entity Extraction Configuration  
+  entity_extraction:
+    max_gleaning_iterations: 3           # Maximum iterative extraction rounds
+    entity_deduplication_threshold: 0.8  # Similarity threshold for entity merging
+    relationship_deduplication_threshold: 0.7
+    use_structured_prompts: true         # Use structured JSON prompts
+    
+  # Resource Allocation Configuration
+  resource_allocation:
+    initial_resource_per_node: 1.0       # Initial resource allocation
+    alpha_decay: 0.8                     # Alpha parameter for resource decay
+    threshold_pruning: 0.3               # Threshold for path pruning
+    enable_early_stopping: true         # Enable early stopping for weak paths
+    
+  # Context Management
+  context:
+    max_token_budget: 8192               # Maximum tokens for context
+    context_truncation_method: "priority" # How to truncate when over budget
+    preserve_path_structure: true       # Maintain path narrative structure
+    
+    # Context Sources Weight
+    weights:
+      entity_context: 0.4                # Weight for entity-based context
+      relationship_context: 0.4         # Weight for relationship-based context  
+      source_text_context: 0.2          # Weight for original source text
+      
+  # Performance Configuration
+  performance:
+    batch_processing_enabled: true      # Enable batch processing
+    embedding_cache_enabled: true      # Cache embeddings for performance
+    graph_cache_enabled: true          # Cache graph operations
+    parallel_path_exploration: true    # Parallel path finding
+    
+  # Integration Configuration
+  integration:
+    storage_backend: "arangodb"         # Storage backend to use
+    embedding_adapter: "modernbert"     # Embedding adapter to use  
+    graph_enhancer: "isne"              # Graph enhancement method
+    llm_provider: "model_engine"        # LLM provider for generation
+    
+    # Storage Configuration
+    storage:
+      type: "arangodb"
+      graph_collection: "knowledge_graph"
+      entity_collection: "entities"
+      relationship_collection: "relationships"
+      chunk_collection: "text_chunks"
+      
+    # Embedding Configuration  
+    embedder:
+      type: "modernbert"
+      model_name: "answerdotai/ModernBERT-base"
+      embedding_dimension: 768
+      batch_size: 32
+      device: "auto"                     # auto, cpu, cuda
+      
+    # Graph Enhancement Configuration
+    graph_enhancer:
+      type: "isne"
+      enhancement_method: "attention_weighted"
+      isne_dimensions: 256
+      attention_heads: 8
+      
+  # Validation and Quality Control
+  validation:
+    min_path_reliability: 0.1           # Minimum path reliability score
+    max_paths_returned: 50              # Maximum paths in results
+    diversity_threshold: 0.3            # Minimum diversity between paths
+    quality_filtering_enabled: true    # Enable result quality filtering
+    
+  # Debugging and Monitoring
+  debug:
+    log_resource_flow: false            # Log resource allocation process
+    log_path_construction: false       # Log path construction details
+    log_context_building: false        # Log context building process
+    save_intermediate_results: false   # Save intermediate processing results
+    
+  # Experimental Features
+  experimental:
+    enable_path_caching: true           # Cache frequently used paths
+    enable_adaptive_thresholds: false  # Dynamically adjust thresholds
+    enable_feedback_learning: false    # Learn from query feedback
+    
+# Environment-specific Overrides
+environments:
+  development:
+    debug:
+      log_resource_flow: true
+      log_path_construction: true
+      save_intermediate_results: true
+    performance:
+      batch_processing_enabled: false
+      
+  testing:
+    pathrag:
+      max_iterations: 5
+      convergence_threshold: 0.01
+    validation:
+      max_paths_returned: 10
+      
+  production:
+    performance:
+      embedding_cache_enabled: true
+      graph_cache_enabled: true
+      parallel_path_exploration: true
+    debug:
+      log_resource_flow: false
+      log_path_construction: false
+      save_intermediate_results: false

@@ -1,0 +1,47 @@
+{
+  "internal_relationships": [
+    {
+      "source": "server.py",
+      "target": "JinaV4Processor",
+      "type": "instantiates",
+      "purpose": "Creates and manages processor instance"
+    }
+  ],
+  "external_relationships": [
+    {
+      "source": "/src/api",
+      "target": "/src/jina_v4",
+      "type": "depends_on",
+      "purpose": "Uses Jina v4 processor for document handling"
+    },
+    {
+      "source": "/src/api",
+      "target": "/src/pathrag",
+      "type": "will_integrate",
+      "purpose": "Will use PathRAG for query retrieval"
+    },
+    {
+      "source": "/src/api",
+      "target": "/src/storage",
+      "type": "will_integrate",
+      "purpose": "Will use storage for persistence"
+    }
+  ],
+  "api_contracts": [
+    {
+      "endpoint": "/process/directory",
+      "method": "POST",
+      "purpose": "Batch process documents in directory"
+    },
+    {
+      "endpoint": "/process/file",
+      "method": "POST",
+      "purpose": "Process single document"
+    },
+    {
+      "endpoint": "/query",
+      "method": "POST",
+      "purpose": "Query knowledge graph"
+    }
+  ]
+}

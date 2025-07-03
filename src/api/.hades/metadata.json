@@ -1,0 +1,71 @@
+{
+  "directory": {
+    "path": "/src/api",
+    "purpose": "REST API service for exposing Jina v4 processing pipeline with PathRAG integration",
+    "domain": "api_services",
+    "last_modified": "2025-01-03T18:00:00Z"
+  },
+  "contents": {
+    "implementation_files": [
+      {
+        "name": "server.py",
+        "type": "api_server",
+        "purpose": "FastAPI server implementation",
+        "features": [
+          "directory processing endpoints",
+          "file processing endpoints",
+          "text processing endpoints",
+          "query endpoints with PathRAG retrieval",
+          "health checks",
+          "graph management endpoints",
+          "configuration endpoints",
+          "PathRAG processor initialization",
+          "Fallback query handling"
+        ],
+        "status": "complete",
+        "recent_changes": [
+          "Integrated PathRAG processor for query handling",
+          "Added PathRAG initialization with configurable backends",
+          "Implemented fallback mechanisms for query processing"
+        ]
+      },
+      {
+        "name": "pathrag_engine.py",
+        "type": "core_engine",
+        "purpose": "PathRAG engine singleton management",
+        "features": [
+          "lazy initialization",
+          "singleton pattern",
+          "configuration management",
+          "error handling"
+        ],
+        "status": "complete"
+      },
+      {
+        "name": "__init__.py",
+        "type": "module_init",
+        "exports": ["app", "get_pathrag_engine"]
+      }
+    ]
+  },
+  "integration_points": {
+    "uses": [
+      "src.jina_v4.jina_processor",
+      "src.jina_v4.factory",
+      "src.pathrag.pathrag_rag_strategy",
+      "src.types.components.contracts"
+    ],
+    "provides": [
+      "REST API endpoints",
+      "OpenAPI documentation",
+      "async request handling"
+    ]
+  },
+  "configuration": {
+    "server": {
+      "host": "0.0.0.0",
+      "port": 8000,
+      "cors_enabled": true
+    }
+  }
+}

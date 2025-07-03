@@ -1,0 +1,116 @@
+# Directory-Aware ISNE Training Configuration
+
+model:
+  # Base ISNE parameters
+  input_dim: 768  # Dimension of input embeddings
+  embedding_dim: 768  # Final embedding dimension
+  hidden_dims: [1024, 512]  # Hidden layer dimensions
+  num_layers: 3  # Number of GCN layers
+  dropout: 0.1  # Dropout rate
+  
+  # Directory-aware features
+  use_directory_features: true
+  directory_embedding_dim: 64  # Dimension of learned directory embeddings
+  max_directory_depth: 10  # Maximum directory depth to encode
+
+training:
+  # Basic training parameters
+  batch_size: 256
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  num_epochs: 100
+  early_stopping_patience: 10
+  gradient_clip_norm: 1.0
+  
+  # Learning rate scheduling
+  scheduler:
+    type: "reduce_on_plateau"
+    mode: "min"
+    patience: 5
+    factor: 0.5
+    min_lr: 0.00001
+
+sampling:
+  # Hierarchical batch sampling
+  strategy: "hierarchical"  # Options: hierarchical, random, balanced
+  same_directory_weight: 2.0  # Weight for sampling from same directory
+  negative_sampling_ratio: 5  # Ratio of negative to positive samples
+  
+  # Directory balancing
+  balance_leaf_directories: true  # Balance sampling between leaf and non-leaf
+  max_directories_per_batch: 5  # Maximum anchor directories per batch
+
+loss:
+  # Loss component weights
+  weights:
+    feature_reconstruction: 1.0
+    structural: 1.0
+    contrastive: 1.0
+    directory_coherence: 0.5
+  
+  # Contrastive loss parameters
+  contrastive:
+    temperature: 0.1
+    margin: 0.5
+  
+  # Directory coherence parameters
+  directory_coherence:
+    intra_directory_margin: 0.2  # Max distance for same directory
+    inter_directory_margin: 0.5  # Min distance for different directories
+
+validation:
+  # Validation settings
+  interval: 5  # Validate every N epochs
+  batch_size: 512  # Larger batch for validation
+  
+  # Metrics to track
+  metrics:
+    - intra_directory_similarity
+    - inter_directory_distance
+    - clustering_quality
+    - retrieval_accuracy
+
+checkpoint:
+  # Checkpointing settings
+  save_interval: 10  # Save checkpoint every N epochs
+  save_best: true  # Save best model based on validation loss
+  checkpoint_dir: "checkpoints/isne_directory_aware"
+  
+  # What to save
+  save_components:
+    - model_state
+    - optimizer_state
+    - scheduler_state
+    - training_history
+    - directory_metadata
+
+debug:
+  # Debug mode settings
+  enabled: false
+  output_dir: "debug_output/isne_training"
+  
+  # Components to debug
+  components:
+    - hierarchical_batch_sampler
+    - directory_aware_model
+    - loss_computation
+    - validation_metrics
+  
+  # Debug output settings
+  save_interval: 100  # Save debug info every N batches
+  max_samples: 10  # Maximum samples to save per component
+
+# Hardware settings
+device:
+  type: "cuda"  # cuda or cpu
+  gpu_id: 0  # Which GPU to use
+  
+# Memory optimization
+memory:
+  gradient_accumulation_steps: 1  # For large graphs
+  mixed_precision: false  # Use automatic mixed precision
+  
+# Data loading
+data:
+  num_workers: 4  # Parallel data loading
+  pin_memory: true  # Pin memory for faster GPU transfer

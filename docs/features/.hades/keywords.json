@@ -1,0 +1,24 @@
+{
+  "technical_keywords": [
+    "AST",
+    "abstract syntax tree",
+    "code analysis",
+    "symbol extraction",
+    "dependency tracking",
+    "call graph",
+    "semantic chunking"
+  ],
+  "domain_keywords": [
+    "code intelligence",
+    "Python analysis",
+    "symbol boundaries",
+    "import tracking",
+    "function signatures"
+  ],
+  "feature_keywords": [
+    "ast_analyzer",
+    "CodeSymbol",
+    "extract_symbols",
+    "analyze_code"
+  ]
+}

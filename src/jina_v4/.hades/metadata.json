@@ -1,0 +1,111 @@
+{
+  "directory": {
+    "path": "/src/jina_v4",
+    "purpose": "Unified document processing using Jina v4 multimodal embeddings",
+    "domain": "document_processing_and_embedding",
+    "created": "2024-01-20T12:00:00Z",
+    "last_processed": "2025-01-03T18:00:00Z",
+    "last_modified": "2025-01-03T18:00:00Z"
+  },
+  "contents": {
+    "implementation_files": [
+      {
+        "name": "jina_processor.py",
+        "type": "core_processor",
+        "implements": "Unified pipeline for parsing, embedding, chunking, and keyword extraction",
+        "status": "complete",
+        "features": [
+          "AST-based code analysis integration",
+          "Hierarchical keyword extraction",
+          "Semantic density calculation",
+          "Multi-format document support",
+          "Docling integration for advanced parsing",
+          "Fallback parsers for common formats"
+        ],
+        "key_classes": ["JinaV4Processor"],
+        "recent_changes": [
+          "Implemented Docling-based document parsing",
+          "Added fallback parsing for PDF, DOCX, text files",
+          "Enhanced multimodal support with image extraction"
+        ]
+      },
+      {
+        "name": "ast_analyzer.py",
+        "type": "code_analysis",
+        "implements": "AST-based code structure analysis",
+        "status": "complete",
+        "features": [
+          "Python code parsing",
+          "Function and class extraction",
+          "Dependency analysis",
+          "Code complexity metrics"
+        ],
+        "key_classes": ["ASTAnalyzer"]
+      },
+      {
+        "name": "vllm_integration.py",
+        "type": "inference_backend",
+        "implements": "vLLM integration for efficient embedding generation",
+        "status": "complete",
+        "features": [
+          "Server and local modes",
+          "Batch processing",
+          "Error handling",
+          "Direct model access for embeddings",
+          "Hidden state extraction",
+          "Adapter-specific transformations"
+        ],
+        "recent_changes": [
+          "Implemented local vLLM embedding extraction",
+          "Added hidden state extraction with transformers",
+          "Implemented projection matrices for dimension reduction",
+          "Added adapter-specific transformations"
+        ]
+      },
+      {
+        "name": "isne_adapter.py",
+        "type": "adapter",
+        "implements": "Converts Jina output to ISNE input format",
+        "status": "complete"
+      },
+      {
+        "name": "factory.py",
+        "type": "factory",
+        "implements": "Factory for creating processors with different configurations",
+        "status": "complete"
+      }
+    ],
+    "research_files": [
+      {
+        "name": "jina-embeddings-v4.pdf",
+        "type": "research_paper",
+        "concepts": ["multimodal embeddings", "late interaction", "task-specific LoRA", "unified architecture"],
+        "key_contributions": ["single model for all modalities", "32k token context", "matryoshka representations"]
+      }
+    ]
+  },
+  "context": {
+    "module_role": "Replaces 6+ component pipeline with single unified processor",
+    "key_innovations": [
+      "Multimodal processing (text, images, code) in single model",
+      "Late chunking preserves document context",
+      "Attention-based keyword extraction",
+      "Hierarchical filesystem awareness",
+      "Single-vector and multi-vector output modes"
+    ],
+    "architectural_impact": "Dramatic simplification from multi-component to two-component system"
+  },
+  "implementation_notes": {
+    "completed_items": [
+      "AST-based code analysis",
+      "Hierarchical keyword extraction",
+      "Semantic density calculation",
+      "vLLM integration",
+      "Multi-format document support"
+    ],
+    "dependencies": {
+      "external": ["transformers", "vllm", "docling", "torch", "ast"],
+      "internal": ["/src/types", "/src/utils/filesystem", "/src/concepts"]
+    }
+  }
+}

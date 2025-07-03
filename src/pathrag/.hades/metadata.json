@@ -1,0 +1,73 @@
+{
+  "directory": {
+    "path": "/src/pathrag",
+    "purpose": "Path-based retrieval implementation combining vector search with graph traversal",
+    "domain": "retrieval_algorithms",
+    "created": "2024-01-15T10:00:00Z",
+    "last_processed": "2025-01-03T18:00:00Z",
+    "last_modified": "2025-01-03T18:00:00Z"
+  },
+  "contents": {
+    "implementation_files": [
+      {
+        "name": "pathrag_rag_strategy.py",
+        "type": "core_implementation",
+        "implements": "PathRAG algorithm with flow-based pruning and supra-weights",
+        "status": "complete",
+        "key_classes": ["PathRAGProcessor"],
+        "complexity": "high",
+        "recent_changes": [
+          "Implemented actual query embedding generation using Jina v4",
+          "Added embedder component integration with fallback handling",
+          "Support for single-vector and multi-vector embedding modes"
+        ]
+      },
+      {
+        "name": "pathrag_graph_engine.py",
+        "type": "graph_operations",
+        "implements": "Graph traversal and path construction",
+        "status": "complete",
+        "recent_changes": [
+          "Implemented full PathRAG initialization with storage backends",
+          "Added document processing with graph construction",
+          "Integrated multi-backend support (ArangoDB, NetworkX)",
+          "Added supra-weight system implementation"
+        ]
+      },
+      {
+        "name": "supra_weight_calculator.py",
+        "type": "utility",
+        "implements": "Multi-dimensional weight calculations",
+        "status": "complete"
+      }
+    ],
+    "research_files": [
+      {
+        "name": "PathRAG_paper.pdf",
+        "type": "research_paper",
+        "concepts": ["graph pruning", "path reliability", "flow-based algorithm", "retrieval augmentation"],
+        "key_contributions": ["path-based retrieval", "pruning algorithm", "reliability scoring"]
+      }
+    ]
+  },
+  "context": {
+    "module_role": "Core retrieval strategy that treats queries as temporary graph nodes",
+    "key_innovations": [
+      "Queries become temporary nodes in knowledge graph",
+      "Multi-dimensional supra-weights for relationship ranking",
+      "Flow-based path pruning with decay penalty",
+      "Combines vector similarity with graph structure"
+    ],
+    "design_decisions": [
+      "Async implementation for performance",
+      "Multiple retrieval modes (naive, local, global, hybrid, pathrag)",
+      "Configurable resource allocation"
+    ]
+  },
+  "performance_characteristics": {
+    "complexity": "O(V + E) for graph traversal",
+    "memory_usage": "moderate",
+    "gpu_required": false,
+    "typical_latency": "50-200ms"
+  }
+}

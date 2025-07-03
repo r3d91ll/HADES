@@ -1,0 +1,69 @@
+{
+  "directory_keywords": [
+    "isne",
+    "graph enhancement",
+    "node embedding",
+    "graph neural network",
+    "inductive learning",
+    "embedding enhancement"
+  ],
+  "theory_keywords": [
+    "message passing",
+    "graph convolution",
+    "attention mechanism",
+    "contrastive learning",
+    "node representation",
+    "inductive bias"
+  ],
+  "practice_keywords": [
+    "pytorch implementation",
+    "multi-gpu training",
+    "batch sampling",
+    "directory-aware",
+    "hierarchical encoding",
+    "model checkpoint"
+  ],
+  "bridge_keywords": [
+    {
+      "term": "graph_convolution",
+      "theory_context": "aggregating neighbor information in graphs",
+      "practice_context": "PyTorch layers with custom aggregation",
+      "strength": 0.9
+    },
+    {
+      "term": "directory_awareness",
+      "theory_context": "using filesystem hierarchy as graph structure",
+      "practice_context": "custom positional encoding from path depth",
+      "strength": 0.92
+    },
+    {
+      "term": "contrastive_learning",
+      "theory_context": "learning representations by contrasting samples",
+      "practice_context": "loss functions comparing co-located vs distant files",
+      "strength": 0.88
+    },
+    {
+      "term": "inductive_capability",
+      "theory_context": "generalizing to unseen nodes",
+      "practice_context": "model handles new files without retraining",
+      "strength": 0.85
+    }
+  ],
+  "model_keywords": [
+    {
+      "term": "ISNEModel",
+      "category": "class_name",
+      "importance": "critical"
+    },
+    {
+      "term": "DirectoryAwareISNE",
+      "category": "class_name",
+      "importance": "high"
+    },
+    {
+      "term": "HierarchicalBatchSampler",
+      "category": "class_name",
+      "importance": "medium"
+    }
+  ]
+}

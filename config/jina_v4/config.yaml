@@ -1,0 +1,137 @@
+# Jina v4 Component Configuration
+
+# Model settings
+model:
+  name: "jinaai/jina-embeddings-v4"
+  revision: "main"  # Model revision to use
+  trust_remote_code: true
+  
+# vLLM engine settings  
+vllm:
+  # Model serving
+  tensor_parallel_size: 1  # Number of GPUs for tensor parallelism
+  gpu_memory_utilization: 0.9  # Use 90% of GPU memory
+  max_model_len: 8192  # Maximum sequence length
+  dtype: "float16"  # or "bfloat16" for better precision
+  
+  # Performance settings
+  enable_prefix_caching: true  # Cache common prefixes
+  enable_chunked_prefill: true  # Better handling of long sequences
+  max_num_batched_tokens: 32768  # Maximum tokens in a batch
+  max_num_seqs: 256  # Maximum sequences to process concurrently
+  
+  # Embedding-specific settings
+  pooling_method: "mean"  # For single-vector output
+  normalize_embeddings: true
+  
+  # API settings (if using vLLM server)
+  api_url: "http://localhost:8000"  # vLLM server URL
+  api_key: null  # Optional API key
+  timeout: 60  # Request timeout in seconds
+
+# Jina v4 specific features
+features:
+  # Output modes
+  output_mode: "multi-vector"  # "single-vector" or "multi-vector"
+  embedding_dimension: 2048  # For single-vector mode
+  token_embedding_dimension: 128  # For multi-vector mode
+  
+  # Late chunking
+  late_chunking:
+    enabled: true
+    strategy: "semantic_similarity"  # or "fixed_size", "sentence_boundary"
+    min_chunk_tokens: 128
+    max_chunk_tokens: 512
+    overlap_tokens: 50
+    similarity_threshold: 0.85
+    
+  # Keyword extraction  
+  keywords:
+    enabled: true
+    max_keywords_per_chunk: 10
+    extraction_method: "attention_based"  # Uses model attention weights
+    keyword_diversity: 0.7  # Balance between relevance and diversity
+    include_entities: true
+    include_technical_terms: true
+    
+  # LoRA adapters
+  lora:
+    default_adapter: "retrieval"  # "retrieval", "text-matching", "classification"
+    adapter_path: null  # Path to custom adapters
+    dynamic_switching: false  # Switch adapters based on task
+    
+  # Multimodal settings
+  multimodal:
+    enabled: true
+    image_processing: true
+    max_image_size: [1920, 1080]
+    image_preprocessing: "resize"  # "resize", "pad", "crop"
+    cross_modal_attention: true
+    
+  # AST analysis for code files
+  ast_analysis:
+    enabled: true
+    languages: ["python"]  # Can be extended to other languages
+    extract_imports: true
+    extract_symbols: true
+    extract_call_graph: true
+    extract_keywords: true
+    use_symbol_boundaries: true  # Chunk at symbol boundaries
+    include_docstrings: true
+    max_symbol_size: 1000  # Max lines per symbol chunk
+
+# Processing settings
+processing:
+  batch_size: 32
+  max_concurrent_requests: 4
+  preprocessing:
+    lowercase: false  # Preserve case
+    remove_special_chars: false
+    max_length: 8192
+    truncation: "right"  # "right", "left", "middle"
+    
+# Memory management
+memory:
+  cache_size_mb: 1000  # Cache for processed documents
+  clear_cache_interval: 100  # Clear after N documents
+  gradient_checkpointing: false  # Not needed for inference
+  
+# Device settings
+device:
+  default: "cuda:0"
+  fallback: "cpu"
+  mixed_precision: true
+  compile_model: false  # PyTorch 2.0 compilation
+  
+# Monitoring
+monitoring:
+  track_gpu_memory: true
+  track_processing_time: true
+  log_every_n_chunks: 100
+  metrics_port: 9091
+  
+# Error handling
+error_handling:
+  max_retries: 3
+  retry_delay: 1.0
+  fallback_to_cpu: false
+  continue_on_error: true
+  
+# Advanced features
+advanced:
+  # Matryoshka representation
+  matryoshka:
+    enabled: true
+    dimensions: [128, 256, 512, 1024, 2048]
+    
+  # Instruction support
+  instructions:
+    enabled: false  # Use task-specific instructions
+    retrieval_instruction: "Encode this passage for retrieval:"
+    query_instruction: "Encode this query for retrieval:"
+    
+  # Semantic chunking
+  semantic_chunking:
+    clustering_algorithm: "kmeans"  # "kmeans", "dbscan", "hierarchical"
+    min_similarity_within_chunk: 0.8
+    max_similarity_between_chunks: 0.6

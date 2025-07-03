@@ -1,0 +1,36 @@
+{
+  "directory": {
+    "path": "/tests",
+    "purpose": "Test suites for all components",
+    "domain": "quality_assurance",
+    "coverage_target": "85%"
+  },
+  "contents": {
+    "subdirectories": [
+      {
+        "name": "unit",
+        "purpose": "Unit tests for individual components",
+        "status": "to_be_created"
+      },
+      {
+        "name": "integration",
+        "purpose": "Integration tests for component interactions",
+        "status": "to_be_created"
+      }
+    ]
+  },
+  "context": {
+    "testing_philosophy": [
+      "Test behavior not implementation",
+      "Mock external dependencies",
+      "Fast unit tests, thorough integration tests",
+      "Use fixtures for common test data"
+    ],
+    "test_categories": [
+      "Component functionality",
+      "Protocol compliance",
+      "Performance benchmarks",
+      "Edge cases"
+    ]
+  }
+}

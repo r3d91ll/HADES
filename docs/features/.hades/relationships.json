@@ -1,0 +1,24 @@
+{
+  "internal_relationships": [
+    {
+      "source": "AST_ANALYSIS.md",
+      "target": "/src/jina_v4/ast_analyzer.py",
+      "type": "documents",
+      "purpose": "Documents the AST analyzer implementation"
+    }
+  ],
+  "external_relationships": [
+    {
+      "source": "/docs/features",
+      "target": "/src/jina_v4",
+      "type": "explains",
+      "purpose": "Feature documentation for Jina v4 components"
+    },
+    {
+      "source": "/docs/features",
+      "target": "/docs/architecture",
+      "type": "extends",
+      "purpose": "Provides detailed feature explanations"
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "directory_keywords": [
+    "jina v4",
+    "unified processor",
+    "multimodal embeddings",
+    "document processing",
+    "late chunking",
+    "attention keywords"
+  ],
+  "theory_keywords": [
+    "transformer architecture",
+    "attention mechanisms",
+    "multimodal fusion",
+    "late interaction",
+    "matryoshka representation",
+    "task-specific LoRA"
+  ],
+  "practice_keywords": [
+    "vllm integration",
+    "docling parsing",
+    "batch processing",
+    "gpu acceleration",
+    "async operations",
+    "metadata extraction",
+    "fallback parsers",
+    "hidden state extraction",
+    "adapter transformations"
+  ],
+  "bridge_keywords": [
+    {
+      "term": "attention_mechanism",
+      "theory_context": "transformer self-attention for importance weighting",
+      "practice_context": "extract attention weights for keyword identification",
+      "strength": 0.85
+    },
+    {
+      "term": "late_chunking",
+      "theory_context": "preserve document context during segmentation",
+      "practice_context": "chunk after embedding generation using similarity",
+      "strength": 0.9
+    },
+    {
+      "term": "multimodal_processing",
+      "theory_context": "unified representation across modalities",
+      "practice_context": "single pipeline for text, images, and code",
+      "strength": 0.92
+    },
+    {
+      "term": "filesystem_awareness",
+      "theory_context": "hierarchical structure as semantic information",
+      "practice_context": "extract and preserve directory relationships",
+      "strength": 0.88
+    }
+  ],
+  "implementation_keywords": [
+    {
+      "term": "JinaV4Processor",
+      "category": "class_name",
+      "importance": "critical"
+    },
+    {
+      "term": "VLLMEmbeddingExtractor",
+      "category": "class_name",
+      "importance": "high"
+    },
+    {
+      "term": "process",
+      "category": "method_name",
+      "importance": "high"
+    },
+    {
+      "term": "multi_vector",
+      "category": "output_mode",
+      "importance": "medium"
+    }
+  ]
+}

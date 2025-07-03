@@ -1,0 +1,68 @@
+{
+  "directory": {
+    "path": "/docs",
+    "purpose": "Comprehensive documentation for HADES",
+    "domain": "documentation",
+    "audience": ["developers", "researchers", "users"]
+  },
+  "contents": {
+    "subdirectories": [
+      {
+        "name": "concepts",
+        "purpose": "Core concepts and theoretical foundations",
+        "key_docs": [
+          "CORE_CONCEPTS.md",
+          "FILESYSTEM_METADATA_DESIGN.md",
+          "HADES_METADATA_SYSTEM.md"
+        ]
+      },
+      {
+        "name": "architecture",
+        "purpose": "System design and technical architecture",
+        "key_docs": [
+          "ARCHITECTURE.md",
+          "ISNE_BOOTSTRAP_ARCHITECTURE.md"
+        ]
+      },
+      {
+        "name": "api",
+        "purpose": "API reference and usage guides",
+        "status": "to_be_created"
+      }
+    ],
+    "files": [
+      {
+        "name": "README.md",
+        "purpose": "Documentation overview and navigation"
+      },
+      {
+        "name": "MIGRATION_FROM_ORIGINAL.md",
+        "purpose": "Guide for migrating from original HADES"
+      },
+      {
+        "name": "INNOVATION_INTEGRATION.md",
+        "purpose": "How innovative concepts are integrated into the system",
+        "created": "2024-01-20T18:30:00Z"
+      },
+      {
+        "name": "FUTURE_DEVELOPMENT_PATHS.md",
+        "purpose": "Roadmap and future research directions",
+        "created": "2024-01-20T19:30:00Z"
+      }
+    ]
+  },
+  "context": {
+    "documentation_philosophy": [
+      "Co-locate research with implementation",
+      "Self-documenting code structure",
+      "Rich metadata for graph relationships",
+      "Clear theory-practice bridges"
+    ],
+    "documentation_types": [
+      "Conceptual (theory and ideas)",
+      "Architectural (design decisions)",
+      "API (usage and reference)",
+      "Migration (transition guides)"
+    ]
+  }
+}

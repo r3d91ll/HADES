@@ -1,0 +1,27 @@
+{
+  "directory": {
+    "path": "/docs/features",
+    "purpose": "Feature-specific documentation and guides",
+    "domain": "documentation"
+  },
+  "contents": {
+    "documentation_files": [
+      {
+        "name": "AST_ANALYSIS.md",
+        "type": "feature_documentation",
+        "purpose": "Explains AST analysis for code understanding",
+        "topics": ["AST", "code analysis", "Python", "symbol extraction"]
+      }
+    ]
+  },
+  "integration_points": {
+    "documents": [
+      "/src/jina_v4/ast_analyzer.py"
+    ],
+    "concepts": [
+      "code intelligence",
+      "semantic chunking",
+      "symbol boundaries"
+    ]
+  }
+}

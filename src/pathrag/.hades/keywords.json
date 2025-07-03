@@ -1,0 +1,71 @@
+{
+  "directory_keywords": [
+    "pathrag",
+    "path-based retrieval",
+    "graph traversal",
+    "query processing",
+    "retrieval strategy",
+    "rag implementation"
+  ],
+  "theory_keywords": [
+    "flow-based pruning",
+    "path reliability scoring",
+    "resource allocation",
+    "decay penalty",
+    "graph pruning algorithm",
+    "retrieval augmentation"
+  ],
+  "practice_keywords": [
+    "async implementation",
+    "arangodb integration",
+    "supra-weight calculation",
+    "networkx operations",
+    "query modes",
+    "path construction",
+    "jina v4 embeddings",
+    "fallback mechanisms"
+  ],
+  "bridge_keywords": [
+    {
+      "term": "graph_traversal",
+      "theory_context": "algorithm for finding optimal paths in knowledge graph",
+      "practice_context": "NetworkX BFS/DFS with custom scoring",
+      "strength": 0.95
+    },
+    {
+      "term": "flow_based_pruning",
+      "theory_context": "network flow algorithm with resource constraints",
+      "practice_context": "Python implementation with decay penalties",
+      "strength": 0.9
+    },
+    {
+      "term": "query_as_node",
+      "theory_context": "treating queries as temporary graph residents",
+      "practice_context": "temporary node creation in ArangoDB",
+      "strength": 0.92
+    },
+    {
+      "term": "supra_weights",
+      "theory_context": "multi-dimensional edge weight representation",
+      "practice_context": "numpy arrays with aggregation functions",
+      "strength": 0.88
+    }
+  ],
+  "domain_specific_terms": [
+    {
+      "term": "PathRAGProcessor",
+      "category": "class_name",
+      "importance": "high"
+    },
+    {
+      "term": "QueryParam",
+      "category": "configuration",
+      "importance": "medium"
+    },
+    {
+      "term": "reliability_score",
+      "category": "metric",
+      "importance": "high"
+    }
+  ]
+}

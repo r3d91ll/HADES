@@ -1,0 +1,75 @@
+{
+  "directory": {
+    "path": "/src/concepts",
+    "purpose": "Innovative concept implementations from HADES research",
+    "domain": "graph_enhancement",
+    "created": "2024-01-20T19:00:00Z",
+    "version": "1.0.0"
+  },
+  "contents": {
+    "files": [
+      {
+        "name": "__init__.py",
+        "purpose": "Module initialization and exports",
+        "exports": [
+          "QueryAsNode",
+          "TheoryPracticeBridge",
+          "LCCClassifier",
+          "ANTValidator",
+          "TemporalRelationshipTracker",
+          "SupraWeightCalculator"
+        ]
+      },
+      {
+        "name": "query_as_node.py",
+        "purpose": "Treat queries as temporary graph nodes",
+        "key_classes": ["QueryAsNode"],
+        "innovation": "Queries participate in graph structure during retrieval"
+      },
+      {
+        "name": "theory_practice_bridge.py",
+        "purpose": "Connect theoretical concepts to practical implementations",
+        "key_classes": ["TheoryPracticeBridge", "BridgeKeyword"],
+        "innovation": "Keywords that span abstract and concrete domains"
+      },
+      {
+        "name": "lcc_classifier.py",
+        "purpose": "Library of Congress Classification for knowledge organization",
+        "key_classes": ["LCCClassifier", "LCCNode"],
+        "innovation": "Use library science taxonomy for semantic understanding"
+      },
+      {
+        "name": "ant_validator.py",
+        "purpose": "Actor-Network Theory relationship validation",
+        "key_classes": ["ANTValidator", "ANTRelationship"],
+        "innovation": "Validate graph relationships using sociological theory"
+      },
+      {
+        "name": "temporal_relationships.py",
+        "purpose": "Track temporal evolution of graph relationships",
+        "key_classes": ["TemporalRelationshipTracker", "TemporalEdge"],
+        "innovation": "Time-aware graph structure for evolving knowledge"
+      },
+      {
+        "name": "supra_weight_calculator.py",
+        "purpose": "Calculate edge weights using supramodal integration",
+        "key_classes": ["SupraWeightCalculator"],
+        "innovation": "Multi-dimensional weight calculation inspired by neuroscience"
+      }
+    ]
+  },
+  "context": {
+    "description": "This module implements the innovative concepts discussed in HADES research, bringing theoretical insights into practical implementation.",
+    "key_principles": [
+      "Theory-informed design",
+      "Graph-first thinking",
+      "Interdisciplinary integration",
+      "Semantic richness over simple similarity"
+    ],
+    "integration_points": {
+      "jina_v4": "Enhanced keyword extraction and semantic analysis",
+      "isne": "Additional graph features for embedding enhancement",
+      "pathrag": "Advanced retrieval strategies using concepts"
+    }
+  }
+}

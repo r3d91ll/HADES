@@ -1,0 +1,31 @@
+{
+  "technical_keywords": [
+    "FastAPI",
+    "REST API",
+    "async",
+    "endpoints",
+    "OpenAPI",
+    "CORS",
+    "HTTP",
+    "request/response",
+    "pydantic",
+    "uvicorn"
+  ],
+  "domain_keywords": [
+    "document processing",
+    "batch processing",
+    "query interface",
+    "health monitoring",
+    "file upload",
+    "API gateway"
+  ],
+  "integration_keywords": [
+    "Jina v4",
+    "multimodal embeddings",
+    "hierarchical structure",
+    "knowledge graph",
+    "PathRAG",
+    "retrieval strategy",
+    "fallback handling"
+  ]
+}

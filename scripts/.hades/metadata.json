@@ -1,0 +1,29 @@
+{
+  "directory": {
+    "path": "/scripts",
+    "purpose": "Utility scripts for operations and bootstrapping",
+    "domain": "automation",
+    "usage": "command_line"
+  },
+  "contents": {
+    "subdirectories": [
+      {
+        "name": "bootstrap",
+        "purpose": "Bootstrap and initialization scripts",
+        "key_script": "bootstrap_jinav4.py"
+      },
+      {
+        "name": "utils",
+        "purpose": "General utility scripts"
+      }
+    ]
+  },
+  "context": {
+    "script_categories": [
+      "Bootstrap (initialize system with data)",
+      "Migration (from old HADES)",
+      "Validation (check data integrity)",
+      "Performance (benchmarking)"
+    ]
+  }
+}

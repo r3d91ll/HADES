@@ -1,0 +1,45 @@
+{
+  "directory": {
+    "path": "/src/types",
+    "purpose": "Type definitions, protocols, and contracts for type safety",
+    "domain": "type_system",
+    "importance": "critical"
+  },
+  "contents": {
+    "files": [
+      {
+        "name": "common.py",
+        "purpose": "Common types used across modules"
+      }
+    ],
+    "subdirectories": [
+      {
+        "name": "components",
+        "purpose": "Component protocols and contracts",
+        "importance": "high"
+      },
+      {
+        "name": "isne",
+        "purpose": "ISNE-specific type definitions"
+      },
+      {
+        "name": "pipeline",
+        "purpose": "Pipeline data structures"
+      },
+      {
+        "name": "storage",
+        "purpose": "Storage interfaces and types"
+      }
+    ]
+  },
+  "context": {
+    "design_philosophy": "Protocol-based interfaces for flexibility",
+    "key_benefits": [
+      "Type safety across module boundaries",
+      "Clear contracts for implementations",
+      "Self-documenting interfaces",
+      "IDE support and type checking"
+    ],
+    "usage_pattern": "All modules import types from here, no circular dependencies"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "directory": {
+    "path": "/src/storage",
+    "purpose": "Unified storage layer for graph, vector, and document data",
+    "domain": "data_persistence",
+    "created": "2024-01-12T11:00:00Z"
+  },
+  "contents": {
+    "implementation_files": [
+      {
+        "name": "arango_client.py",
+        "purpose": "ArangoDB connection and base operations",
+        "status": "complete"
+      },
+      {
+        "name": "arango_supra_storage.py",
+        "purpose": "Supra-weight storage implementation",
+        "status": "complete"
+      }
+    ],
+    "subdirectories": [
+      {
+        "name": "arangodb",
+        "purpose": "ArangoDB-specific implementations",
+        "primary_file": "storage.py"
+      }
+    ]
+  },
+  "context": {
+    "storage_types": [
+      "Document storage (full documents)",
+      "Chunk storage (with embeddings)",
+      "Vector storage (similarity search)",
+      "Graph storage (nodes and edges)"
+    ],
+    "key_features": [
+      "Unified schema across storage types",
+      "Supra-weight support",
+      "Filesystem hierarchy preservation",
+      "Query optimization"
+    ],
+    "database_choice": "ArangoDB for unified graph/document/vector storage"
+  }
+}

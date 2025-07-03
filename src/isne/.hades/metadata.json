@@ -1,0 +1,61 @@
+{
+  "directory": {
+    "path": "/src/isne",
+    "purpose": "Graph-based embedding enhancement using Inductive Shallow Node Embedding",
+    "domain": "graph_neural_networks",
+    "created": "2024-01-10T09:00:00Z",
+    "last_processed": "2024-01-20T14:00:00Z"
+  },
+  "contents": {
+    "subdirectories": [
+      {
+        "name": "models",
+        "purpose": "ISNE model implementations",
+        "key_files": ["isne_model.py", "directory_aware_isne.py"]
+      },
+      {
+        "name": "training",
+        "purpose": "Training pipeline and utilities",
+        "key_files": ["pipeline.py", "directory_aware_trainer.py", "hierarchical_batch_sampler.py"]
+      },
+      {
+        "name": "pipeline",
+        "purpose": "Inference pipeline components"
+      }
+    ]
+  },
+  "context": {
+    "module_role": "Enhances embeddings with graph structure awareness",
+    "key_innovations": [
+      "Directory-aware training preserves filesystem relationships",
+      "Hierarchical batch sampling maintains co-location",
+      "Multi-hop encoding captures distant relationships",
+      "Contrastive learning objectives",
+      "Inductive capability for new nodes"
+    ],
+    "theoretical_foundation": "Extends shallow node embedding with GNN architecture",
+    "integration_points": [
+      "Receives embeddings from Jina v4",
+      "Provides enhanced embeddings to storage",
+      "Used by PathRAG for query placement"
+    ]
+  },
+  "model_characteristics": {
+    "architecture": "Multi-layer GNN with attention",
+    "input": "Base embeddings + graph structure",
+    "output": "Enhanced embeddings + graph features",
+    "training_requirements": {
+      "gpu": "recommended",
+      "memory": "16GB minimum",
+      "typical_epochs": 100
+    }
+  },
+  "research_context": {
+    "builds_on": ["Node2Vec", "GraphSAGE", "GAT"],
+    "innovations": [
+      "Filesystem hierarchy as positional encoding",
+      "Theory-practice bridge preservation",
+      "Supra-weight compatibility"
+    ]
+  }
+}

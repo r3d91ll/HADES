@@ -1,0 +1,47 @@
+# Core Dependencies
+torch>=2.0.0
+transformers>=4.35.0
+numpy>=1.24.0
+pydantic>=2.0.0
+
+# Jina v4 Integration
+# Note: Install from Hugging Face
+# pip install git+https://github.com/jinaai/jina-embeddings-v4
+
+# Document Processing
+docling>=2.0.0
+pypdf2>=3.0.0
+python-docx>=0.8.11
+markdown>=3.4.0
+beautifulsoup4>=4.12.0
+
+# vLLM for Local Inference
+vllm>=0.3.0
+
+# ArangoDB
+python-arango>=7.6.0
+
+# API Framework
+fastapi>=0.100.0
+uvicorn>=0.23.0
+httpx>=0.24.0
+
+# Utilities
+pyyaml>=6.0
+python-dotenv>=1.0.0
+click>=8.1.0
+tqdm>=4.65.0
+rich>=13.5.0
+
+# Development
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+mypy>=1.5.0
+black>=23.7.0
+isort>=5.12.0
+
+# Optional GPU Support
+# Uncomment based on your CUDA version
+# torch==2.0.0+cu117  # CUDA 11.7
+# torch==2.0.0+cu118  # CUDA 11.8

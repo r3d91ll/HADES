@@ -1,0 +1,353 @@
+# ISNE Bootstrap Pipeline Configuration
+# Configuration for the complete monitored ISNE bootstrap pipeline
+# following HADES component system patterns
+
+pipeline:
+  name: "monitored_isne_bootstrap"
+  description: "Complete monitored ISNE bootstrap pipeline: docproc → chunking → embedding → graph construction → ISNE training"
+  version: "1.0.0"
+  type: "bootstrap"
+  
+  # Pipeline-level settings
+  settings:
+    enable_monitoring: true
+    enable_alerts: true
+    save_intermediate_results: true
+    cleanup_on_failure: false
+    parallel_processing: false  # Sequential processing for bootstrap
+    
+  # Default directories
+  directories:
+    input_dir: "./test-data"
+    output_dir: "./models/isne"
+    alerts_dir: "./alerts"
+    logs_dir: "./logs"
+    metrics_dir: "./metrics"
+
+# Component configurations for each pipeline stage
+components:
+  
+  # Stage 1: Document Processing
+  document_processing:
+    component_type: "docproc"
+    component_name: "core"
+    config:
+      supported_formats: ["pdf", "md", "py", "yaml", "txt", "json"]
+      processing_options:
+        extract_metadata: true
+        extract_sections: true
+        extract_entities: true
+        preserve_structure: true
+      batch_size: 10
+      timeout_seconds: 300
+      retry_attempts: 3
+    
+    # Monitoring thresholds
+    monitoring:
+      max_duration_seconds: 30
+      max_memory_growth_mb: 200
+      min_success_rate_percent: 90
+  
+  # Stage 2: Chunking
+  chunking:
+    component_type: "chunking"
+    component_name: "core"
+    config:
+      default_chunker: "cpu"
+      chunking_strategy: "semantic"
+      chunk_size: 512
+      chunk_overlap: 50
+      processing_options:
+        preserve_structure: true
+        extract_metadata: true
+        sentence_aware: true
+      batch_size: 20
+      
+    # Monitoring thresholds
+    monitoring:
+      max_duration_seconds: 60
+      max_memory_growth_mb: 300
+      min_chunks_per_document: 1
+      max_chunks_per_document: 2000
+  
+  # Stage 3: Embedding
+  embedding:
+    component_type: "embedding"
+    component_name: "cpu"
+    config:
+      model_name: "sentence-transformers/all-MiniLM-L6-v2"
+      embedding_dimension: 384
+      batch_size: 32
+      normalize: true
+      device: "cpu"
+      processing_options:
+        pooling: "mean"
+        normalize: true
+        return_tensors: true
+      
+    # Monitoring thresholds  
+    monitoring:
+      max_duration_seconds: 300
+      max_memory_growth_mb: 500
+      min_success_rate_percent: 95
+      min_throughput_embeddings_per_second: 10
+  
+  # Stage 4: Graph Construction
+  graph_construction:
+    config:
+      edge_strategies:
+        sequential:
+          enabled: true
+          bidirectional: true
+        similarity:
+          enabled: true
+          threshold: 0.8
+          max_nodes_for_similarity: 500
+          sample_for_performance: true
+        random:
+          enabled: true
+          max_edges: 200
+          connectivity_ratio: 0.2
+      
+      # Graph quality settings
+      min_edges_per_node: 1
+      max_edges_per_node: 100
+      preserve_document_structure: true
+      
+    # Monitoring thresholds
+    monitoring:
+      max_duration_seconds: 120
+      max_memory_growth_mb: 1000
+      min_edge_to_node_ratio: 1.0
+      max_edge_to_node_ratio: 500.0
+  
+  # Stage 5: ISNE Training
+  isne_training:
+    config:
+      # Model architecture
+      model_architecture:
+        hidden_dim: 256
+        output_dim: 128
+        num_layers: 3
+        num_heads: 8
+        dropout: 0.1
+        
+      # Training parameters
+      training:
+        epochs: 50
+        batch_size: 64
+        learning_rate: 0.001
+        weight_decay: 0.0001
+        device: "cpu"
+        
+      # Loss function weights
+      loss_weights:
+        lambda_feat: 1.0      # Feature preservation
+        lambda_struct: 1.0    # Structural preservation
+        lambda_contrast: 0.5  # Contrastive learning
+        
+      # Sampling parameters
+      sampling:
+        num_hops: 2
+        neighbor_size: 15
+        
+      # Training control
+      early_stopping:
+        enabled: true
+        patience: 15
+        min_delta: 0.001
+        
+      evaluation:
+        eval_interval: 10
+        verbose: true
+        
+    # Monitoring thresholds
+    monitoring:
+      max_duration_seconds: 1200  # 20 minutes
+      max_memory_growth_mb: 2000
+      max_acceptable_final_loss: 10.0
+      min_epochs_for_convergence: 10
+
+# Monitoring and alerting configuration
+monitoring:
+  enabled: true
+  
+  # Alert manager settings
+  alert_manager:
+    min_level: "LOW"
+    alert_dir: "./alerts"
+    
+    # Alert thresholds
+    thresholds:
+      pipeline_duration_seconds: 1800  # 30 minutes
+      memory_warning_mb: 2000
+      memory_critical_mb: 4000
+      cpu_warning_percent: 80
+      cpu_critical_percent: 95
+      
+    # Email configuration (optional)
+    email:
+      enabled: false
+      smtp_server: "localhost"
+      smtp_port: 587
+      username: ""
+      password: ""
+      from_addr: "hades-alerts@localhost"
+      to_addrs: []
+  
+  # Prometheus metrics export
+  prometheus:
+    enabled: true
+    export_interval_seconds: 30
+    metrics_file_prefix: "isne_bootstrap"
+    include_infrastructure_metrics: true
+    include_performance_metrics: true
+    
+  # Performance baseline tracking
+  performance_tracking:
+    enabled: true
+    track_bottlenecks: true
+    bottleneck_threshold_percent: 70  # Stages taking >70% of max time
+    track_memory_peaks: true
+    track_throughput: true
+
+# Logging configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(levelname)s - %(message)s"
+  
+  # File logging
+  file_logging:
+    enabled: true
+    filename: "isne_bootstrap.log"
+    max_size_mb: 100
+    backup_count: 5
+    
+  # Console logging
+  console_logging:
+    enabled: true
+    colorize: true
+
+# Resource limits and optimization
+resources:
+  # Memory management
+  memory:
+    max_usage_mb: 8192  # 8GB limit
+    garbage_collection_interval: 100
+    warning_threshold_mb: 6144
+    
+  # CPU management  
+  cpu:
+    max_utilization_percent: 90
+    thread_pool_size: 4
+    
+  # Disk space
+  disk:
+    min_free_space_mb: 1024
+    cleanup_temp_files: true
+
+# Pipeline validation and quality checks
+validation:
+  enabled: true
+  
+  # Input validation
+  input:
+    min_files: 1
+    max_files: 1000
+    supported_extensions: [".pdf", ".md", ".py", ".yaml", ".txt", ".json"]
+    max_file_size_mb: 100
+    
+  # Stage validation
+  stages:
+    document_processing:
+      min_documents: 1
+      min_characters_per_document: 100
+      
+    chunking:
+      min_chunks: 1
+      min_characters_per_chunk: 50
+      max_chunks: 10000
+      
+    embedding:
+      min_embedding_dimension: 128
+      max_embedding_dimension: 2048
+      min_embeddings: 1
+      
+    graph_construction:
+      min_nodes: 1
+      min_edges: 1
+      max_nodes: 100000
+      max_edges: 10000000
+      
+    isne_training:
+      min_model_parameters: 1000
+      max_model_parameters: 10000000
+      min_training_epochs: 1
+
+# Error handling and recovery
+error_handling:
+  # Retry configuration
+  retry:
+    max_attempts: 3
+    backoff_factor: 2.0
+    max_delay_seconds: 300
+    
+  # Recovery strategies
+  recovery:
+    save_partial_results: true
+    cleanup_on_error: false
+    continue_on_non_critical_errors: true
+    
+  # Error reporting
+  reporting:
+    include_stack_traces: true
+    save_error_logs: true
+    generate_error_alerts: true
+
+# Output configuration
+output:
+  # Model saving
+  model:
+    save_format: "pytorch"
+    save_optimizer_state: false
+    save_training_history: true
+    compress: false
+    
+  # Results saving
+  results:
+    save_format: "json"
+    include_metadata: true
+    include_monitoring_data: true
+    include_component_configs: true
+    pretty_print: true
+    
+  # Metrics export
+  metrics:
+    prometheus_format: true
+    json_format: true
+    include_timestamps: true
+    include_stage_breakdown: true
+
+# Advanced configuration
+advanced:
+  # Experimental features
+  experimental:
+    enabled: false
+    parallel_stages: false
+    dynamic_batch_sizing: false
+    adaptive_thresholds: false
+    
+  # Debug settings
+  debug:
+    enabled: false
+    verbose_logging: false
+    save_intermediate_tensors: false
+    profile_memory_usage: false
+    profile_cpu_usage: false
+    
+  # Integration settings
+  integration:
+    mcp_tools_available: true
+    alert_integration: true
+    metrics_integration: true
+    component_registry: true

@@ -1,0 +1,100 @@
+{
+  "explicit_relationships": [
+    {
+      "target": "/config/jina_v4/config.yaml",
+      "type": "configured_by",
+      "strength": 1.0,
+      "bidirectional": true
+    },
+    {
+      "target": "/src/isne",
+      "type": "provides_input_to",
+      "strength": 0.95,
+      "reason": "Jina output feeds into ISNE enhancement"
+    },
+    {
+      "target": "/src/utils/filesystem",
+      "type": "uses",
+      "strength": 0.8,
+      "reason": "filesystem awareness for hierarchical processing"
+    },
+    {
+      "target": "/docs/MIGRATION_FROM_ORIGINAL.md",
+      "type": "documented_in",
+      "strength": 0.85,
+      "reason": "migration guide explains architectural change"
+    },
+    {
+      "target": "/scripts/bootstrap_jinav4.py",
+      "type": "used_by",
+      "strength": 0.9,
+      "reason": "bootstrap script uses Jina processor"
+    },
+    {
+      "target": "/src/types/components/protocols.py",
+      "type": "implements",
+      "strength": 0.8,
+      "reason": "implements component protocols"
+    },
+    {
+      "target": "/src/pathrag",
+      "type": "provides_embeddings_to",
+      "strength": 0.9,
+      "reason": "provides query embeddings for PathRAG"
+    },
+    {
+      "target": "/src/api/server.py",
+      "type": "used_by",
+      "strength": 0.95,
+      "reason": "API server uses Jina processor"
+    }
+  ],
+  "conceptual_bridges": [
+    {
+      "concept": "unified_processing",
+      "related_paths": [
+        "/docs/concepts/CORE_CONCEPTS.md",
+        "/docs/architecture/ARCHITECTURE.md#jina-v4-processor"
+      ],
+      "bridge_type": "architectural"
+    },
+    {
+      "concept": "late_chunking",
+      "related_paths": [
+        "/docs/concepts/FILESYSTEM_METADATA_DESIGN.md",
+        "/src/types/pipeline/document_schema.py"
+      ],
+      "bridge_type": "algorithmic"
+    },
+    {
+      "concept": "multimodal_embeddings",
+      "related_paths": [
+        "/src/storage/arangodb",
+        "/src/isne/models"
+      ],
+      "bridge_type": "data_flow"
+    }
+  ],
+  "replaces_components": [
+    {
+      "old_component": "docproc",
+      "functionality": "document parsing",
+      "improvement": "unified with embedding generation"
+    },
+    {
+      "old_component": "chunking",
+      "functionality": "text chunking",
+      "improvement": "late chunking with context preservation"
+    },
+    {
+      "old_component": "embedding",
+      "functionality": "embedding generation",
+      "improvement": "multimodal support"
+    },
+    {
+      "old_component": "keyword_extraction",
+      "functionality": "keyword extraction",
+      "improvement": "attention-based extraction"
+    }
+  ]
+}

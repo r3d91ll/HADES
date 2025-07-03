@@ -1,0 +1,43 @@
+{
+  "directory": {
+    "path": "/docs/api",
+    "purpose": "API documentation and usage guides",
+    "domain": "api_documentation",
+    "created": "2024-01-20T20:00:00Z",
+    "status": "planned"
+  },
+  "contents": {
+    "planned_files": [
+      {
+        "name": "ENDPOINTS.md",
+        "purpose": "Complete list of REST API endpoints",
+        "sections": [
+          "Processing endpoints",
+          "Query endpoints",
+          "Graph management endpoints",
+          "Configuration endpoints"
+        ]
+      },
+      {
+        "name": "EXAMPLES.md",
+        "purpose": "Usage examples and code snippets"
+      },
+      {
+        "name": "CLIENT_LIBRARIES.md",
+        "purpose": "Client library implementations"
+      }
+    ]
+  },
+  "context": {
+    "api_design_principles": [
+      "RESTful design",
+      "Async-first implementation",
+      "Comprehensive error handling",
+      "OpenAPI documentation"
+    ],
+    "integration": {
+      "server_location": "/src/api/server.py",
+      "openapi_docs": "http://localhost:8000/docs"
+    }
+  }
+}

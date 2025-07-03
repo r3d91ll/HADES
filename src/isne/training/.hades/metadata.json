@@ -1,0 +1,33 @@
+{
+  "directory": {
+    "path": "/src/isne/training",
+    "purpose": "Training pipeline and utilities for ISNE",
+    "domain": "model_training"
+  },
+  "contents": {
+    "implementation_files": [
+      {
+        "name": "pipeline.py",
+        "purpose": "Main training pipeline orchestration",
+        "key_classes": ["ISNETrainingPipeline"]
+      },
+      {
+        "name": "directory_aware_trainer.py",
+        "purpose": "Specialized trainer preserving directory relationships",
+        "innovation": "Maintains co-location during training"
+      },
+      {
+        "name": "hierarchical_batch_sampler.py",
+        "purpose": "Batch sampling that respects directory hierarchy",
+        "innovation": "Samples maintain filesystem relationships"
+      }
+    ]
+  },
+  "context": {
+    "training_strategy": [
+      "Preserve directory co-location in batches",
+      "Use filesystem hierarchy as training signal",
+      "Contrastive learning on related vs unrelated files"
+    ]
+  }
+}

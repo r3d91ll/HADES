@@ -1,0 +1,93 @@
+{
+  "directory": {
+    "path": "/",
+    "purpose": "Root directory of HADES - Graph-enhanced RAG system",
+    "domain": "retrieval_augmented_generation",
+    "created": "2024-01-20T18:00:00Z",
+    "version": "2.0.0"
+  },
+  "contents": {
+    "subdirectories": [
+      {
+        "name": "src",
+        "purpose": "Source code implementation",
+        "importance": "critical"
+      },
+      {
+        "name": "config",
+        "purpose": "Configuration files",
+        "importance": "high"
+      },
+      {
+        "name": "docs",
+        "purpose": "Documentation",
+        "importance": "high"
+      },
+      {
+        "name": "scripts",
+        "purpose": "Utility and bootstrap scripts",
+        "importance": "medium"
+      },
+      {
+        "name": "tests",
+        "purpose": "Test suites",
+        "importance": "medium"
+      }
+    ],
+    "root_files": [
+      {
+        "name": "README.md",
+        "purpose": "Project overview and quick start",
+        "visibility": "public"
+      },
+      {
+        "name": "requirements.txt",
+        "purpose": "Python dependencies",
+        "visibility": "public"
+      },
+      {
+        "name": ".gitignore",
+        "purpose": "Version control exclusions",
+        "visibility": "hidden"
+      },
+      {
+        "name": "MIGRATION_SUMMARY.md",
+        "purpose": "Migration tracking from original HADES",
+        "visibility": "internal"
+      },
+      {
+        "name": "run_server.py",
+        "purpose": "Quick start script for API server",
+        "visibility": "public"
+      }
+    ]
+  },
+  "context": {
+    "project_description": "Next-generation RAG system combining Jina v4 unified processing with ISNE graph enhancement - Migration Complete",
+    "key_innovations": [
+      "Two-component architecture (Jina v4 + ISNE)",
+      "Theory-practice bridges via intelligent keywords",
+      "Queries as temporary graph nodes",
+      "Filesystem taxonomy as semantic information",
+      "Self-documenting via .hades metadata",
+      "AST-based code analysis integration",
+      "FastAPI server with comprehensive endpoints"
+    ],
+    "architectural_principles": [
+      "Simplicity over complexity",
+      "Unified processing over components",
+      "Graph-first design",
+      "Metadata-driven organization"
+    ],
+    "migration_status": {
+      "completed": true,
+      "date": "2024-01-20T20:00:00Z",
+      "major_implementations": [
+        "FastAPI server with full endpoint coverage",
+        "AST analyzer for code understanding",
+        "Concept implementations (ANT, LCC, theory-practice bridge)",
+        "Comprehensive documentation"
+      ]
+    }
+  }
+}

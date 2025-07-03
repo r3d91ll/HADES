@@ -1,0 +1,57 @@
+{
+  "directory": {
+    "path": "/src",
+    "purpose": "Source code root containing all implementation",
+    "domain": "implementation",
+    "importance": "critical"
+  },
+  "contents": {
+    "subdirectories": [
+      {
+        "name": "jina_v4",
+        "purpose": "Unified document processing with AST analysis",
+        "status": "complete"
+      },
+      {
+        "name": "isne",
+        "purpose": "Graph-based embedding enhancement",
+        "status": "complete"
+      },
+      {
+        "name": "pathrag",
+        "purpose": "Path-based retrieval",
+        "status": "complete"
+      },
+      {
+        "name": "storage",
+        "purpose": "Database and storage layer",
+        "status": "complete"
+      },
+      {
+        "name": "api",
+        "purpose": "FastAPI service endpoints",
+        "status": "complete"
+      },
+      {
+        "name": "concepts",
+        "purpose": "Innovative concept implementations",
+        "status": "complete"
+      },
+      {
+        "name": "types",
+        "purpose": "Type definitions and protocols",
+        "status": "complete"
+      },
+      {
+        "name": "utils",
+        "purpose": "Utility functions",
+        "status": "complete"
+      }
+    ]
+  },
+  "context": {
+    "organization_principle": "Domain-driven modules with clear boundaries",
+    "dependency_flow": "jina_v4 → isne → storage, api → all",
+    "coding_standards": "Type-safe, async-first, protocol-based"
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "explicit_relationships": [
+    {
+      "target": "/config/pathrag_config.yaml",
+      "type": "configured_by",
+      "strength": 1.0,
+      "bidirectional": true
+    },
+    {
+      "target": "/src/storage/arangodb",
+      "type": "depends_on",
+      "strength": 0.9,
+      "reason": "requires graph storage operations"
+    },
+    {
+      "target": "/src/storage/arango_supra_storage.py",
+      "type": "uses",
+      "strength": 0.85,
+      "reason": "stores supra-weighted edges"
+    },
+    {
+      "target": "/src/isne",
+      "type": "enhanced_by",
+      "strength": 0.8,
+      "reason": "uses ISNE for query placement"
+    },
+    {
+      "target": "/docs/concepts/CORE_CONCEPTS.md#queries-as-graph-objects",
+      "type": "documented_in",
+      "strength": 0.9
+    },
+    {
+      "target": "/tests/unit/pathrag",
+      "type": "tested_by",
+      "strength": 0.9
+    },
+    {
+      "target": "/src/api/pathrag_engine.py",
+      "type": "exposed_by",
+      "strength": 0.85,
+      "reason": "API exposes PathRAG functionality"
+    },
+    {
+      "target": "/src/jina_v4",
+      "type": "integrates_with",
+      "strength": 0.9,
+      "reason": "Uses Jina v4 for query embeddings"
+    },
+    {
+      "target": "/src/api/server.py",
+      "type": "integrated_in",
+      "strength": 0.95,
+      "reason": "PathRAG integrated into query endpoint"
+    }
+  ],
+  "conceptual_bridges": [
+    {
+      "concept": "graph_traversal",
+      "related_paths": [
+        "/src/isne/models/directory_aware_isne.py",
+        "/docs/concepts/CORE_CONCEPTS.md#filesystem-taxonomy"
+      ],
+      "bridge_type": "algorithmic"
+    },
+    {
+      "concept": "query_as_node",
+      "related_paths": [
+        "/docs/concepts/CORE_CONCEPTS.md#queries-as-graph-objects",
+        "/src/storage/arangodb/storage.py"
+      ],
+      "bridge_type": "architectural"
+    },
+    {
+      "concept": "multi_dimensional_weights",
+      "related_paths": [
+        "/docs/architecture/ISNE_BOOTSTRAP_ARCHITECTURE.md",
+        "/src/types/storage/supra_weights.py"
+      ],
+      "bridge_type": "mathematical"
+    }
+  ],
+  "import_relationships": [
+    {
+      "imports_from": "/src/types/components/protocols.py",
+      "symbols": ["RAGStrategy"],
+      "relationship_type": "implements_protocol"
+    },
+    {
+      "imports_from": "/src/components/registry.py",
+      "symbols": ["get_component"],
+      "relationship_type": "uses_infrastructure"
+    }
+  ]
+}
