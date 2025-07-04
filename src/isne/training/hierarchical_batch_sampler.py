@@ -326,7 +326,7 @@ class HierarchicalBatchSampler:
         
         # Create dummy lists for required fields that aren't used in this context
         dummy_node_ids = [NodeID(str(i)) for i in node_ids]
-        dummy_embeddings = [[0.0] for _ in node_ids]
+        dummy_embeddings = [[0.0] * 768 for _ in node_ids]  # Assuming 768-dim embeddings
         
         return BatchSample(
             # Required fields

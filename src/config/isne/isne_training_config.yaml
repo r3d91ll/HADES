@@ -88,7 +88,7 @@ pipeline:
   document_processing:
     use_hybrid_processing: true
     python_use_ast: true
-    pdf_extraction_method: "docling"
+    pdf_extraction_method: "jina_v4"
   
   # Chunking settings
   chunking:

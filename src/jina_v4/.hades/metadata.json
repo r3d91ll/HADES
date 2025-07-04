@@ -19,12 +19,12 @@
           "Hierarchical keyword extraction",
           "Semantic density calculation",
           "Multi-format document support",
-          "Docling integration for advanced parsing",
+          "Jina v4 multimodal parsing (placeholder)",
           "Fallback parsers for common formats"
         ],
         "key_classes": ["JinaV4Processor"],
         "recent_changes": [
-          "Implemented Docling-based document parsing",
+          "Implemented placeholder for Jina v4 multimodal document parsing",
           "Added fallback parsing for PDF, DOCX, text files",
           "Enhanced multimodal support with image extraction"
         ]
@@ -104,7 +104,7 @@
       "Multi-format document support"
     ],
     "dependencies": {
-      "external": ["transformers", "vllm", "docling", "torch", "ast"],
+      "external": ["transformers", "vllm", "torch", "ast"],
       "internal": ["/src/types", "/src/utils/filesystem", "/src/concepts"]
     }
   }

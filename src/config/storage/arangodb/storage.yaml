@@ -1,0 +1,33 @@
+# ArangoDB storage configuration
+
+connection:
+  url: "http://localhost:8529"
+  username: "root"
+  password: ""  # Use ARANGO_PASSWORD env var
+  database: "hades"
+
+collections:
+  documents: "documents"
+  embeddings: "embeddings"
+  relationships: "relationships"
+  metadata: "metadata"
+
+indexes:
+  - collection: "embeddings"
+    type: "persistent"
+    fields: ["document_id"]
+  - collection: "relationships"
+    type: "edge"
+    fields: ["_from", "_to"]
+
+performance:
+  connection_pool_size: 10
+  request_timeout: 30
+  batch_size: 1000
+
+graph:
+  name: "knowledge_graph"
+  edge_definitions:
+    - collection: "relationships"
+      from: ["documents", "embeddings"]
+      to: ["documents", "embeddings"]

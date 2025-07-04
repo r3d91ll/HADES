@@ -13,7 +13,7 @@ This directory contains the PathRAG (Path-based Retrieval Augmented Generation) 
 - **User Documentation**: `/docs/concepts/CORE_CONCEPTS.md#queries-as-graph-objects`
 - **Architecture Docs**: `/docs/architecture/ARCHITECTURE.md#pathrag-query-processor`
 - **API Reference**: `/docs/api/pathrag_api.md`
-- **Configuration**: `/config/pathrag_config.yaml`
+- **Configuration**: `/src/config/pathrag/config.yaml`
 - **Tests**: `/tests/unit/pathrag/`
 - **Examples**: `/scripts/examples/pathrag_query_example.py`
 

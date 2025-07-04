@@ -62,7 +62,7 @@ any_directory/
 {
   "explicit_relationships": [
     {
-      "target": "/config/pathrag_config.yaml",
+      "target": "/src/config/pathrag/config.yaml",
       "type": "configured_by",
       "strength": 1.0
     },

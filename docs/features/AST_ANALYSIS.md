@@ -78,7 +78,7 @@ Each code chunk includes:
 
 ## Configuration
 
-Enable AST analysis in `config/jina_v4/config.yaml`:
+Enable AST analysis in `src/config/jina_v4/config.yaml`:
 
 ```yaml
 features:

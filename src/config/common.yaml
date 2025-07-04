@@ -1,0 +1,25 @@
+# Common configuration shared across all HADES modules
+
+logging:
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: null  # Set to path for file logging
+
+metrics:
+  enabled: true
+  export_interval: 60  # seconds
+  
+cache:
+  enabled: true
+  ttl: 3600  # seconds
+  max_size: 1000  # entries
+
+gpu:
+  enabled: true
+  device: 0  # GPU device ID
+  memory_fraction: 0.9  # Fraction of GPU memory to use
+
+paths:
+  models: ~/ML-Lab/models
+  data: ~/ML-Lab/data
+  logs: ~/ML-Lab/logs

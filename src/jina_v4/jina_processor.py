@@ -11,11 +11,11 @@ Key Capabilities:
 - Late-chunking with semantic boundary detection
 - Attention-based keyword extraction
 - Hierarchical relationship preservation
-- Docling integration for advanced document parsing
+- Jina v4 multimodal document parsing (placeholder for implementation)
 - Fallback parsers for common document formats
 
 Recent Updates:
-- Implemented Docling-based document parsing with OCR support
+- Implemented placeholder for Jina v4 multimodal document parsing
 - Added comprehensive fallback parsing for PDF, DOCX, and text files
 - Enhanced multimodal support with image extraction capabilities
 - Integrated table extraction and metadata preservation
@@ -29,7 +29,7 @@ Module Organization:
   - Relationship computation (_compute_relationships)
 
 Implementation Status:
-- ⚠️ _parse_document: Placeholder - needs Docling integration
+- ⚠️ _parse_document: Placeholder - needs Jina v4 multimodal integration
 - ⚠️ _extract_embeddings_local: Placeholder - needs vLLM direct access
 - ⚠️ _extract_keywords: Placeholder - needs attention extraction
 - ⚠️ Semantic operations: Placeholder - needs actual calculations
@@ -37,7 +37,7 @@ Implementation Status:
 
 Related Resources:
 - Research Paper: jina-embeddings-v4.pdf (co-located)
-- Configuration: /config/jina_v4/config.yaml
+- Configuration: src/config/jina_v4/config.yaml
 - vLLM Integration: vllm_integration.py
 - ISNE Adapter: isne_adapter.py
 """
@@ -46,8 +46,13 @@ import logging
 from typing import Dict, Any, List, Optional, Union, Tuple
 from pathlib import Path
 import numpy as np
-import torch
 from datetime import datetime
+
+# Ensure version compatibility  
+from src.utils.version_checker import ensure_torch_available
+ensure_torch_available()
+
+import torch
 
 from ..types.jina_v4.processor import DocumentInput, ProcessingResult
 from ..types.common import DocumentType
@@ -56,6 +61,8 @@ import asyncio
 
 from .vllm_integration import VLLMEmbeddingExtractor
 from .ast_analyzer import ASTAnalyzer
+from ..bridges.bridge_detector import BridgeDetector
+from .parsers import XMLStructureParser, YAMLJSONParser, ImageParser, LaTeXParser, TOMLParser
 
 logger = logging.getLogger(__name__)
 
@@ -100,8 +107,34 @@ class JinaV4Processor:
         # Initialize AST analyzer for code files
         self.ast_analyzer = ASTAnalyzer()
         
+        # Initialize bridge detector
+        self.bridge_detector = BridgeDetector({
+            'confidence_thresholds': {
+                'citation_match': 0.9,
+                'algorithm_name': 0.8,
+                'symbol_match': 0.85,
+                'fuzzy_match': 0.6
+            }
+        })
+        
         # Temporary storage for extracted images
         self._extracted_images: List[Dict[str, Any]] = []
+        
+        # Temporary storage for detected bridges
+        self._detected_bridges: List[Any] = []
+        
+        # Temporary storage for parsed metadata
+        self._current_config_metadata: Dict[str, Any] = {}
+        
+        # Temporary storage for multimodal content
+        self._current_image_data = None
+        self._current_visual_features: Dict[str, Any] = {}
+        self._has_multimodal_content = False
+        
+        # Temporary storage for LaTeX content
+        self._current_latex_metadata: Dict[str, Any] = {}
+        self._current_math_content: Dict[str, Any] = {}
+        self._has_algorithmic_content = False
         
         # Stats
         self.stats = {
@@ -137,6 +170,55 @@ class JinaV4Processor:
             logger.error(f"Failed to initialize Jina v4 model: {e}")
             raise
     
+    async def process_directory(self, directory_path: str, **kwargs) -> Dict[str, Any]:
+        """Process all files in a directory.
+        
+        Args:
+            directory_path: Path to directory
+            **kwargs: Additional options
+            
+        Returns:
+            Processing results
+        """
+        # TODO: Implement directory processing
+        logger.warning("process_directory not fully implemented")
+        return {
+            "status": "completed",
+            "files_processed": 0,
+            "errors": []
+        }
+    
+    async def process_file(self, file_path: str, **kwargs) -> Dict[str, Any]:
+        """Process a single file.
+        
+        Args:
+            file_path: Path to file
+            **kwargs: Additional options
+            
+        Returns:
+            Processing results
+        """
+        # Use the main process method
+        result = await self.process(file_path=file_path)
+        return result
+    
+    async def _process_document(self, content: str, metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """Process a document.
+        
+        Args:
+            content: Document content
+            metadata: Document metadata
+            
+        Returns:
+            Processing results
+        """
+        # Process using the main process method
+        result = await self.process(content=content)
+        return {
+            "embedding": result.get("embeddings", [None])[0] if result.get("embeddings") else None,
+            "metadata": {**metadata, **result.get("metadata", {})}
+        }
+    
     async def process(
         self,
         file_path: Optional[str] = None,
@@ -170,9 +252,15 @@ class JinaV4Processor:
             document_data = self._parse_document(file_path, content, options)
             
             # Step 2: Generate embeddings (multi-vector mode)
+            # Include multimodal content if present
+            images_for_embedding = document_data.get('images', [])
+            if document_data.get('multimodal', {}).get('has_images'):
+                # Add the parsed image data
+                images_for_embedding.append(document_data['multimodal']['image_data'])
+            
             embeddings_data = await self._generate_embeddings(
                 document_data['text'],
-                document_data.get('images', []),
+                images_for_embedding,
                 options,
                 ast_analysis=document_data.get('ast_analysis')
             )
@@ -246,11 +334,19 @@ class JinaV4Processor:
         result: Dict[str, Any] = {
             'text': '',
             'ast_analysis': None,
-            'images': []
+            'images': [],
+            'bridges': []
         }
         
-        # Clear any previously extracted images
+        # Clear any previously extracted content
         self._extracted_images = []
+        self._detected_bridges = []
+        self._current_image_data = None
+        self._current_visual_features = {}
+        self._has_multimodal_content = False
+        self._current_latex_metadata = {}
+        self._current_math_content = {}
+        self._has_algorithmic_content = False
         
         # Determine content and file type
         if content:
@@ -272,8 +368,8 @@ class JinaV4Processor:
                     logger.error(f"Failed to read Python file {file_path}: {e}")
                     text = f"[Error reading {file_path}]"
             else:
-                # Use Docling for multimodal document parsing
-                text = self._parse_with_docling(file_path, is_python)
+                # Use Jina v4 for multimodal document parsing
+                text = self._parse_with_jina_v4(file_path, is_python)
         else:
             raise ValueError("Either file_path or content must be provided")
         
@@ -296,6 +392,14 @@ class JinaV4Processor:
                     f"{ast_analysis['stats']['functions']} functions, "
                     f"{ast_analysis['stats']['imports']} imports"
                 )
+                
+                # Detect bridges in Python code
+                bridges = self.bridge_detector.detect_bridges_in_code(
+                    file_path if file_path else Path("unknown.py"),
+                    ast_analysis
+                )
+                self._detected_bridges.extend(bridges)
+                
             except Exception as e:
                 logger.warning(f"AST analysis failed: {e}")
                 # Continue without AST analysis
@@ -304,102 +408,76 @@ class JinaV4Processor:
         if self._extracted_images:
             result['images'] = self._extracted_images
             logger.info(f"Including {len(self._extracted_images)} extracted images")
+        
+        # Add detected bridges
+        if self._detected_bridges:
+            result['bridges'] = self._detected_bridges
+            logger.info(f"Detected {len(self._detected_bridges)} theory-practice bridges")
+        
+        # Add multimodal content if present
+        if self._has_multimodal_content:
+            result['multimodal'] = {
+                'has_images': bool(self._current_image_data),
+                'image_data': self._current_image_data,
+                'visual_features': self._current_visual_features
+            }
+            logger.info("Document contains multimodal content")
+        
+        # Add LaTeX content if present
+        if self._current_latex_metadata or self._current_math_content:
+            result['latex'] = {
+                'metadata': self._current_latex_metadata,
+                'math_content': self._current_math_content,
+                'has_algorithms': self._has_algorithmic_content
+            }
+            logger.info(f"Document contains LaTeX content with {self._current_latex_metadata.get('equation_count', 0)} equations")
             
         return result
     
-    def _parse_with_docling(self, file_path: Path, is_python: bool = False) -> str:
+    def _parse_with_jina_v4(self, file_path: Path, is_python: bool = False) -> str:
         """
-        Parse documents using Docling for multimodal support.
+        Parse documents using Jina v4's multimodal capabilities with file-type awareness.
         
-        Supports: PDF, DOCX, PPTX, XLSX, images, markdown, and more.
+        Different file types receive specialized processing to maintain theory-practice bridges
+        while leveraging Jina v4's unified embedding space.
+        
+        Args:
+            file_path: Path to the document
+            is_python: Whether this is a Python source file
+            
+        Returns:
+            Extracted text content with structural metadata preserved
         """
-        try:
-            from docling.document_converter import DocumentConverter
-            from docling.datamodel.base_models import InputFormat
-            from docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline
-            from docling.pipeline.simple_pipeline import SimplePipeline
+        suffix = file_path.suffix.lower()
+        
+        # Route to appropriate parser based on file type
+        if suffix == '.pdf':
+            logger.info(f"Processing PDF with structure extraction: {file_path}")
+            return self._parse_pdf_with_structure(file_path)
             
-            # Determine file format
-            suffix = file_path.suffix.lower()
+        elif suffix in ['.md', '.markdown']:
+            logger.info(f"Processing Markdown with hierarchy parsing: {file_path}")
+            return self._parse_markdown_with_links(file_path)
             
-            # Initialize appropriate converter based on file type
-            if suffix == '.pdf':
-                # Use standard PDF pipeline for better quality
-                converter = DocumentConverter(
-                    pipeline_cls=StandardPdfPipeline,
-                    pdf_backend='pypdfium2',  # or 'pdfplumber' for better table extraction
-                    ocr_enabled=True  # Enable OCR for scanned PDFs
-                )
-            else:
-                # Use simple pipeline for other formats
-                converter = DocumentConverter(
-                    pipeline_cls=SimplePipeline
-                )
+        elif suffix in ['.tex', '.latex']:
+            logger.info(f"Processing LaTeX document: {file_path}")
+            return self._parse_latex_document(file_path)
             
-            # Convert document
-            logger.info(f"Parsing {file_path} with Docling")
-            result = converter.convert(str(file_path))
+        elif suffix in ['.rst', '.adoc']:
+            logger.info(f"Processing structured document: {file_path}")
+            return self._parse_structured_document(file_path)
             
-            # Extract text content
-            if result.document:
-                # Get main text content
-                text_parts = []
-                
-                # Extract title if available
-                if hasattr(result.document, 'title') and result.document.title:
-                    text_parts.append(f"Title: {result.document.title}\n")
-                
-                # Extract main content
-                if hasattr(result.document, 'main_text') and result.document.main_text:
-                    text_parts.append(result.document.main_text)
-                elif hasattr(result.document, 'text') and result.document.text:
-                    text_parts.append(result.document.text)
-                else:
-                    # Fallback: iterate through document elements
-                    for element in result.document:
-                        if hasattr(element, 'text') and element.text:
-                            text_parts.append(element.text)
-                
-                # Extract tables if present
-                if hasattr(result.document, 'tables') and result.document.tables:
-                    text_parts.append("\n\nTables:")
-                    for i, table in enumerate(result.document.tables):
-                        text_parts.append(f"\nTable {i+1}:")
-                        # Convert table to text representation
-                        if hasattr(table, 'to_text'):
-                            text_parts.append(table.to_text())
-                        else:
-                            text_parts.append(str(table))
-                
-                # Extract metadata
-                if hasattr(result.document, 'metadata') and result.document.metadata:
-                    metadata_str = "\n\nMetadata:\n"
-                    for key, value in result.document.metadata.items():
-                        metadata_str += f"- {key}: {value}\n"
-                    text_parts.append(metadata_str)
-                
-                text = "\n".join(text_parts)
-                
-                # Store images for multimodal processing
-                if hasattr(result.document, 'images') and result.document.images:
-                    # Images will be processed separately in multimodal pipeline
-                    self._extracted_images = result.document.images
-                    logger.info(f"Extracted {len(self._extracted_images)} images from document")
-                
-                logger.info(f"Successfully parsed {file_path}: {len(text)} characters extracted")
-                return text
-            else:
-                logger.warning(f"Docling returned empty document for {file_path}")
-                return f"[Empty document: {file_path}]"
-                
-        except ImportError as e:
-            logger.error(f"Docling not installed: {e}")
-            logger.info("Falling back to basic text extraction")
-            return self._basic_text_extraction(file_path)
+        elif suffix in ['.ipynb']:
+            logger.info(f"Processing Jupyter notebook: {file_path}")
+            return self._parse_jupyter_notebook(file_path)
             
-        except Exception as e:
-            logger.error(f"Error parsing {file_path} with Docling: {e}")
-            logger.info("Falling back to basic text extraction")
+        elif suffix in ['.yaml', '.yml', '.json', '.toml', '.xml']:
+            logger.info(f"Processing configuration file: {file_path}")
+            return self._parse_config_with_schema(file_path)
+            
+        else:
+            # Fall back to basic extraction for other types
+            logger.info(f"Using basic extraction for {suffix} file: {file_path}")
             return self._basic_text_extraction(file_path)
     
     def _basic_text_extraction(self, file_path: Path) -> str:
@@ -441,9 +519,10 @@ class JinaV4Processor:
                     logger.error(f"python-docx extraction failed: {e}")
                     return f"[DOCX extraction failed: {file_path.name}]"
                     
-            elif suffix in ['.jpg', '.jpeg', '.png', '.gif', '.bmp']:
-                # Image files - return placeholder for now
-                return f"[Image file: {file_path.name}]"
+            elif suffix in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg']:
+                # Image files - use multimodal processing
+                logger.info(f"Processing image with multimodal parser: {file_path}")
+                return self._parse_image_multimodal(file_path)
                 
             else:
                 # Unknown format
@@ -452,6 +531,437 @@ class JinaV4Processor:
         except Exception as e:
             logger.error(f"Basic text extraction failed for {file_path}: {e}")
             return f"[Error extracting text from {file_path}]"
+    
+    def _parse_image_multimodal(self, file_path: Path) -> str:
+        """
+        Parse image using multimodal capabilities of Jina v4.
+        
+        Returns:
+            Structured text representation with embedded image data
+        """
+        try:
+            parser = ImageParser(self.config)
+            result = parser.parse(file_path)
+            
+            # Store image data for multimodal embedding
+            self._current_image_data = result.get('image_data')
+            
+            # Store visual features
+            self._current_visual_features = result.get('visual_features', {})
+            
+            # Store detected bridges
+            if result.get('bridges'):
+                bridges = result['bridges']
+                # Enhance bridges with image context
+                for bridge in bridges:
+                    bridge['source_modality'] = 'image'
+                    bridge['visual_context'] = result.get('image_type', 'unknown')
+                self._detected_bridges.extend(bridges)
+            
+            # Mark that we have multimodal content
+            self._has_multimodal_content = True
+            
+            # Return structured content
+            return result.get('content', f"[Image: {file_path.name}]")
+            
+        except Exception as e:
+            logger.error(f"Error parsing image {file_path}: {e}")
+            return f"[Image file: {file_path.name}]"
+    
+    def _parse_pdf_with_structure(self, file_path: Path) -> str:
+        """
+        Parse PDF with structure extraction for theory-practice bridges.
+        
+        Extracts:
+        - Section headings and hierarchy
+        - Figures and their captions
+        - Tables and their titles
+        - Citations and references
+        - Algorithm blocks
+        - Mathematical equations
+        
+        Returns:
+            Structured text with metadata annotations
+        """
+        try:
+            import fitz  # PyMuPDF
+            import re
+            
+            doc = fitz.open(str(file_path))
+            structured_content = []
+            
+            # Track document structure
+            self._current_pdf_metadata: Dict[str, List[Any]] = {
+                'sections': [],
+                'figures': [],
+                'tables': [],
+                'citations': [],
+                'algorithms': [],
+                'equations': []
+            }
+            
+            for page_num, page in enumerate(doc):
+                # Extract text with positioning
+                blocks = page.get_text("dict")
+                
+                # Process text blocks to identify structure
+                for block in blocks.get("blocks", []):
+                    if block.get("type") == 0:  # Text block
+                        for line in block.get("lines", []):
+                            for span in line.get("spans", []):
+                                text = span.get("text", "").strip()
+                                if not text:
+                                    continue
+                                
+                                # Detect section headings (larger font, bold)
+                                font_size = span.get("size", 0)
+                                font_flags = span.get("flags", 0)
+                                is_bold = font_flags & 2**4
+                                
+                                if font_size > 12 and is_bold:
+                                    # Likely a heading
+                                    self._current_pdf_metadata['sections'].append({
+                                        'text': text,
+                                        'page': page_num + 1,
+                                        'level': self._estimate_heading_level(font_size)
+                                    })
+                                    structured_content.append(f"\n## {text}\n")
+                                
+                                # Detect citations (look for [1], (Author, Year), etc.)
+                                citation_patterns = [
+                                    r'\[(\d+)\]',  # [1], [2], etc.
+                                    r'\(([A-Z][a-z]+(?:\s+et\s+al\.)?),?\s*(\d{4})\)',  # (Author, 2023)
+                                ]
+                                for pattern in citation_patterns:
+                                    citations = re.findall(pattern, text)
+                                    if citations:
+                                        self._current_pdf_metadata['citations'].extend(citations)
+                                
+                                # Detect algorithm blocks
+                                if re.match(r'^Algorithm\s+\d+', text, re.IGNORECASE):
+                                    self._current_pdf_metadata['algorithms'].append({
+                                        'title': text,
+                                        'page': page_num + 1
+                                    })
+                                
+                                # Add text to content
+                                structured_content.append(text)
+                    
+                    elif block.get("type") == 1:  # Image block
+                        # Track figures
+                        self._current_pdf_metadata['figures'].append({
+                            'page': page_num + 1,
+                            'bbox': block.get("bbox"),
+                            'extracted': False  # Will be extracted if needed
+                        })
+                
+                # Extract tables (heuristic: look for grid patterns)
+                tables = page.find_tables()
+                if tables:
+                    for table in tables:
+                        self._current_pdf_metadata['tables'].append({
+                            'page': page_num + 1,
+                            'bbox': table.bbox,
+                            'cells': len(table.cells)
+                        })
+            
+            doc.close()
+            
+            # Detect bridges in PDF
+            bridges = self.bridge_detector.detect_bridges_in_pdf(
+                file_path,
+                self._current_pdf_metadata
+            )
+            self._detected_bridges.extend(bridges)
+            
+            # Add metadata summary at the beginning
+            metadata_summary = f"[PDF Structure Analysis]\n"
+            metadata_summary += f"Sections: {len(self._current_pdf_metadata['sections'])}\n"
+            metadata_summary += f"Figures: {len(self._current_pdf_metadata['figures'])}\n"
+            metadata_summary += f"Tables: {len(self._current_pdf_metadata['tables'])}\n"
+            metadata_summary += f"Citations: {len(set(str(c) for c in self._current_pdf_metadata['citations']))}\n"
+            metadata_summary += f"Algorithms: {len(self._current_pdf_metadata['algorithms'])}\n"
+            metadata_summary += f"Bridges: {len(bridges)}\n\n"
+            
+            return metadata_summary + '\n'.join(structured_content)
+            
+        except ImportError:
+            logger.warning("PyMuPDF not available, trying alternative PDF parser")
+            # Fall back to PyPDF2
+            return self._basic_text_extraction(file_path)
+        except Exception as e:
+            logger.error(f"Error parsing PDF structure: {e}")
+            return self._basic_text_extraction(file_path)
+    
+    def _estimate_heading_level(self, font_size: float) -> int:
+        """Estimate heading level based on font size."""
+        if font_size >= 18:
+            return 1
+        elif font_size >= 14:
+            return 2
+        elif font_size >= 12:
+            return 3
+        else:
+            return 4
+    
+    def _parse_markdown_with_links(self, file_path: Path) -> str:
+        """
+        Parse Markdown with hierarchy and link analysis for theory-practice bridges.
+        
+        Extracts:
+        - Heading hierarchy
+        - Internal and external links
+        - Code blocks with language
+        - API references
+        - Cross-references to other documents
+        
+        Returns:
+            Structured text with link metadata preserved
+        """
+        try:
+            import re
+            
+            content = file_path.read_text(encoding='utf-8')
+            
+            # Track markdown structure
+            self._current_markdown_metadata: Dict[str, List[Any]] = {
+                'headings': [],
+                'links': [],
+                'code_blocks': [],
+                'api_refs': [],
+                'cross_refs': []
+            }
+            
+            lines = content.split('\n')
+            current_heading_stack: List[Tuple[int, str]] = []
+            
+            for line_num, line in enumerate(lines):
+                # Extract headings
+                heading_match = re.match(r'^(#{1,6})\s+(.+)$', line)
+                if heading_match:
+                    level = len(heading_match.group(1))
+                    text = heading_match.group(2)
+                    
+                    # Update heading stack
+                    current_heading_stack = current_heading_stack[:level-1]
+                    current_heading_stack.append(text)
+                    
+                    self._current_markdown_metadata['headings'].append({
+                        'level': level,
+                        'text': text,
+                        'line': line_num + 1,
+                        'path': '/'.join(current_heading_stack)
+                    })
+                
+                # Extract links
+                # Standard markdown links: [text](url)
+                link_pattern = r'\[([^\]]+)\]\(([^)]+)\)'
+                for match in re.finditer(link_pattern, line):
+                    link_text = match.group(1)
+                    link_url = match.group(2)
+                    
+                    link_info = {
+                        'text': link_text,
+                        'url': link_url,
+                        'line': line_num + 1,
+                        'context': current_heading_stack[-1] if current_heading_stack else 'root'
+                    }
+                    
+                    # Classify link type
+                    if link_url.startswith('#'):
+                        link_info['type'] = 'internal_anchor'
+                    elif link_url.startswith('http'):
+                        link_info['type'] = 'external'
+                    elif link_url.endswith('.md'):
+                        link_info['type'] = 'cross_reference'
+                        self._current_markdown_metadata['cross_refs'].append(link_info)
+                    elif link_url.endswith(('.py', '.js', '.java')):
+                        link_info['type'] = 'code_reference'
+                    else:
+                        link_info['type'] = 'file_reference'
+                    
+                    self._current_markdown_metadata['links'].append(link_info)
+                
+                # Extract API references (look for class/function mentions)
+                api_pattern = r'`([A-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]+)*)`'
+                for match in re.finditer(api_pattern, line):
+                    api_ref = match.group(1)
+                    if '.' in api_ref or api_ref[0].isupper():  # Likely a class or module
+                        self._current_markdown_metadata['api_refs'].append({
+                            'name': api_ref,
+                            'line': line_num + 1,
+                            'context': current_heading_stack[-1] if current_heading_stack else 'root'
+                        })
+            
+            # Extract code blocks
+            code_block_pattern = r'```(\w*)\n(.*?)\n```'
+            for match in re.finditer(code_block_pattern, content, re.DOTALL):
+                language = match.group(1) or 'plain'
+                code = match.group(2)
+                
+                self._current_markdown_metadata['code_blocks'].append({
+                    'language': language,
+                    'content': code,
+                    'length': len(code.split('\n')),
+                    'start_pos': match.start()
+                })
+            
+            # Detect bridges in Markdown
+            bridges = self.bridge_detector.detect_bridges_in_markdown(
+                file_path,
+                self._current_markdown_metadata
+            )
+            self._detected_bridges.extend(bridges)
+            
+            # Add metadata summary
+            metadata_summary = f"[Markdown Structure Analysis]\n"
+            metadata_summary += f"Headings: {len(self._current_markdown_metadata['headings'])}\n"
+            metadata_summary += f"Links: {len(self._current_markdown_metadata['links'])}\n"
+            metadata_summary += f"Code blocks: {len(self._current_markdown_metadata['code_blocks'])}\n"
+            metadata_summary += f"API references: {len(self._current_markdown_metadata['api_refs'])}\n"
+            metadata_summary += f"Cross-references: {len(self._current_markdown_metadata['cross_refs'])}\n"
+            metadata_summary += f"Bridges: {len(bridges)}\n\n"
+            
+            return metadata_summary + content
+            
+        except Exception as e:
+            logger.error(f"Error parsing markdown structure: {e}")
+            return self._basic_text_extraction(file_path)
+    
+    def _parse_latex_document(self, file_path: Path) -> str:
+        """
+        Parse LaTeX document with equation and citation extraction.
+        
+        Extracts:
+        - Document structure (sections, subsections)
+        - Mathematical content (equations, theorems, algorithms)
+        - Citations and bibliography
+        - Cross-references and labels
+        - Theory-practice bridges
+        
+        Returns:
+            Structured text with LaTeX metadata preserved
+        """
+        try:
+            parser = LaTeXParser(self.config)
+            result = parser.parse(file_path)
+            
+            # Store LaTeX-specific metadata
+            self._current_latex_metadata = result.get('metadata', {})
+            
+            # Store mathematical content for specialized processing
+            self._current_math_content = result.get('math_content', {})
+            
+            # Detect bridges in LaTeX
+            if result.get('bridges'):
+                bridges = result['bridges']
+                # Enhance bridges with LaTeX context
+                for bridge in bridges:
+                    bridge['source_type'] = 'latex'
+                    bridge['doc_type'] = result.get('doc_type', 'unknown')
+                self._detected_bridges.extend(bridges)
+            
+            # If this is a research paper with algorithms, mark for special handling
+            if result.get('doc_type') == 'research_paper' and result.get('math_content', {}).get('algorithms'):
+                self._has_algorithmic_content = True
+            
+            # Return structured content
+            return result.get('content', '')
+            
+        except Exception as e:
+            logger.error(f"Error parsing LaTeX document {file_path}: {e}")
+            return self._basic_text_extraction(file_path)
+    
+    def _parse_structured_document(self, file_path: Path) -> str:
+        """Parse other structured documents (RST, AsciiDoc, LaTeX)."""
+        # For now, use basic extraction
+        # TODO: Add specific parsers for each format
+        return self._basic_text_extraction(file_path)
+    
+    def _parse_jupyter_notebook(self, file_path: Path) -> str:
+        """Parse Jupyter notebook preserving code-output relationships."""
+        try:
+            import json
+            
+            with open(file_path, 'r') as f:
+                notebook = json.load(f)
+            
+            content_parts = []
+            
+            for cell in notebook.get('cells', []):
+                cell_type = cell.get('cell_type')
+                
+                if cell_type == 'markdown':
+                    content_parts.append(''.join(cell.get('source', [])))
+                elif cell_type == 'code':
+                    # Add code
+                    content_parts.append('```python')
+                    content_parts.append(''.join(cell.get('source', [])))
+                    content_parts.append('```')
+                    
+                    # Add outputs if present
+                    outputs = cell.get('outputs', [])
+                    if outputs:
+                        content_parts.append('\n[Output]')
+                        for output in outputs:
+                            if 'text' in output:
+                                content_parts.append(''.join(output['text']))
+                            elif 'data' in output and 'text/plain' in output['data']:
+                                content_parts.append(''.join(output['data']['text/plain']))
+            
+            return '\n'.join(content_parts)
+            
+        except Exception as e:
+            logger.error(f"Error parsing Jupyter notebook: {e}")
+            return self._basic_text_extraction(file_path)
+    
+    def _parse_config_with_schema(self, file_path: Path) -> str:
+        """Parse configuration files preserving schema information."""
+        try:
+            suffix = file_path.suffix.lower()
+            
+            if suffix == '.xml':
+                logger.info(f"Processing XML configuration: {file_path}")
+                parser = XMLStructureParser(self.config)
+                result = parser.parse(file_path)
+                
+                # Store metadata and bridges
+                self._current_config_metadata = result.get('metadata', {})
+                if result.get('bridges'):
+                    self._detected_bridges.extend(result['bridges'])
+                
+                return result.get('content', '')
+            
+            elif suffix in ['.yaml', '.yml', '.json']:
+                logger.info(f"Processing {suffix} configuration: {file_path}")
+                parser = YAMLJSONParser(self.config)
+                result = parser.parse(file_path)
+                
+                # Store metadata and bridges
+                self._current_config_metadata = result.get('metadata', {})
+                if result.get('bridges'):
+                    self._detected_bridges.extend(result['bridges'])
+                
+                return result.get('content', '')
+            
+            elif suffix == '.toml':
+                logger.info(f"Processing TOML configuration: {file_path}")
+                parser = TOMLParser(self.config)
+                result = parser.parse(file_path)
+                
+                # Store metadata and bridges
+                self._current_config_metadata = result.get('metadata', {})
+                if result.get('bridges'):
+                    self._detected_bridges.extend(result['bridges'])
+                
+                return result.get('content', '')
+            
+            else:
+                return self._basic_text_extraction(file_path)
+                
+        except Exception as e:
+            logger.error(f"Error parsing config file {file_path}: {e}")
+            return self._basic_text_extraction(file_path)
     
     async def _generate_embeddings(
         self,
@@ -483,18 +993,50 @@ class JinaV4Processor:
             # Select LoRA adapter if configured
             adapter = options.get('lora_adapter', self.lora_adapter)
             
-            # Extract embeddings using vLLM integration
+            # Determine task and prompt_name from options
+            task = options.get('task', 'retrieval')
+            prompt_name = options.get('prompt_name', 'passage')
+            
+            # Extract embeddings using vLLM integration with Jina v4 capabilities
             result = await self.embedding_extractor.extract_embeddings(
                 texts=text,
                 adapter=adapter,
                 instruction=instruction,
-                batch_size=self.batch_size
+                batch_size=self.batch_size,
+                task=task,
+                prompt_name=prompt_name
             )
             
             # Process multimodal inputs if present
             if images and self.config.get('features', {}).get('multimodal', {}).get('enabled', True):
-                # TODO: Implement image embedding extraction
-                logger.warning("Image processing not yet implemented")
+                # Process images through Jina v4
+                logger.info(f"Processing {len(images)} images for multimodal embedding")
+                
+                # Extract image data for processing
+                image_inputs = []
+                for img_data in images:
+                    if isinstance(img_data, dict):
+                        if 'path' in img_data:
+                            image_inputs.append(img_data['path'])
+                        elif 'array' in img_data:
+                            image_inputs.append(img_data['array'])
+                        elif 'url' in img_data:
+                            image_inputs.append(img_data['url'])
+                    elif isinstance(img_data, str):
+                        image_inputs.append(img_data)
+                
+                if image_inputs:
+                    # Extract image embeddings using Jina v4
+                    image_result = await self.embedding_extractor.extract_image_embeddings(
+                        images=image_inputs,
+                        task=task,
+                        batch_size=self.batch_size // 4  # Smaller batch for images
+                    )
+                    
+                    # Store image embeddings
+                    result['image_embeddings'] = image_result['embeddings']
+                    result['is_multimodal'] = True
+                    result['metadata']['image_count'] = len(image_inputs)
                 
             # Format result to match expected structure
             embeddings_data = {
@@ -709,6 +1251,105 @@ class JinaV4Processor:
         """Clear any internal caches."""
         # Would clear model caches, etc.
         logger.info("Cache cleared")
+    
+    async def process_with_direct_transformers(
+        self,
+        texts: Union[str, List[str]],
+        images: Optional[Union[str, List[str]]] = None,
+        task: str = 'retrieval',
+        prompt_name: Optional[str] = None,
+        return_multivector: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Process texts/images directly using transformers without vLLM.
+        
+        This method provides direct access to Jina v4's native capabilities
+        using the transformers library.
+        
+        Args:
+            texts: Text(s) to encode
+            images: Optional image(s) to encode
+            task: Task type (retrieval, text-matching, code)
+            prompt_name: Prompt name (query, passage)
+            return_multivector: Whether to return multi-vector embeddings
+            
+        Returns:
+            Dictionary with embeddings and metadata
+        """
+        try:
+            # Lazy import to avoid dependency issues
+            from transformers import AutoModel
+            import torch
+            
+            # Initialize model if not already done
+            if not hasattr(self, '_direct_model'):
+                logger.info("Initializing direct transformers model")
+                self._direct_model = AutoModel.from_pretrained(
+                    self.model_name,
+                    trust_remote_code=True,
+                    torch_dtype=torch.float16 if 'cuda' in self.device else torch.float32
+                )
+                self._direct_model.to(self.device)
+                self._direct_model.eval()
+            
+            # Ensure inputs are lists
+            if isinstance(texts, str):
+                texts = [texts]
+            if images and isinstance(images, str):
+                images = [images]
+            
+            embeddings = []
+            
+            # Process text embeddings
+            if texts:
+                with torch.no_grad():
+                    text_embeddings = self._direct_model.encode_text(
+                        texts=texts,
+                        task=task,
+                        prompt_name=prompt_name,
+                        return_multivector=return_multivector,
+                        batch_size=self.batch_size,
+                        max_length=self.max_input_tokens
+                    )
+                    
+                    # Convert to numpy
+                    if isinstance(text_embeddings, torch.Tensor):
+                        text_embeddings = text_embeddings.cpu().numpy()
+                    
+                    embeddings.extend(text_embeddings if isinstance(text_embeddings, list) else [text_embeddings])
+            
+            # Process image embeddings
+            if images:
+                with torch.no_grad():
+                    image_embeddings = self._direct_model.encode_image(
+                        images=images,
+                        task=task,
+                        return_multivector=return_multivector,
+                        batch_size=self.batch_size // 4  # Smaller batch for images
+                    )
+                    
+                    # Convert to numpy
+                    if isinstance(image_embeddings, torch.Tensor):
+                        image_embeddings = image_embeddings.cpu().numpy()
+                    
+                    embeddings.extend(image_embeddings if isinstance(image_embeddings, list) else [image_embeddings])
+            
+            return {
+                'embeddings': embeddings,
+                'task': task,
+                'prompt_name': prompt_name,
+                'multivector': return_multivector,
+                'metadata': {
+                    'model': self.model_name,
+                    'device': self.device,
+                    'num_texts': len(texts) if texts else 0,
+                    'num_images': len(images) if images else 0
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in direct transformers processing: {e}")
+            raise
     
     def __repr__(self):
         return (

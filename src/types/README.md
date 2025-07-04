@@ -1,39 +1,57 @@
 # Type Definitions
 
 ## Overview
-This directory contains all type definitions, protocols, and contracts used throughout HADES. Following Python's typing best practices, these provide clear interfaces and data structures.
+This directory mirrors the src/ structure exactly, providing type definitions for each module. This pattern ensures consistency for both human maintainability and ISNE pattern learning.
 
-## Structure
-- `common.py` - Common types used across modules
-- `components/` - Component protocols and contracts
-- `isne/` - ISNE-specific types
-- `pipeline/` - Pipeline data structures
-- `storage/` - Storage interfaces and types
-
-## Related Resources
-- **Implementation**: Types are implemented in `/src/`
-- **Documentation**: `/docs/api/types_reference.md`
-- **Examples**: Used throughout codebase
+## Structure (Mirrors src/)
+- `common.py` - Common types, enums, base schemas, ComponentType, ComponentMetadata
+- `api/` - API request/response types
+- `concepts/` - Concept-related types
+- `isne/` - ISNE models, training, and bootstrap types
+- `jina_v4/` - Jina V4 processor types
+- `pathrag/` - PathRAG strategy and RAG types
+- `storage/` - Storage interfaces, Sequential-ISNE types
+- `utils/` - Utility types
+  - `filesystem/` - File and directory metadata types
+- `validation/` - Validation result types
 
 ## Design Principles
-1. **Protocol-based**: Use protocols for interfaces
-2. **Pydantic Models**: For data validation
-3. **Type Safety**: Comprehensive type hints
-4. **Documentation**: Types serve as documentation
+1. **Mirror Structure**: Each src/ module has corresponding types/ module
+2. **Pydantic Models**: For data validation and serialization
+3. **Type Safety**: Comprehensive type hints throughout
+4. **Backward Compatibility**: Field aliasing for legacy support
+5. **Pattern Learning**: Consistent structure aids ISNE directory understanding
 
-## Key Protocols
-- `ComponentProtocol` - Base for all components
-- `StorageProtocol` - Storage interfaces
-- `EmbedderProtocol` - Embedding generation
-- `GraphEnhancerProtocol` - ISNE interface
+## Key Types
+- `BaseSchema` - Base Pydantic model with custom config
+- `ComponentType`, `ComponentMetadata` - Generic component types (in common.py)
+- `StorageInput`, `StorageOutput` - Storage operations (in storage/types.py)
+- `RAGStrategyInput`, `RAGStrategyOutput` - PathRAG types (in pathrag/types.py)
+- `ISNEConfig`, `TrainingMetrics` - ISNE types (in isne/)
+- `FileMetadata`, `DirectoryMetadata` - Filesystem types (in utils/filesystem/)
 
 ## Usage
 ```python
-from src.types.components.protocols import ComponentProtocol
-from src.types.pipeline.document_schema import ProcessedDocument
+# Common types
+from src.types.common import BaseSchema, ProcessingStatus, ComponentType
+
+# Storage types
+from src.types.storage.types import StorageInput, StorageOutput
+
+# PathRAG types
+from src.types.pathrag.types import RAGStrategyInput, RAGMode
+
+# ISNE types
+from src.types.isne.models import ISNEConfig
 ```
+
+## Directory Mirroring Benefits
+1. **3AM Debugging**: Easy to find types for any module
+2. **Pattern Recognition**: ISNE can learn from consistent structure
+3. **Maintainability**: Clear 1:1 mapping between code and types
+4. **Discoverability**: Types location is predictable
 
 ## Dependencies
 - pydantic for data validation
 - typing and typing_extensions
-- Python 3.8+ for protocol support
+- Python 3.8+ for advanced typing features

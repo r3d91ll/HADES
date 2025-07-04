@@ -1,0 +1,34 @@
+# Embedding validation configuration
+
+validation:
+  enabled: true
+  strict_mode: false  # Fail on validation errors vs. warnings
+  
+checks:
+  dimension:
+    enabled: true
+    expected: 768  # Jina v4 default dimension
+    tolerance: 0
+    
+  magnitude:
+    enabled: true
+    min: 0.1
+    max: 10.0
+    
+  nan_inf:
+    enabled: true
+    action: "replace"  # "replace", "error", or "skip"
+    replacement_value: 0.0
+    
+  similarity:
+    enabled: false
+    threshold: 0.95  # Flag embeddings too similar
+    
+metrics:
+  track_validation_stats: true
+  log_failures: true
+  
+performance:
+  batch_validation: true
+  batch_size: 1000
+  parallel: true

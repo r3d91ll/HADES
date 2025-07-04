@@ -99,7 +99,7 @@ StorageLayer
 1. Document Input
    ↓
 2. Jina v4 Processing
-   - Parse document (with Docling if needed)
+   - Parse document (with Jina v4 multimodal parsing)
    - Extract filesystem hierarchy
    - Generate embeddings
    - Perform late chunking

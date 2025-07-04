@@ -116,7 +116,7 @@ def get_processor() -> JinaV4Processor:
     return processor
 
 
-def get_pathrag_processor():
+async def get_pathrag_processor():
     """Get or initialize the PathRAG processor."""
     global pathrag_processor
     if pathrag_processor is None:
@@ -145,7 +145,7 @@ def get_pathrag_processor():
         pathrag_processor.configure(config)
         
         # Initialize with empty graph for now
-        pathrag_processor.initialize()
+        await pathrag_processor.initialize()
         
     return pathrag_processor
 
@@ -201,13 +201,13 @@ async def health():
 
 
 @app.post("/process/directory", response_model=ProcessingResponse)
-async def process_directory(request: ProcessDirectoryRequest):
+async def process_directory(request: ProcessDirectoryRequest) -> ProcessingResponse:
     """Process a directory of documents."""
     try:
         processor = get_processor()
         
         # Process directory
-        hierarchical_structure = processor.process_directory(
+        hierarchical_structure = await processor.process_directory(
             Path(request.directory_path),
             recursive=request.recursive,
             file_patterns=request.file_patterns
@@ -245,7 +245,7 @@ async def process_file(request: ProcessFileRequest):
         processor = get_processor()
         
         # Process single file
-        result = processor.process_file(Path(request.file_path))
+        result = await processor.process_file(Path(request.file_path))
         
         # Wrap in hierarchical structure
         hierarchical_structure = {
@@ -280,7 +280,10 @@ async def process_text(request: ProcessTextRequest):
         }
         
         # Process through pipeline
-        result = processor._process_document(doc_structure)
+        result = await processor._process_document(
+            doc_structure['content'],
+            doc_structure
+        )
         
         # Wrap in hierarchical structure
         hierarchical_structure = {
@@ -300,7 +303,7 @@ async def process_text(request: ProcessTextRequest):
 
 
 @app.post("/process/upload", response_model=ProcessingResponse)
-async def process_upload(files: List[UploadFile] = File(...)):
+async def process_upload(files: List[UploadFile] = File(...)) -> ProcessingResponse:
     """Upload and process multiple files."""
     try:
         processor = get_processor()
@@ -315,7 +318,7 @@ async def process_upload(files: List[UploadFile] = File(...)):
             
             try:
                 # Process file
-                result = processor.process_file(temp_path)
+                result = await processor.process_file(temp_path)
                 hierarchical_structure[file.filename] = result
                 processed_count += 1
             finally:
@@ -344,7 +347,7 @@ async def query(request: QueryRequest):
         
         # Get processors
         jina_processor = get_processor()
-        pathrag = get_pathrag_processor()
+        pathrag = await get_pathrag_processor()
         
         # Process query through PathRAG using direct method call
         # TODO: This needs to be refactored to use the new PathRAG interface

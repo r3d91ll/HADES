@@ -46,10 +46,17 @@ from src.types.pathrag.strategy import (
     QueryDecomposition,
     RetrievalStats
 )
-from src.types.common import ProcessingStatus, ComponentType, ComponentMetadata
+from src.types.common import ProcessingStatus, DocumentID, ComponentType, ComponentMetadata
+from .bridge_traversal import BridgeTraversal
 
-# Import HADES components - use lazy imports to avoid circular dependencies
-from src.components.registry import get_component
+# Import PathRAG types
+from src.types.pathrag.types import (
+    RAGStrategyInput,
+    RAGStrategyOutput,
+    RAGMode,
+    RAGResult,
+    PathInfo,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +81,7 @@ class PathRAGProcessor:
         """Initialize PathRAG processor."""
         self.name = "pathrag"
         self.version = "1.0.0"
-        self._component_type = ComponentType.RETRIEVER  # RAG strategy is a type of retriever
+        self._component_type = ComponentType.RAG_STRATEGY
         
         # Configuration
         self.config: Dict[str, Any] = {}
@@ -89,12 +96,30 @@ class PathRAGProcessor:
         self.node_embeddings: Dict[str, List[float]] = {}
         self.is_initialized = False
         
+        # Bridge traversal for theory-practice connections
+        self.bridge_traversal: Optional[BridgeTraversal] = None
+        self.theory_practice_bridges: List[Any] = []
+        
         logger.info("Initialized PathRAG processor")
     
     @property
     def component_type(self) -> ComponentType:
         """Get component type."""
         return self._component_type
+    
+    async def initialize(self) -> None:
+        """Initialize the PathRAG processor."""
+        if not self.is_initialized:
+            logger.info("Initializing PathRAG processor components...")
+            # Initialize components if needed
+            if self.storage and hasattr(self.storage, 'initialize'):
+                await self.storage.initialize()
+            if self.embedder and hasattr(self.embedder, 'initialize'):
+                await self.embedder.initialize()
+            if self.graph_enhancer and hasattr(self.graph_enhancer, 'initialize'):
+                await self.graph_enhancer.initialize()
+            self.is_initialized = True
+            logger.info("PathRAG processor initialized successfully")
     
     def configure(self, config: Dict[str, Any]) -> None:
         """
@@ -129,25 +154,45 @@ class PathRAGProcessor:
                 'get_metrics': lambda: {'type': 'mock'}
             })()
             
-            # Initialize embedder component - lazy import to avoid circular dependencies
+            # Initialize embedder component - use Jina V4 as the primary embedder
             embedder_config = self.config.get('embedder', {})
-            embedder_type = embedder_config.get('type', 'cpu')
             try:
-                from src.components.embedding.factory import create_embedder
-                self.embedder = create_embedder(embedder_type, embedder_config)
+                from src.jina_v4.factory import create_jina_component
+                self.embedder = create_jina_component(embedder_config)
+                logger.info("Initialized Jina V4 embedder")
             except ImportError as e:
-                logger.warning(f"Could not load embedding component: {e}")
+                logger.warning(f"Could not load Jina V4 embedder: {e}")
                 self.embedder = None
             
-            # Initialize graph enhancer component - lazy import to avoid circular dependencies
+            # Initialize graph enhancer component - use ISNE for graph enhancement
             enhancer_config = self.config.get('graph_enhancer', {})
-            enhancer_type = enhancer_config.get('type', 'isne')
-            try:
-                from src.components.graph_enhancement.factory import create_graph_enhancer
-                self.graph_enhancer = create_graph_enhancer(enhancer_type, enhancer_config)
-            except ImportError as e:
-                logger.warning(f"Could not load graph enhancement component: {e}")
+            if enhancer_config.get('enabled', True):
+                try:
+                    # For now, we'll use a placeholder since ISNE is integrated differently
+                    # ISNE enhancement happens after embedding generation
+                    self.graph_enhancer = None
+                    logger.info("Graph enhancement will use ISNE post-processing")
+                except Exception as e:
+                    logger.warning(f"Could not initialize graph enhancer: {e}")
+                    self.graph_enhancer = None
+            else:
                 self.graph_enhancer = None
+            
+            # Initialize bridge traversal for theory-practice connections
+            bridge_config = self.config.get('theory_practice_bridges', {})
+            if bridge_config.get('enabled', True):
+                self.bridge_traversal = BridgeTraversal({
+                    'bridge_weights': bridge_config.get('weights', {
+                        'implements': 0.9,
+                        'algorithm_of': 0.85,
+                        'documented_in': 0.8,
+                        'based_on': 0.7,
+                        'references': 0.6,
+                        'used_by': 0.5,
+                        'example_in': 0.4
+                    })
+                })
+                logger.info("Initialized theory-practice bridge traversal")
             
             logger.info("Initialized HADES components for PathRAG")
             
@@ -356,32 +401,34 @@ class PathRAGProcessor:
             
             # Create output
             output = RAGStrategyOutput(
-                query=input_data.query,
-                mode=input_data.mode,
-                mode_used=input_data.mode,  # Required field
+                success=True,
                 results=results[:input_data.top_k],  # Limit to requested top_k
-                total_results=len(results),  # Required field
-                execution_time=processing_time,  # Required field
-                generated_answer=generated_answer,
-                answer_confidence=answer_confidence,
-                paths_explored=len(paths_explored) if isinstance(paths_explored, list) else paths_explored,
-                graph_stats=self._get_graph_stats(),
+                total_count=len(results),
+                execution_time_ms=processing_time * 1000,
+                mode_used=input_data.mode,
                 metadata={
-                    "component_name": self.name,
-                    "component_version": self.version,
-                    "component_type": str(self.component_type),
-                    "processed_at": datetime.now(timezone.utc).isoformat(),
-                    "status": ProcessingStatus.SUCCESS.value
-                },
-                retrieval_stats={
-                    "entity_nodes_found": len(relevant_nodes.get("entity_nodes", [])),
-                    "relationship_nodes_found": len(relevant_nodes.get("relationship_nodes", [])),
-                    "total_relevant_nodes": len(relevant_nodes.get("entity_nodes", [])) + len(relevant_nodes.get("relationship_nodes", [])),
+                    "generated_answer": generated_answer,
+                    "answer_confidence": answer_confidence,
                     "paths_explored": len(paths_explored) if isinstance(paths_explored, list) else paths_explored,
-                    "results_generated": len(results),
-                    "mode": input_data.mode.value
+                    "graph_stats": self._get_graph_stats(),
+                    "component_metadata": ComponentMetadata(
+                        component_name=self.name,
+                        component_version=self.version,
+                        component_type=self.component_type,
+                        processed_at=datetime.now(timezone.utc),
+                        status=ProcessingStatus.COMPLETED
+                    ).model_dump(),
+                    "retrieval_stats": {
+                        "entity_nodes_found": len(relevant_nodes.get("entity_nodes", [])),
+                        "relationship_nodes_found": len(relevant_nodes.get("relationship_nodes", [])),
+                        "total_relevant_nodes": len(relevant_nodes.get("entity_nodes", [])) + len(relevant_nodes.get("relationship_nodes", [])),
+                        "paths_explored": len(paths_explored) if isinstance(paths_explored, list) else paths_explored,
+                        "results_generated": len(results),
+                        "mode": input_data.mode.value
+                    }
                 },
-                query_processing_time=processing_time
+                error=None,
+                query=input_data.query
             )
             
             logger.info(f"PathRAG processing completed in {processing_time:.2f}s")
@@ -393,23 +440,22 @@ class PathRAGProcessor:
             
             # Return error output
             return RAGStrategyOutput(
-                query=input_data.query,
-                mode=input_data.mode,
-                mode_used=input_data.mode,  # Required field
-                results=[],
-                total_results=0,  # Required field
-                execution_time=time.time() - start_time,  # Required field
-                metadata={
-                    "component_name": self.name,
-                    "component_version": self.version,
-                    "component_type": str(self.component_type),
-                    "processed_at": datetime.now(timezone.utc).isoformat(),
-                    "status": ProcessingStatus.ERROR.value
-                },
-                errors=[error_msg],
-                query_processing_time=time.time() - start_time,
                 success=False,
-                error_message=error_msg
+                results=[],
+                total_count=0,
+                execution_time_ms=(time.time() - start_time) * 1000,
+                mode_used=input_data.mode,
+                metadata={
+                    "component_metadata": ComponentMetadata(
+                        component_name=self.name,
+                        component_version=self.version,
+                        component_type=self.component_type,
+                        processed_at=datetime.now(timezone.utc),
+                        status=ProcessingStatus.FAILED
+                    ).model_dump()
+                },
+                error=error_msg,
+                query=input_data.query
             )
     
     def retrieve_only(self, input_data: RAGStrategyInput) -> RAGStrategyOutput:
@@ -424,8 +470,11 @@ class PathRAGProcessor:
         """
         # Use full retrieve_and_generate but ignore answer generation
         output = self.retrieve_and_generate(input_data)
-        output.generated_answer = None
-        output.answer_confidence = None
+        # Remove generated answer from metadata
+        if 'generated_answer' in output.metadata:
+            output.metadata['generated_answer'] = None
+        if 'answer_confidence' in output.metadata:
+            output.metadata['answer_confidence'] = None
         return output
     
     def get_supported_modes(self) -> List[str]:
@@ -475,6 +524,10 @@ class PathRAGProcessor:
             # Load or compute node embeddings
             self._load_node_embeddings()
             
+            # Load theory-practice bridges if enabled
+            if self.bridge_traversal:
+                self._load_theory_practice_bridges()
+            
             self.is_initialized = True
             logger.info("Knowledge base initialized successfully")
             
@@ -511,6 +564,64 @@ class PathRAGProcessor:
         
         logger.info(f"Loaded embeddings for {len(self.node_embeddings)} nodes")
     
+    def _load_theory_practice_bridges(self) -> None:
+        """Load theory-practice bridges from storage."""
+        try:
+            # In real implementation, this would query storage for bridges
+            # For now, create some example bridges
+            from src.types.hades.relationships_v2 import TheoryPracticeBridge, SourceTarget
+            
+            self.theory_practice_bridges = [
+                TheoryPracticeBridge(
+                    source=SourceTarget(
+                        type="research_paper",
+                        path="research/pathrag.pdf",
+                        section="Algorithm 1",
+                        symbol=None,
+                        lines=None
+                    ),
+                    target=SourceTarget(
+                        type="code",
+                        path="src/pathrag/pathrag_rag_strategy.py",
+                        section=None,
+                        symbol="_flow_based_pruning",
+                        lines=[919, 958]
+                    ),
+                    relationship="implements",
+                    confidence=0.95,
+                    bidirectional=False,
+                    notes="Core PathRAG algorithm implementation",
+                    metadata=None
+                ),
+                TheoryPracticeBridge(
+                    source=SourceTarget(
+                        type="code",
+                        path="src/pathrag/pathrag_rag_strategy.py",
+                        section=None,
+                        symbol="PathRAGProcessor",
+                        lines=None
+                    ),
+                    target=SourceTarget(
+                        type="documentation",
+                        path="docs/api/pathrag.md",
+                        section="PathRAG Class",
+                        symbol=None,
+                        lines=None
+                    ),
+                    relationship="documented_in",
+                    confidence=0.9,
+                    bidirectional=True,
+                    notes=None,
+                    metadata=None
+                )
+            ]
+            
+            logger.info(f"Loaded {len(self.theory_practice_bridges)} theory-practice bridges")
+            
+        except Exception as e:
+            logger.warning(f"Could not load theory-practice bridges: {e}")
+            self.theory_practice_bridges = []
+    
     def get_knowledge_base_stats(self) -> Dict[str, Any]:
         """Get statistics about the knowledge base."""
         if not self.is_initialized:
@@ -531,7 +642,7 @@ class PathRAGProcessor:
         
         if input_data.mode == RAGMode.PATHRAG:
             # PathRAG is more expensive due to path exploration
-            return base_time + (input_data.top_k * 0.05) + (input_data.max_path_length * 0.02)
+            return base_time + (input_data.top_k * 0.05) + (input_data.parameters.get('max_path_length', 5) * 0.02)
         else:
             return base_time + (input_data.top_k * 0.01)
     
@@ -539,7 +650,7 @@ class PathRAGProcessor:
         """Estimate time for generation operation."""
         # Simple estimation based on context size
         base_time = 0.5  # Base generation time
-        context_factor = input_data.max_token_for_context / 1000  # Scale by context size
+        context_factor = input_data.parameters.get('max_token_for_context', 1000) / 1000  # Scale by context size
         return base_time + context_factor
     
     def get_optimal_context_size(self, query_type: str) -> int:
@@ -750,16 +861,66 @@ Keywords:"""
         # Step 3: Multi-hop path exploration (legacy algorithm integration)
         paths = self._find_most_related_edges_from_entities(
             list(pruned_resources.keys()),
-            max_length=getattr(input_data, 'max_path_length', self.config.get('max_path_length', 5))
+            max_length=input_data.parameters.get('max_path_length', self.config.get('max_path_length', 5))
         )
         
         # Step 4: Score paths by reliability using resource values
         scored_paths = self._score_paths_by_reliability_data(paths, pruned_resources)
         
-        # Step 5: Convert paths to results with context building
+        # Step 5: Enhance with theory-practice bridges if enabled
+        if self.bridge_traversal and self.config.get('theory_practice_bridges', {}).get('enabled', True):
+            # Get top nodes from scored paths
+            top_nodes = []
+            for path in scored_paths[:10]:
+                if 'nodes' in path:
+                    top_nodes.extend(path['nodes'])
+                elif 'path' in path:
+                    top_nodes.extend(path['path'])
+            
+            # Remove duplicates while preserving order
+            seen = set()
+            unique_top_nodes = []
+            for node in top_nodes:
+                if node not in seen:
+                    seen.add(node)
+                    unique_top_nodes.append(node)
+            
+            # Enhance retrieval with bridges
+            bridge_enhancement = self.bridge_traversal.enhance_retrieval_with_bridges(
+                initial_nodes=unique_top_nodes[:10],
+                bridges=self.theory_practice_bridges,
+                knowledge_graph=self.knowledge_graph,
+                query_context={'query': input_data.query}
+            )
+            
+            # Update resource scores with bridge information
+            if bridge_enhancement['bridge_paths']:
+                bridge_scores = self.bridge_traversal.calculate_bridge_aware_scores(
+                    pruned_resources,
+                    bridge_enhancement['bridge_paths']
+                )
+                pruned_resources.update(bridge_scores)
+                
+                # Add bridge narratives to context
+                bridge_narratives = self.bridge_traversal.generate_bridge_narrative(
+                    bridge_enhancement['bridge_paths']
+                )
+                
+                # Re-score paths with bridge-enhanced resources
+                scored_paths = self._score_paths_by_reliability_data(paths, pruned_resources)
+        
+        # Step 6: Convert paths to results with context building
         results = self._paths_to_results_with_context(scored_paths[:input_data.top_k])
         
-        # Step 6: Create path info for output
+        # Step 7: Add bridge context if available
+        if self.bridge_traversal and 'bridge_narratives' in locals():
+            # Enhance results with bridge context
+            for i, result in enumerate(results[:3]):  # Enhance top 3 results
+                if i < len(bridge_narratives):
+                    result.metadata['bridge_context'] = bridge_narratives[i]
+                    result.metadata['has_theory_practice_bridge'] = True
+        
+        # Step 8: Create path info for output
         path_infos = self._create_path_infos_from_data(scored_paths)
         
         return results, path_infos
@@ -782,12 +943,18 @@ Keywords:"""
             node_data = self.knowledge_graph.nodes.get(node_id, {})
             
             result = RAGResult(
-                item_id=node_id,
+                id=node_id,
+                document_id=DocumentID(node_id),  # Using node_id as document_id
                 content=node_data.get('content', f'Content for {node_id}'),
                 score=max(0.1, 1.0 - (i * 0.1)),  # Decreasing score
-                relevance_score=max(0.1, 1.0 - (i * 0.1)),
-                diversity_score=0.5,
-                metadata={"mode": input_data.mode.value, "node_id": node_id}
+                metadata={
+                    "mode": input_data.mode.value,
+                    "node_id": node_id,
+                    "relevance_score": max(0.1, 1.0 - (i * 0.1)),
+                    "diversity_score": 0.5
+                },
+                paths=[],
+                embedding=None
             )
             results.append(result)
         
@@ -849,12 +1016,18 @@ Keywords:"""
             content = "; ".join(content_parts) if content_parts else f"Entity: {node_id}"
             
             result = RAGResult(
-                item_id=f"local_{node_id}",
+                id=f"local_{node_id}",
+                document_id=DocumentID(node_id),
                 content=content,
                 score=max(0.1, 1.0 - (i * 0.1)),
-                relevance_score=max(0.1, 1.0 - (i * 0.1)),
-                diversity_score=0.6,
-                metadata={"context_type": "local", "node_id": node_id}
+                metadata={
+                    "context_type": "local",
+                    "node_id": node_id,
+                    "relevance_score": max(0.1, 1.0 - (i * 0.1)),
+                    "diversity_score": 0.6
+                },
+                paths=[],
+                embedding=None
             )
             results.append(result)
         
@@ -882,12 +1055,19 @@ Keywords:"""
             content = "; ".join(content_parts)
             
             result = RAGResult(
-                item_id=f"global_{node_id}",
+                id=f"global_{node_id}",
+                document_id=DocumentID(node_id),
                 content=content,
                 score=max(0.1, 1.0 - (i * 0.1)),
-                relevance_score=max(0.1, 1.0 - (i * 0.1)),
-                diversity_score=0.7,
-                metadata={"context_type": "global", "node_id": node_id, "neighbors": len(neighbors)}
+                metadata={
+                    "context_type": "global",
+                    "node_id": node_id,
+                    "neighbors": len(neighbors),
+                    "relevance_score": max(0.1, 1.0 - (i * 0.1)),
+                    "diversity_score": 0.7
+                },
+                paths=[],
+                embedding=None
             )
             results.append(result)
         
@@ -1205,14 +1385,14 @@ Keywords:"""
             path_info = PathInfo(
                 path_id=f"pathrag_path_{i}",
                 nodes=path,
-                edges=[f"{path[j]}-{path[j+1]}" for j in range(len(path)-1)],
-                path_score=score,
-                reliability_score=score,
+                edges=[{"from": path[j], "to": path[j+1]} for j in range(len(path)-1)],
+                weight=score,
                 metadata={
                     "path_length": len(path),
                     "hop_length": hop_length,
                     "path_type": path_data.get('path_type', 'unknown'),
-                    "narrative": narrative
+                    "narrative": narrative,
+                    "reliability_score": score
                 }
             )
             
@@ -1221,19 +1401,21 @@ Keywords:"""
             diversity_score = unique_nodes / len(path) if len(path) > 0 else 0.0
             
             result = RAGResult(
-                item_id=f"pathrag_result_{i}",
+                id=f"pathrag_result_{i}",
+                document_id=DocumentID(path[0] if path else "unknown"),  # Use first node as document_id
                 content=aggregated_content,
                 score=score,
-                path_info=path_info,
-                relevance_score=score,
-                diversity_score=diversity_score,
                 metadata={
                     "path_nodes": path,
                     "path_length": len(path),
                     "hop_length": hop_length,
                     "algorithm": "pathrag_multihop",
-                    "narrative": narrative
-                }
+                    "narrative": narrative,
+                    "relevance_score": score,
+                    "diversity_score": diversity_score
+                },
+                paths=[path_info],
+                embedding=None
             )
             
             results.append(result)
@@ -1252,9 +1434,8 @@ Keywords:"""
             path_info = PathInfo(
                 path_id=f"pathrag_explored_{i}",
                 nodes=path,
-                edges=[f"{path[j]}-{path[j+1]}" for j in range(len(path)-1)],
-                path_score=path_data.get('final_score', 0.0),
-                reliability_score=path_data.get('reliability_score', 0.0),
+                edges=[{"from": path[j], "to": path[j+1]} for j in range(len(path)-1)],
+                weight=path_data.get('final_score', 0.0),
                 metadata={
                     "exploration_order": i,
                     "path_length": len(path),
@@ -1263,7 +1444,8 @@ Keywords:"""
                     "narrative": path_data.get('narrative', ''),
                     "resource_score": path_data.get('resource_score', 0.0),
                     "bfs_score": path_data.get('score', 0.0),
-                    "length_penalty": path_data.get('length_penalty', 1.0)
+                    "length_penalty": path_data.get('length_penalty', 1.0),
+                    "reliability_score": path_data.get('reliability_score', 0.0)
                 }
             )
             path_infos.append(path_info)

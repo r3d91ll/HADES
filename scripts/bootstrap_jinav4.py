@@ -20,9 +20,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.jina_v4.jina_processor import JinaV4Processor
 from src.jina_v4.isne_adapter import convert_jina_to_isne
 from src.isne.training.pipeline import ISNETrainingPipeline
-from src.storage.arango_client import ArangoConnection
-from src.utils.filesystem.ignore_handler import IgnoreHandler
-from src.utils.filesystem.metadata_extractor import MetadataExtractor
+from src.storage.arango_client import ArangoClient
+from src.utils.filesystem.ignore_handler import IgnoreFileHandler
+from src.utils.filesystem.metadata_extractor import FileMetadataExtractor
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -34,9 +34,9 @@ class JinaV4Bootstrap:
     def __init__(self, config: Dict[str, Any]):
         self.config = config
         self.jina = JinaV4Processor(config.get('jina_v4', {}))
-        self.storage = ArangoConnection(config.get('storage', {}))
-        self.ignore_handler = IgnoreHandler()
-        self.metadata_extractor = MetadataExtractor()
+        self.storage = ArangoClient(config.get('storage', {}))
+        self.ignore_handler = IgnoreFileHandler()
+        self.metadata_extractor = FileMetadataExtractor()
         
     async def process_directory(self, directory: Path, extensions: List[str] = None):
         """Process all documents in a directory"""

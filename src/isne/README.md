@@ -17,7 +17,7 @@ This directory contains the ISNE implementation for graph-based embedding enhanc
 - **Theory Documentation**: `/docs/concepts/ISNE_THEORY.md`
 - **Bootstrap Architecture**: `/docs/architecture/ISNE_BOOTSTRAP_ARCHITECTURE.md`
 - **Training Guide**: `/docs/guides/isne_training_guide.md`
-- **Configuration**: `/config/isne/`
+- **Configuration**: `/src/config/isne/`
 - **PathRAG Integration**: `/src/pathrag/` (uses ISNE for query placement)
 - **Storage Schema**: `/src/storage/` (graph structure for ISNE)
 

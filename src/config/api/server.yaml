@@ -1,0 +1,34 @@
+# FastAPI server configuration
+
+server:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 1
+  reload: false
+  log_level: "info"
+
+cors:
+  enabled: true
+  allow_origins: ["*"]
+  allow_methods: ["*"]
+  allow_headers: ["*"]
+  allow_credentials: true
+
+rate_limiting:
+  enabled: false
+  requests_per_minute: 60
+  
+timeouts:
+  request: 300  # seconds
+  keep_alive: 5  # seconds
+  
+middleware:
+  compression: true
+  request_id: true
+  timing: true
+
+docs:
+  enabled: true
+  title: "HADES API"
+  version: "1.0.0"
+  description: "Unified RAG API with Jina v4"

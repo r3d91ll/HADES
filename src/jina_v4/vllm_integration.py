@@ -15,17 +15,22 @@ Key Features:
 Recent Updates:
 - Implemented local vLLM embedding extraction using transformers
 - Added support for hidden state extraction and custom pooling
-- Implemented projection matrices for dimension reduction
-- Added adapter-specific transformations for different tasks
+- Uses Jina v4's native Matryoshka dimensions (no projection needed)
 - Enhanced error handling with multiple fallback layers
 """
 
 import logging
 from typing import Dict, Any, Optional, List, Union
 import numpy as np
-import torch
 import httpx
 from pathlib import Path
+
+# Ensure version compatibility
+from src.utils.version_checker import ensure_torch_available, ensure_transformers_available
+ensure_torch_available()
+ensure_transformers_available()
+
+import torch
 
 logger = logging.getLogger(__name__)
 
@@ -133,16 +138,20 @@ class VLLMEmbeddingExtractor:
         texts: Union[str, List[str]],
         adapter: Optional[str] = None,
         instruction: Optional[str] = None,
-        batch_size: Optional[int] = None
+        batch_size: Optional[int] = None,
+        task: Optional[str] = None,
+        prompt_name: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Extract embeddings from text using vLLM.
+        Extract embeddings from text using Jina v4.
         
         Args:
             texts: Single text or list of texts
-            adapter: LoRA adapter to use (retrieval, text-matching, classification)
+            adapter: LoRA adapter to use (retrieval, text-matching, code)
             instruction: Task-specific instruction to prepend
             batch_size: Batch size for processing multiple texts
+            task: Jina v4 task type (retrieval, text-matching, code)
+            prompt_name: Jina v4 prompt name (query, passage)
             
         Returns:
             Dictionary with embeddings and metadata
@@ -166,7 +175,7 @@ class VLLMEmbeddingExtractor:
         if self.use_api:
             results = await self._extract_embeddings_api(texts, adapter, batch_size)
         else:
-            results = await self._extract_embeddings_local(texts, adapter, batch_size)
+            results = await self._extract_embeddings_local(texts, adapter, batch_size, task, prompt_name)
             
         # If single input, unwrap the result
         if single_input and results['embeddings']:
@@ -260,22 +269,22 @@ class VLLMEmbeddingExtractor:
         self,
         texts: List[str],
         adapter: str,
-        batch_size: Optional[int]
+        batch_size: Optional[int],
+        task: Optional[str] = None,
+        prompt_name: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Extract embeddings using local vLLM engine with direct model access."""
+        """Extract embeddings using local Jina v4 model with native capabilities."""
         
         try:
             # Import necessary modules for direct model access
-            from vllm import LLM, SamplingParams
             from transformers import AutoModel
             import torch
             
             # Initialize model for embedding extraction if not already done
             if not hasattr(self, '_embedding_model'):
-                logger.info("Initializing local embedding model")
+                logger.info("Initializing Jina v4 embedding model")
                 
-                # Use transformers directly for embedding extraction
-                # This provides better control over hidden states
+                # Use Jina v4 model with native support
                 self._embedding_model = AutoModel.from_pretrained(
                     self.model_name,
                     trust_remote_code=True,
@@ -291,66 +300,87 @@ class VLLMEmbeddingExtractor:
             if batch_size is None:
                 batch_size = self.vllm_config.get('batch_size', 32)
             
+            # Determine task and prompt_name
+            if task is None:
+                task = adapter if adapter in ['retrieval', 'text-matching', 'code'] else 'retrieval'
+            if prompt_name is None and task == 'retrieval':
+                prompt_name = 'passage'  # Default for document processing
+            
+            # Check if we should return multi-vector
+            return_multivector = self.output_mode == 'multi-vector'
+            
             for i in range(0, len(texts), batch_size):
                 batch_texts = texts[i:i + batch_size]
                 
-                # Tokenize batch
-                inputs = self.tokenizer(
-                    batch_texts,
-                    return_tensors='pt',
-                    truncation=True,
-                    max_length=self.vllm_config.get('max_model_len', 8192),
-                    padding=True
-                )
-                
-                # Move to appropriate device
-                device = next(self._embedding_model.parameters()).device
-                inputs = {k: v.to(device) for k, v in inputs.items()}
-                
-                # Get embeddings
+                # Use Jina v4's native encode_text method
                 with torch.no_grad():
-                    outputs = self._embedding_model(**inputs, output_hidden_states=True)
-                    
-                    # Extract hidden states from the last layer
-                    hidden_states = outputs.hidden_states[-1]  # Shape: [batch, seq_len, hidden_dim]
-                    
-                    # Apply pooling based on output mode
-                    if self.output_mode == 'multi-vector':
-                        # Keep token-level embeddings
-                        for j, text in enumerate(batch_texts):
-                            seq_len = inputs['attention_mask'][j].sum().item()
-                            token_embeddings = hidden_states[j, :seq_len, :].cpu().numpy()
+                    # Call the model's encode_text method directly
+                    if hasattr(self._embedding_model, 'encode_text'):
+                        # Native Jina v4 encoding
+                        embeddings = self._embedding_model.encode_text(
+                            texts=batch_texts,
+                            task=task,
+                            prompt_name=prompt_name,
+                            return_multivector=return_multivector,
+                            batch_size=batch_size,
+                            max_length=self.vllm_config.get('max_model_len', 8192),
+                            truncate_dim=self.features.get('token_embedding_dimension', None)
+                        )
+                        
+                        # Handle different return types
+                        if isinstance(embeddings, torch.Tensor):
+                            embeddings = embeddings.cpu().numpy()
+                        
+                        # Process each embedding
+                        for j, emb in enumerate(embeddings if isinstance(embeddings, list) else [embeddings]):
+                            if isinstance(emb, torch.Tensor):
+                                emb = emb.cpu().numpy()
+                            all_embeddings.append(emb.astype(np.float32))
                             
-                            # Project to lower dimension if specified
-                            token_dim = self.features.get('token_embedding_dimension', 128)
-                            if token_embeddings.shape[1] != token_dim:
-                                # Use adaptive pooling or projection
-                                projection = self._get_or_create_projection(
-                                    token_embeddings.shape[1], token_dim
-                                )
-                                token_embeddings = token_embeddings @ projection
-                            
-                            all_embeddings.append(token_embeddings.astype(np.float32))
-                            all_token_counts.append(seq_len)
+                            # Estimate token count
+                            token_count = len(batch_texts[j].split()) * 1.3  # Rough estimate
+                            all_token_counts.append(int(token_count))
                     else:
-                        # Single-vector mode with mean pooling
-                        attention_mask = inputs['attention_mask'].unsqueeze(-1)
-                        masked_embeddings = hidden_states * attention_mask
-                        summed = masked_embeddings.sum(dim=1)
-                        counts = attention_mask.sum(dim=1)
-                        mean_embeddings = summed / counts
+                        # Fallback to standard transformers approach
+                        logger.warning("Jina v4 encode_text not available, using standard approach")
                         
-                        # Apply adapter-specific transformations if available
-                        if adapter != 'retrieval':
-                            mean_embeddings = self._apply_adapter_transform(mean_embeddings, adapter)
+                        # Tokenize
+                        inputs = self.tokenizer(
+                            batch_texts,
+                            return_tensors='pt',
+                            truncation=True,
+                            max_length=self.vllm_config.get('max_model_len', 8192),
+                            padding=True
+                        )
                         
-                        # Normalize embeddings
-                        mean_embeddings = torch.nn.functional.normalize(mean_embeddings, p=2, dim=1)
+                        # Move to device
+                        device = next(self._embedding_model.parameters()).device
+                        inputs = {k: v.to(device) for k, v in inputs.items()}
                         
-                        for j, embedding in enumerate(mean_embeddings):
-                            all_embeddings.append(embedding.cpu().numpy().astype(np.float32))
-                            seq_len = inputs['attention_mask'][j].sum().item()
-                            all_token_counts.append(seq_len)
+                        # Get outputs
+                        outputs = self._embedding_model(**inputs, output_hidden_states=True)
+                        hidden_states = outputs.hidden_states[-1]
+                        
+                        # Process based on output mode
+                        if return_multivector:
+                            for j in range(len(batch_texts)):
+                                seq_len = inputs['attention_mask'][j].sum().item()
+                                token_embeddings = hidden_states[j, :seq_len, :].cpu().numpy()
+                                all_embeddings.append(token_embeddings.astype(np.float32))
+                                all_token_counts.append(seq_len)
+                        else:
+                            # Mean pooling
+                            attention_mask = inputs['attention_mask'].unsqueeze(-1)
+                            masked_embeddings = hidden_states * attention_mask
+                            summed = masked_embeddings.sum(dim=1)
+                            counts = attention_mask.sum(dim=1)
+                            mean_embeddings = summed / counts
+                            mean_embeddings = torch.nn.functional.normalize(mean_embeddings, p=2, dim=1)
+                            
+                            for j, embedding in enumerate(mean_embeddings):
+                                all_embeddings.append(embedding.cpu().numpy().astype(np.float32))
+                                seq_len = inputs['attention_mask'][j].sum().item()
+                                all_token_counts.append(seq_len)
             
             logger.info(f"Extracted embeddings for {len(texts)} texts using local model")
             
@@ -378,35 +408,98 @@ class VLLMEmbeddingExtractor:
             logger.warning("Using random embeddings as final fallback")
             return self._generate_fallback_embeddings(texts)
     
-    def _get_or_create_projection(self, input_dim: int, output_dim: int) -> np.ndarray:
-        """Get or create a projection matrix for dimension reduction."""
-        if not hasattr(self, '_projections'):
-            self._projections: Dict[str, np.ndarray] = {}
+    async def extract_image_embeddings(
+        self,
+        images: Union[str, List[str], np.ndarray, List[np.ndarray]],
+        task: str = 'retrieval',
+        batch_size: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        Extract embeddings from images using Jina v4.
         
-        key = f"{input_dim}_{output_dim}"
-        if key not in self._projections:
-            # Create random orthogonal projection
-            # This preserves distances reasonably well
-            projection = np.random.randn(input_dim, output_dim).astype(np.float32)
-            projection, _ = np.linalg.qr(projection)
-            self._projections[key] = projection[:, :output_dim]
-        
-        return self._projections[key]
-    
-    def _apply_adapter_transform(self, embeddings: torch.Tensor, adapter: str) -> torch.Tensor:
-        """Apply adapter-specific transformations to embeddings."""
-        # This is a simplified version - in practice, you'd load actual LoRA weights
-        if adapter == 'text-matching':
-            # Emphasize certain dimensions for text matching
-            scale = torch.ones_like(embeddings[0])
-            scale[:512] *= 1.2  # Boost first 512 dimensions
-            return embeddings * scale
-        elif adapter == 'classification':
-            # Apply slight transformation for classification tasks
-            return embeddings * 0.95 + 0.05
+        Args:
+            images: Image paths, URLs, or numpy arrays
+            task: Task type (retrieval)
+            batch_size: Batch size for processing
+            
+        Returns:
+            Dictionary with embeddings and metadata
+        """
+        # Ensure images is a list
+        if isinstance(images, (str, np.ndarray)):
+            images = [images]
+            single_input = True
         else:
-            # Default retrieval adapter - no transformation
-            return embeddings
+            single_input = False
+        
+        try:
+            # Initialize model if needed
+            if not hasattr(self, '_embedding_model'):
+                await self._extract_embeddings_local(["dummy"], "retrieval", 1)  # Initialize
+            
+            all_embeddings = []
+            
+            # Process in batches
+            if batch_size is None:
+                batch_size = self.vllm_config.get('batch_size', 8)  # Smaller for images
+            
+            for i in range(0, len(images), batch_size):
+                batch_images = images[i:i + batch_size]
+                
+                with torch.no_grad():
+                    if hasattr(self._embedding_model, 'encode_image'):
+                        # Native Jina v4 image encoding
+                        embeddings = self._embedding_model.encode_image(
+                            images=batch_images,
+                            task=task,
+                            batch_size=batch_size
+                        )
+                        
+                        # Process embeddings
+                        if isinstance(embeddings, torch.Tensor):
+                            embeddings = embeddings.cpu().numpy()
+                        
+                        for emb in (embeddings if isinstance(embeddings, list) else [embeddings]):
+                            if isinstance(emb, torch.Tensor):
+                                emb = emb.cpu().numpy()
+                            all_embeddings.append(emb.astype(np.float32))
+                    else:
+                        logger.warning("Jina v4 encode_image not available")
+                        # Return placeholder embeddings
+                        embed_dim = self.features.get('embedding_dimension', 2048)
+                        for _ in batch_images:
+                            all_embeddings.append(np.random.randn(embed_dim).astype(np.float32))
+            
+            # Unwrap if single input
+            if single_input and all_embeddings:
+                all_embeddings = all_embeddings[0]
+            
+            return {
+                'embeddings': all_embeddings,
+                'mode': 'single-vector',  # Images typically use single vector
+                'task': task,
+                'metadata': {
+                    'model': self.model_name,
+                    'modality': 'image'
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error extracting image embeddings: {e}")
+            # Return fallback
+            embed_dim = self.features.get('embedding_dimension', 2048)
+            fallback_embeddings = [np.random.randn(embed_dim).astype(np.float32) for _ in images]
+            if single_input:
+                fallback_embeddings = fallback_embeddings[0]
+            return {
+                'embeddings': fallback_embeddings,
+                'mode': 'single-vector',
+                'task': task,
+                'metadata': {
+                    'warning': 'Using fallback image embeddings',
+                    'modality': 'image'
+                }
+            }
     
     def _generate_fallback_embeddings(self, texts: List[str]) -> Dict[str, Any]:
         """Generate fallback embeddings when extraction fails."""

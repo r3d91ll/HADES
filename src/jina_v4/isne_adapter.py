@@ -9,18 +9,14 @@ import logging
 from typing import Dict, Any, List
 import numpy as np
 
-from src.types.components.contracts import (
-    GraphEnhancementInput,
-    ChunkEmbedding,
-    EmbeddingInput,
-    DocumentChunk
-)
+from src.types.jina_v4.processor import ChunkData
+from src.types.common import EmbeddingVector
 from src.types.common import NodeID
 
 logger = logging.getLogger(__name__)
 
 
-def convert_jina_to_isne(jina_output: Dict[str, Any]) -> GraphEnhancementInput:
+def convert_jina_to_isne(jina_output: Dict[str, Any]) -> Dict[str, Any]:
     """
     Convert Jina v4 output to ISNE GraphEnhancementInput format.
     
@@ -39,54 +35,53 @@ def convert_jina_to_isne(jina_output: Dict[str, Any]) -> GraphEnhancementInput:
     chunks = jina_output.get('chunks', [])
     metadata = jina_output.get('document_metadata', {})
     
-    # Convert chunks to ChunkEmbedding format
-    chunk_embeddings = []
+    # Convert chunks to ISNE format
+    embeddings = []
+    node_ids = []
+    nodes = []
     
     for chunk in chunks:
         # Handle both single-vector and multi-vector embeddings
-        embeddings = chunk['embeddings']
+        chunk_embeddings = chunk['embeddings']
         
-        if isinstance(embeddings, np.ndarray):
-            if len(embeddings.shape) == 2:
+        if isinstance(chunk_embeddings, np.ndarray):
+            if len(chunk_embeddings.shape) == 2:
                 # Multi-vector: average pool to single vector
                 # ISNE currently expects single vectors
-                embedding_vector = np.mean(embeddings, axis=0).tolist()
+                embedding_vector = np.mean(chunk_embeddings, axis=0).tolist()
             else:
                 # Single vector
-                embedding_vector = embeddings.tolist()
+                embedding_vector = chunk_embeddings.tolist()
         else:
-            embedding_vector = embeddings
+            embedding_vector = chunk_embeddings
             
-        chunk_embedding = ChunkEmbedding(
-            chunk_id=chunk['id'],
-            embedding=embedding_vector,
-            embedding_dimension=len(embedding_vector),
-            model_name=metadata.get('model_used', 'jina-embeddings-v4'),
-            confidence=chunk.get('metadata', {}).get('semantic_density'),
-            metadata={
+        embeddings.append(embedding_vector)
+        node_ids.append(chunk['chunk_id'])
+        
+        # Build node data
+        nodes.append({
+            'id': chunk['chunk_id'],
+            'data': {
                 'keywords': chunk.get('keywords', []),
                 'relationships': chunk.get('relationships', []),
                 'chunk_metadata': chunk.get('metadata', {}),
-                'text': chunk.get('text', '')  # Include text for ISNE context
+                'text': chunk.get('text', ''),  # Include text for ISNE context
+                'embedding_dimension': len(embedding_vector),
+                'model_name': metadata.get('model_used', 'jina-embeddings-v4'),
+                'confidence': chunk.get('metadata', {}).get('semantic_density')
             }
-        )
-        
-        chunk_embeddings.append(chunk_embedding)
+        })
     
-    # Extract embeddings and node IDs for GraphEnhancementInput
-    embeddings = [ce.embedding for ce in chunk_embeddings]
-    node_ids = [NodeID(ce.chunk_id) for ce in chunk_embeddings]
-    
-    # Create GraphEnhancementInput
-    graph_input = GraphEnhancementInput(
-        embeddings=embeddings,
-        node_ids=node_ids,
-        graph_structure={  # Build graph structure from relationships
-            'nodes': [{'id': ce.chunk_id, 'data': ce.metadata} for ce in chunk_embeddings],
+    # Create ISNE input format
+    graph_input = {
+        'embeddings': embeddings,
+        'node_ids': node_ids,
+        'graph_structure': {  # Build graph structure from relationships
+            'nodes': nodes,
             'edges': jina_output.get('relationships', [])
         },
-        enhancement_type="isne_default",
-        options={
+        'enhancement_type': "isne_default",
+        'options': {
             'use_keywords': True,  # Use Jina-extracted keywords
             'use_relationships': True,  # Use pre-computed relationships
             'enhancement_strength': 0.3,
@@ -95,19 +90,19 @@ def convert_jina_to_isne(jina_output: Dict[str, Any]) -> GraphEnhancementInput:
             'use_semantic_similarity': True,
             'source': 'jina_v4',
             'document_metadata': metadata,
-            'total_chunks': len(chunk_embeddings)
+            'total_chunks': len(chunks)
         }
-    )
+    }
     
     logger.info(
         f"Converted Jina output to ISNE input: "
-        f"{len(chunk_embeddings)} chunks ready for enhancement"
+        f"{len(chunks)} chunks ready for enhancement"
     )
     
     return graph_input
 
 
-def convert_jina_to_embedding_input(jina_output: Dict[str, Any]) -> EmbeddingInput:
+def convert_jina_to_embedding_input(jina_output: Dict[str, Any]) -> Dict[str, Any]:
     """
     Convert Jina v4 output to EmbeddingInput format.
     
@@ -124,37 +119,37 @@ def convert_jina_to_embedding_input(jina_output: Dict[str, Any]) -> EmbeddingInp
     chunks = jina_output.get('chunks', [])
     metadata = jina_output.get('document_metadata', {})
     
-    # Convert to EmbeddingChunk format
+    # Convert to embedding format
     embedding_chunks = []
     
     for chunk in chunks:
-        embedding_chunk = DocumentChunk(
-            id=chunk['id'],
-            content=chunk['text'],
-            document_id=metadata.get('file_path', 'unknown'),
-            chunk_index=chunk.get('metadata', {}).get('start_token', 0),
-            chunk_size=len(chunk['text']),
-            metadata={
+        embedding_chunk = {
+            'id': chunk.get('chunk_id', chunk.get('id')),
+            'content': chunk['text'],
+            'document_id': metadata.get('file_path', 'unknown'),
+            'chunk_index': chunk.get('chunk_index', 0),
+            'chunk_size': len(chunk['text']),
+            'metadata': {
                 **chunk.get('metadata', {}),
                 'keywords': chunk.get('keywords', []),
                 'relationships': chunk.get('relationships', [])
             }
-        )
+        }
         embedding_chunks.append(embedding_chunk)
     
     # Extract texts from chunks
     texts = [chunk['text'] for chunk in chunks]
     
-    # Create EmbeddingInput
-    embedding_input = EmbeddingInput(
-        texts=texts,
-        model_name=metadata.get('model_used', 'jina-embeddings-v4'),
-        options={
+    # Create embedding input format
+    embedding_input = {
+        'texts': texts,
+        'model_name': metadata.get('model_used', 'jina-embeddings-v4'),
+        'options': {
             'already_embedded': True,  # Signal that embeddings exist
-            'embeddings': {chunk['id']: chunk['embeddings'] for chunk in chunks},
+            'embeddings': {chunk.get('chunk_id', chunk.get('id')): chunk['embeddings'] for chunk in chunks},
             'chunk_data': embedding_chunks  # Store chunk data in options
         }
-    )
+    }
     
     return embedding_input
 

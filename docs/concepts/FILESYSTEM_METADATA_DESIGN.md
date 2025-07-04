@@ -53,7 +53,7 @@ Research papers are placed directly with their implementations:
 # From README.md parsing
 relationships = {
     "related_to": ["/docs/api/pathrag_api.md"],
-    "configured_by": ["/config/pathrag_config.yaml"],
+    "configured_by": ["/src/config/pathrag/config.yaml"],
     "tested_by": ["/tests/unit/pathrag/"],
     "documented_in": ["/docs/concepts/CORE_CONCEPTS.md"]
 }
@@ -71,7 +71,7 @@ relationships = {
 # Query about "PathRAG configuration"
 # Metadata helps find:
 1. /src/pathrag/ (implementation)
-2. /config/pathrag_config.yaml (configuration)
+2. /src/config/pathrag/config.yaml (configuration)
 3. /docs/api/pathrag_api.md (usage)
 4. PathRAG_paper.pdf (theory)
 ```
@@ -91,7 +91,7 @@ Late chunking preserves the module-level context:
     "docstring": "PathRAG Processor Implementation...",
     "related_resources": {
       "research": "PathRAG_paper.pdf",
-      "config": "/config/pathrag_config.yaml",
+      "config": "/src/config/pathrag/config.yaml",
       "docs": ["/docs/api/pathrag_api.md"],
       "tests": ["/tests/unit/pathrag/"]
     }

@@ -340,11 +340,34 @@ class BaseSchema(BaseModel):
 
 class ComponentMetadata(BaseSchema):
     """Metadata for a HADES component."""
-    component_type: ComponentType
-    component_name: str
-    component_version: str
-    config: Dict[str, Any] = Field(default_factory=dict)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: Optional[datetime] = None
-    processed_at: Optional[datetime] = None
-    metrics: Dict[str, Any] = Field(default_factory=dict)
+    
+    # Support both naming conventions for compatibility
+    name: str = Field(..., description="Component name", alias="component_name")
+    component_name: Optional[str] = Field(None, description="Component name (deprecated)")
+    component_type: ComponentType = Field(..., description="Type of component")
+    version: str = Field(default="1.0.0", description="Component version", alias="component_version")
+    component_version: Optional[str] = Field(None, description="Component version (deprecated)")
+    config: Dict[str, Any] = Field(default_factory=dict, description="Component configuration")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Creation timestamp")
+    updated_at: Optional[datetime] = Field(None, description="Last update timestamp")
+    processed_at: Optional[datetime] = Field(None, description="Processing timestamp")
+    metrics: Dict[str, Any] = Field(default_factory=dict, description="Component metrics")
+    status: str = Field(default="active", description="Component status")
+    
+    def __init__(self, **data):
+        """Initialize with field aliasing."""
+        # Handle aliases
+        if 'component_name' in data and 'name' not in data:
+            data['name'] = data['component_name']
+        elif 'name' in data and 'component_name' not in data:
+            data['component_name'] = data['name']
+            
+        if 'component_version' in data and 'version' not in data:
+            data['version'] = data['component_version']
+        elif 'version' in data and 'component_version' not in data:
+            data['component_version'] = data['version']
+            
+        if 'processed_at' not in data:
+            data['processed_at'] = data.get('created_at', datetime.now(timezone.utc))
+            
+        super().__init__(**data)

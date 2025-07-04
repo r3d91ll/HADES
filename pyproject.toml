@@ -9,9 +9,11 @@ packages = [{include = "src"}]
 [tool.poetry.dependencies]
 python = "^3.10"
 # Core dependencies
-torch = "^2.0.0"
-transformers = "^4.35.0"
+torch = "^2.5.0"
+transformers = "^4.52.0"
 sentence-transformers = "^2.2.2"
+peft = "^0.15.2"
+torchvision = "^0.20.0"
 # Storage
 networkx = "^3.0"
 pymongo = "^4.5.0"
@@ -29,7 +31,6 @@ pathspec = "^0.11.0"
 pypdf2 = "^3.0.0"
 python-docx = "^1.0.0"
 pillow = "^10.0.0"
-docling = "^1.0.0"
 # Embeddings
 openai = "^1.0.0"
 # Monitoring
@@ -53,11 +54,14 @@ types-requests = "^2.31.0"
 types-setuptools = "^68.0.0"
 # Additional type stubs
 types-Pillow = "^10.0.0"
+types-psutil = "^5.9.0"
 # Code quality
 black = "^23.9.0"
 isort = "^5.12.0"
 flake8 = "^6.1.0"
 pre-commit = "^3.4.0"
+mypy-extensions = "^1.1.0"
+types-toml = "^0.10.8.20240310"
 
 [build-system]
 requires = ["poetry-core"]
@@ -87,8 +91,6 @@ module = [
     "arango.*",
     "vllm",
     "vllm.*",
-    "docling",
-    "docling.*",
     "mcp",
     "mcp.*",
     "src.config.*",

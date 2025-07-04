@@ -9,7 +9,7 @@ This directory contains the storage implementations for HADES, providing unified
 - `arangodb/` - ArangoDB-specific implementations
 
 ## Related Resources
-- **Configuration**: `/config/storage/`
+- **Configuration**: `/src/config/storage/`
 - **Database Schema**: `/docs/architecture/database_schema.md`
 - **PathRAG Integration**: `/src/pathrag/` (uses storage for graph operations)
 - **ISNE Storage**: `/src/isne/` (stores enhanced embeddings)

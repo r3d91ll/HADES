@@ -99,7 +99,7 @@ class JinaV4Factory:
         logger.info(f"Updated default configuration: {list(config.keys())}")
 
 
-# Convenience function
+# Convenience functions
 def get_jina_processor(config: Optional[Dict[str, Any]] = None) -> JinaV4Processor:
     """
     Get a Jina v4 processor instance.
@@ -114,3 +114,16 @@ def get_jina_processor(config: Optional[Dict[str, Any]] = None) -> JinaV4Process
     """
     factory = JinaV4Factory()
     return factory.create_processor(config)
+
+
+def create_jina_component(config: Optional[Dict[str, Any]] = None) -> JinaV4Processor:
+    """
+    Create a Jina v4 component (alias for get_jina_processor).
+    
+    Args:
+        config: Optional configuration dictionary
+        
+    Returns:
+        JinaV4Processor instance
+    """
+    return get_jina_processor(config)

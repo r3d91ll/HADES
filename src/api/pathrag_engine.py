@@ -14,7 +14,7 @@ from .base import (
     BaseRAGEngine, EngineType, RetrievalMode,
     EngineRetrievalRequest, EngineRetrievalResult
 )
-from src.components.rag_strategy.pathrag.pathrag_rag_strategy import PathRAGProcessor
+from src.pathrag.pathrag_rag_strategy import PathRAGProcessor
 from src.types.pathrag.strategy import (
     PathRAGConfig, PathRAGResult
 )
@@ -25,7 +25,7 @@ from src.types.pathrag.rag_types import (
     RAGStrategyOutput,
     PathInfo
 )
-from src.components.registry import get_component
+# TODO: Import component registry - need to implement new component system
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ class PathRAGEngine(BaseRAGEngine):
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         """Initialize PathRAG engine."""
-        super().__init__(EngineType.PATHRAG, config)
+        super().__init__(config or {})
         
         # Default PathRAG configuration
         self._default_config = {
@@ -95,14 +95,19 @@ class PathRAGEngine(BaseRAGEngine):
         logger.info("PathRAG engine initialized")
     
     @property
+    def engine_type(self) -> EngineType:
+        """Get engine type."""
+        return EngineType.PATHRAG
+    
+    @property
     def supported_modes(self) -> List[RetrievalMode]:
         """Get supported retrieval modes for PathRAG."""
         return [
-            RetrievalMode.NAIVE,
-            RetrievalMode.LOCAL,
-            RetrievalMode.GLOBAL,
+            RetrievalMode.VECTOR,
+            RetrievalMode.GRAPH,
             RetrievalMode.HYBRID,
-            RetrievalMode.FULL_ENGINE  # PathRAG mode
+            RetrievalMode.PATHRAG,
+            RetrievalMode.SEMANTIC
         ]
     
     async def _ensure_initialized(self):
@@ -138,9 +143,11 @@ class PathRAGEngine(BaseRAGEngine):
                 query=request.query,
                 mode=rag_mode,
                 top_k=request.top_k,
-                max_token_for_context=request.max_token_for_context,
                 filters=request.filters or {},
-                search_options=request.engine_params or {}
+                parameters={
+                    "max_token_for_context": request.max_token_for_context,
+                    "search_options": request.engine_params or {}
+                }
             )
             
             # Execute retrieval
@@ -154,18 +161,18 @@ class PathRAGEngine(BaseRAGEngine):
                     score=result.score,
                     source=result.metadata.get("source", "unknown"),
                     metadata={
-                        "chunk_metadata": result.chunk_metadata,
-                        "document_metadata": result.document_metadata,
-                        "path_info": result.path_info.dict() if result.path_info else None,
+                        "chunk_metadata": result.metadata.get("chunk_metadata", {}),
+                        "document_metadata": result.metadata.get("document_metadata", {}),
+                        "path_info": result.paths[0].model_dump() if result.paths else None,
                         "retrieval_mode": request.mode.value,
                         "pathrag_metadata": result.metadata
                     },
                     engine_metadata={
                         "pathrag_mode": rag_mode.value,
-                        "processing_time": pathrag_output.metadata.processing_time,
-                        "component_version": pathrag_output.metadata.component_version,
-                        "retrieval_stats": pathrag_output.retrieval_stats,
-                        "context_info": pathrag_output.context_info
+                        "processing_time": pathrag_output.metadata.get("processing_time", 0),
+                        "component_version": pathrag_output.metadata.get("component_version", "unknown"),
+                        "retrieval_stats": pathrag_output.metadata.get("retrieval_stats", {}),
+                        "context_info": pathrag_output.metadata.get("context_info", {})
                     }
                 )
                 results.append(engine_result)
@@ -187,15 +194,15 @@ class PathRAGEngine(BaseRAGEngine):
     def _map_retrieval_mode(self, mode: RetrievalMode) -> RAGMode:
         """Map engine retrieval mode to PathRAG mode."""
         mapping = {
-            RetrievalMode.NAIVE: RAGMode.NAIVE,
-            RetrievalMode.LOCAL: RAGMode.LOCAL,
-            RetrievalMode.GLOBAL: RAGMode.GLOBAL,
+            RetrievalMode.VECTOR: RAGMode.NAIVE,
+            RetrievalMode.GRAPH: RAGMode.GLOBAL,
             RetrievalMode.HYBRID: RAGMode.HYBRID,
-            RetrievalMode.FULL_ENGINE: RAGMode.PATHRAG
+            RetrievalMode.PATHRAG: RAGMode.PATHRAG,
+            RetrievalMode.SEMANTIC: RAGMode.LOCAL
         }
         return mapping.get(mode, RAGMode.PATHRAG)
     
-    def _merge_config(self, base: Dict[str, Any], updates: Dict[str, Any]):
+    def _merge_config(self, base: Dict[str, Any], updates: Dict[str, Any]) -> None:
         """Recursively merge configuration dictionaries."""
         for key, value in updates.items():
             if key in base and isinstance(base[key], dict) and isinstance(value, dict):
@@ -361,25 +368,26 @@ class PathRAGEngine(BaseRAGEngine):
                 "query": query,
                 "total_paths_explored": len(result.results),
                 "path_details": [],
-                "resource_allocation": result.retrieval_stats.get("resource_allocation", {}),
-                "keyword_extraction": result.retrieval_stats.get("keywords", {}),
+                "resource_allocation": result.metadata.get("retrieval_stats", {}).get("resource_allocation", {}),
+                "keyword_extraction": result.metadata.get("retrieval_stats", {}).get("keywords", {}),
                 "execution_stats": {
-                    "total_time_ms": result.metadata.processing_time * 1000 if result.metadata.processing_time else 0,
-                    "resource_allocation_time": result.retrieval_stats.get("resource_allocation_time", 0),
-                    "path_construction_time": result.retrieval_stats.get("path_construction_time", 0)
+                    "total_time_ms": result.execution_time_ms,
+                    "resource_allocation_time": result.metadata.get("retrieval_stats", {}).get("resource_allocation_time", 0),
+                    "path_construction_time": result.metadata.get("retrieval_stats", {}).get("path_construction_time", 0)
                 }
             }
             
             # Add detailed path information
             for result_item in result.results:
-                if result_item.path_info:
-                    path_details = {
-                        "path_nodes": result_item.path_info.nodes,
-                        "path_score": result_item.score,
-                        "hop_count": len(result_item.path_info.nodes) - 1,
-                        "narrative": result_item.path_info.metadata.get("narrative", ""),
-                        "resource_flow": result_item.path_info.metadata.get("resource_flow", {})
-                    }
+                if result_item.paths:
+                    for path_info in result_item.paths:
+                        path_details = {
+                            "path_nodes": path_info.nodes,
+                            "path_score": result_item.score,
+                            "hop_count": len(path_info.nodes) - 1,
+                            "narrative": path_info.metadata.get("narrative", ""),
+                            "resource_flow": path_info.metadata.get("resource_flow", {})
+                        }
                     path_analysis["path_details"].append(path_details)
             
             return path_analysis

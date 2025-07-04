@@ -14,6 +14,7 @@ from ..common import BaseSchema, EmbeddingVector, NodeID
 class ISNEConfig(BaseSchema):
     """Configuration for ISNE models."""
     embedding_dim: int = 768
+    input_dim: int = 768  # Input dimension (same as embedding_dim by default)
     hidden_dim: int = 512
     hidden_dims: Optional[List[int]] = None  # For multi-layer architectures
     num_layers: int = 3
@@ -27,6 +28,11 @@ class ISNEConfig(BaseSchema):
     use_residual: bool = True
     aggregation_method: str = "mean"  # "mean", "sum", "max", "attention"
     distance_metric: str = "cosine"  # "cosine", "euclidean", "manhattan"
+    
+    # Loss weights
+    feature_reconstruction_weight: float = 0.1
+    structural_weight: float = 0.4
+    contrastive_weight: float = 0.5
     
 
 class DirectoryMetadata(BaseSchema):

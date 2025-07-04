@@ -172,7 +172,7 @@ class ISNETrainingPipeline:
         """
         self.config = config or ISNETrainingConfig()
         self.logger = logging.getLogger(__name__)
-        self.wandb_run = None
+        self.wandb_run: Any = None
         self._init_wandb()
     
     def _init_wandb(self):
@@ -243,7 +243,7 @@ class ISNETrainingPipeline:
             self.logger.warning(f"Failed to start W&B run: {e}")
             self.wandb_run = None
     
-    def _log_wandb_metrics(self, metrics: Dict[str, Any], step: Optional[int] = None):
+    def _log_wandb_metrics(self, metrics: Dict[str, Any], step: Optional[int] = None) -> None:
         """Log metrics to W&B."""
         if self.wandb_run:
             try:
@@ -251,7 +251,7 @@ class ISNETrainingPipeline:
             except Exception as e:
                 self.logger.warning(f"Failed to log W&B metrics: {e}")
     
-    def _finish_wandb_run(self, result: TrainingResult):
+    def _finish_wandb_run(self, result: TrainingResult) -> None:
         """Finish W&B run and log final results."""
         if self.wandb_run:
             try:
@@ -472,26 +472,26 @@ class ISNETrainingPipeline:
         doc_result = doc_stage.execute(files, doc_config)
         
         if not doc_result.success:
-            raise RuntimeError(f"Document processing failed: {doc_result.error_message}")
+            raise RuntimeError(f"Document processing failed: {doc_result.error}")
         
         chunk_config = self._create_stage_config('chunking')
-        chunk_result = chunk_stage.execute(doc_result.documents, chunk_config)
+        chunk_result = chunk_stage.execute(doc_result.data, chunk_config)
         
         if not chunk_result.success:
-            raise RuntimeError(f"Chunking failed: {chunk_result.error_message}")
+            raise RuntimeError(f"Chunking failed: {chunk_result.error}")
         
         embed_config = self._create_stage_config('embedding')
-        embed_result = embed_stage.execute(chunk_result.chunks, embed_config)
+        embed_result = embed_stage.execute(chunk_result.data, embed_config)
         
         if not embed_result.success:
-            raise RuntimeError(f"Embedding failed: {embed_result.error_message}")
+            raise RuntimeError(f"Embedding failed: {embed_result.error}")
         
-        self.logger.info(f"✅ Processed {len(embed_result.embeddings)} embeddings")
+        self.logger.info(f"✅ Processed {len(embed_result.data.get('embeddings', []))} embeddings")
         
         return {
-            'documents': doc_result.documents,
-            'chunks': chunk_result.chunks,
-            'embeddings': embed_result.embeddings
+            'documents': doc_result.data,
+            'chunks': chunk_result.data,
+            'embeddings': embed_result.data.get('embeddings', [])
         }
     
     def _build_graph(self, processed_data: Dict[str, Any]) -> Dict[str, Any]:

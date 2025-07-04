@@ -40,8 +40,9 @@ class TrainingMetrics(BaseSchema):
     epoch_time_s: float
     gpu_memory_mb: Optional[float] = None
     gradient_norm: Optional[float] = None
-    loss_components: Optional[Dict[str, float]] = None  # Breakdown of loss components
+    loss_components: Optional[Dict[str, float]] = Field(default_factory=lambda: {})  # Breakdown of loss components
     custom_metrics: Dict[str, float] = Field(default_factory=dict)
+    validation_metrics: Optional[Dict[str, float]] = Field(default_factory=lambda: {})
 
 
 class TrainingConfig(BaseSchema):
@@ -117,6 +118,7 @@ class TrainingResult(BaseSchema):
     total_training_time: float
     final_metrics: Dict[str, float]
     config: TrainingConfig
+    version: Optional[int] = None  # Added for compatibility
     
 
 class SamplingStrategy(BaseSchema):
@@ -158,7 +160,7 @@ class DirectoryBatch(BaseSchema):
 class DirectoryMetadata(BaseSchema):
     """Metadata about a directory in the training dataset."""
     path: Path
-    directory_path: Path  # Alias for compatibility
+    directory_path: Path  # Alias for path, for backward compatibility
     depth: int
     parent: Optional[Path] = None
     children: List[Path] = Field(default_factory=list)
@@ -170,9 +172,9 @@ class DirectoryMetadata(BaseSchema):
     is_leaf: bool = False
     
     def __init__(self, **data):
-        """Initialize with directory_path as alias for path."""
-        if 'directory_path' not in data and 'path' in data:
+        """Initialize with path aliasing."""
+        if 'path' in data and 'directory_path' not in data:
             data['directory_path'] = data['path']
-        elif 'path' not in data and 'directory_path' in data:
+        elif 'directory_path' in data and 'path' not in data:
             data['path'] = data['directory_path']
         super().__init__(**data)

@@ -52,6 +52,19 @@ from src.types.storage.interfaces import (
 # Import common types
 from src.types.common import DocumentID, NodeID, EdgeID, EmbeddingVector, ProcessingStatus, ComponentMetadata, ComponentType, RelationType
 
+# Import common types
+from src.types.common import ComponentType, ComponentMetadata
+
+# Import storage types
+from src.types.storage.types import (
+    StorageInput,
+    StorageOutput,
+    StoredItem,
+    QueryInput,
+    QueryOutput,
+    RetrievalResult,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -1294,9 +1307,9 @@ class ArangoStorageV2(DocumentRepository, VectorRepository, GraphRepository):
         return StoredItem(
             item_id=f"{storage_location}/{result['_key']}",
             storage_location=storage_location,
-            storage_type="arango_collection",
-            timestamp=datetime.now(timezone.utc),
-            metadata={
+            storage_timestamp=datetime.now(timezone.utc),
+            index_status=ProcessingStatus.COMPLETED,
+            retrieval_metadata={
                 "collection": storage_location,
                 "embedding_dimension": len(embedding.enhanced_embedding),
                 "enhancement_score": embedding.enhancement_score,
@@ -1373,6 +1386,9 @@ class ArangoStorageV2(DocumentRepository, VectorRepository, GraphRepository):
                     }}
                 """
                 
+                if self._client is None:
+                    continue
+                    
                 cursor = self._client.execute_aql(query, {
                     'search_text': query_data.query,
                     'limit': min(query_data.top_k // len(collections), 10),

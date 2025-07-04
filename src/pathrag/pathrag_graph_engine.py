@@ -66,9 +66,9 @@ class PathRAGGraphEngine:
         self._similarity_threshold = self._config.get('similarity_threshold', 0.7)
         
         # PathRAG components (to be initialized)
-        self._graph_storage = None
-        self._vector_storage = None
-        self._embedding_func = None
+        self._graph_storage: Any = None
+        self._vector_storage: Any = None
+        self._embedding_func: Any = None
         self._pathrag_instance: Optional[Dict[str, Any]] = None
         
         # Statistics
@@ -282,8 +282,8 @@ class PathRAGGraphEngine:
             
             # Initialize graph storage
             if self._graph_storage_type == 'arangodb':
-                from src.storage.arango_client import ArangoConnection
-                self._graph_storage = ArangoConnection(self._config.get('arango_config', {}))
+                from src.storage.arango_client import ArangoClient
+                self._graph_storage = ArangoClient(self._config.get('arango_config', {}))
                 self.logger.info("Initialized ArangoDB graph storage")
             else:
                 # Default to NetworkX for in-memory graph

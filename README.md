@@ -134,7 +134,7 @@ response = requests.post("http://localhost:8000/query", json={
 
 ### TODO
 - Implement Jina v4 placeholder methods:
-  - Document parsing with Docling
+  - Document parsing with Jina v4 multimodal capabilities
   - Local vLLM embedding extraction
   - Attention-based keyword extraction
   - Semantic operations

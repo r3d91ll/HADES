@@ -26,7 +26,7 @@ This directory contains the Jina v4 integration for unified document processing,
 
 ## Implementation Status
 ⚠️ **Note**: Several methods have placeholder implementations:
-- `_parse_document()` - Needs Docling integration
+- `_parse_document()` - Needs Jina v4 multimodal integration
 - `_extract_embeddings_local()` - Needs vLLM direct access
 - `_extract_keywords()` - Needs attention weight extraction
 - Semantic operations - Needs actual calculations
@@ -35,7 +35,6 @@ This directory contains the Jina v4 integration for unified document processing,
 ## Dependencies
 - Transformers/Hugging Face
 - vLLM for inference
-- Docling for document parsing
 - PyTorch for tensor operations
 
 ## Research Context

@@ -60,6 +60,24 @@ features:
     adapter_path: null  # Path to custom adapters
     dynamic_switching: false  # Switch adapters based on task
     
+  # Task and prompt configuration
+  tasks:
+    default_task: "retrieval"  # "retrieval", "text-matching", "code"
+    default_prompt_name: "passage"  # "query", "passage" (for retrieval task)
+    task_mapping:
+      documents: 
+        task: "retrieval"
+        prompt_name: "passage"
+      queries:
+        task: "retrieval"
+        prompt_name: "query"
+      code_files:
+        task: "code"
+        prompt_name: "passage"
+      multilingual:
+        task: "text-matching"
+        prompt_name: null
+    
   # Multimodal settings
   multimodal:
     enabled: true
