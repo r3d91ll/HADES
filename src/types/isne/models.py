@@ -19,6 +19,7 @@ class ISNEConfig(BaseSchema):
     num_layers: int = 3
     dropout: float = 0.1
     learning_rate: float = 0.001
+    weight_decay: float = 0.0001  # L2 regularization
     batch_size: int = 32
     num_epochs: int = 100
     device: str = "cuda"

@@ -18,6 +18,13 @@ from src.components.rag_strategy.pathrag.pathrag_rag_strategy import PathRAGProc
 from src.types.pathrag.strategy import (
     PathRAGConfig, PathRAGResult
 )
+from src.types.pathrag.rag_types import (
+    RAGMode,
+    RAGResult,
+    RAGStrategyInput,
+    RAGStrategyOutput,
+    PathInfo
+)
 from src.components.registry import get_component
 
 logger = logging.getLogger(__name__)

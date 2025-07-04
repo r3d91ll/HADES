@@ -18,7 +18,8 @@ from src.storage.arango_client import ArangoClient, ArangoConnectionError, Arang
 # Import Sequential-ISNE types from the centralized types directory
 from src.types.storage.sequential_isne import (
     SequentialISNEConfig,
-    FileType, EdgeType, EmbeddingType, SourceType, ProcessingStatus,
+    FileType, EdgeType, EmbeddingType, SourceType,
+    ProcessingStatus as ISNEProcessingStatus,  # Renamed to avoid conflict
     CodeFile, DocumentationFile, ConfigFile, Chunk, Embedding,
     IntraModalEdge, CrossModalEdge, ISNEModel,
     classify_file_type, get_modality_collection, is_cross_modal_edge,
@@ -39,11 +40,17 @@ from src.types.storage.interfaces import (
     GraphNodeData,
     GraphEdgeData,
     StorageConfig,
-    StorageMetrics
+    StorageMetrics,
+    StoredItem,
+    StorageInput,
+    StorageOutput,
+    QueryInput,
+    QueryOutput,
+    RetrievalResult
 )
 
 # Import common types
-from src.types.common import DocumentID, EmbeddingVector, ProcessingStatus
+from src.types.common import DocumentID, NodeID, EdgeID, EmbeddingVector, ProcessingStatus, ComponentMetadata, ComponentType, RelationType
 
 logger = logging.getLogger(__name__)
 
@@ -327,8 +334,7 @@ class ArangoStorageV2(DocumentRepository, VectorRepository, GraphRepository):
             
             # Initialize schema manager
             self._schema_manager = SequentialISNESchemaManager(
-                self._client._client,  # Pass the PyArango client
-                self._database_name
+                self._sequential_isne_config
             )
             
             # Initialize database schema if needed
@@ -430,16 +436,20 @@ class ArangoStorageV2(DocumentRepository, VectorRepository, GraphRepository):
                 "sequential_isne_enabled": True
             }
             
+            # Convert StoredItem objects to dicts for documents field
+            document_dicts = [item.model_dump() for item in stored_items]
+            
             return StorageOutput(
                 success=True,
+                stored_items=stored_items,  # Already StoredItem objects
                 document_id=None,  # Multiple documents stored
-                documents=stored_items,
+                documents=document_dicts,
                 error_message=None,
+                errors=errors,
                 metadata={
                     **metadata.model_dump(),
                     'storage_stats': storage_stats,
-                    'index_info': index_info,
-                    'errors': errors
+                    'index_info': index_info
                 }
             )
             
@@ -506,13 +516,19 @@ class ArangoStorageV2(DocumentRepository, VectorRepository, GraphRepository):
                 "cross_modal_search": query_data.search_options.get('cross_modal', False)
             }
             
+            # Convert RetrievalResult objects to dicts for QueryOutput
+            result_dicts = [r.model_dump() for r in results]
+            
             return QueryOutput(
-                results=results,
-                metadata=metadata,
-                search_stats=search_stats,
-                query_info=query_info,
-                errors=errors,
-                search_time=search_time
+                results=result_dicts,
+                total_count=len(results),
+                execution_time=search_time,
+                metadata={
+                    **metadata.model_dump(),
+                    'search_stats': search_stats,
+                    'query_info': query_info,
+                    'errors': errors
+                }
             )
             
         except Exception as e:
@@ -521,7 +537,19 @@ class ArangoStorageV2(DocumentRepository, VectorRepository, GraphRepository):
             self.logger.error(error_msg)
             raise ArangoOperationError(error_msg)
     
-    def delete(self, item_ids: List[str]) -> bool:
+    async def delete(self, document_id: DocumentID) -> bool:
+        """
+        Delete a document by ID (async version for protocol compliance).
+        
+        Args:
+            document_id: Document ID to delete
+            
+        Returns:
+            True if document was deleted successfully
+        """
+        return self.delete_items([str(document_id)])
+    
+    def delete_items(self, item_ids: List[str]) -> bool:
         """
         Delete items by their IDs.
         
@@ -551,7 +579,20 @@ class ArangoStorageV2(DocumentRepository, VectorRepository, GraphRepository):
             self._increment_stat('errors')
             return False
     
-    def update(self, item_id: str, data: Dict[str, Any]) -> bool:
+    async def update(self, document_id: DocumentID, updates: Dict[str, Any]) -> bool:
+        """
+        Update a document (async version for protocol compliance).
+        
+        Args:
+            document_id: Document ID to update
+            updates: Update data
+            
+        Returns:
+            True if update was successful
+        """
+        return self.update_item(str(document_id), updates)
+    
+    def update_item(self, item_id: str, data: Dict[str, Any]) -> bool:
         """
         Update an existing item.
         
@@ -583,6 +624,308 @@ class ArangoStorageV2(DocumentRepository, VectorRepository, GraphRepository):
             self.logger.error(f"Update operation failed for {item_id}: {e}")
             self._increment_stat('errors')
             return False
+    
+    # ===== ASYNC PROTOCOL METHODS (STUBS) =====
+    
+    async def create(self, document: DocumentData) -> DocumentID:
+        """
+        Create a document (async stub).
+        
+        Args:
+            document: Document data to create
+            
+        Returns:
+            Created document ID
+        """
+        # TODO: Implement async version
+        raise NotImplementedError("Async create not yet implemented")
+    
+    async def read(self, document_id: DocumentID) -> Optional[DocumentData]:
+        """
+        Read a document by ID (async stub).
+        
+        Args:
+            document_id: Document ID to read
+            
+        Returns:
+            Document data if found, None otherwise
+        """
+        # TODO: Implement async version
+        raise NotImplementedError("Async read not yet implemented")
+    
+    async def list(
+        self,
+        filters: Optional[Dict[str, Any]] = None,
+        limit: int = 100,
+        offset: int = 0
+    ) -> List[DocumentData]:
+        """
+        List documents with optional filters (async stub).
+        
+        Args:
+            filters: Optional filters to apply
+            limit: Maximum number of results
+            offset: Number of results to skip
+            
+        Returns:
+            List of documents matching criteria
+        """
+        # TODO: Implement async version
+        raise NotImplementedError("Async list not yet implemented")
+    
+    async def search(
+        self,
+        query: str,
+        filters: Optional[Dict[str, Any]] = None,
+        limit: int = 10
+    ) -> List[DocumentData]:
+        """
+        Search documents by query (async stub).
+        
+        Args:
+            query: Search query string
+            filters: Optional filters to apply
+            limit: Maximum number of results
+            
+        Returns:
+            List of documents matching search criteria
+        """
+        # TODO: Implement async version
+        raise NotImplementedError("Async search not yet implemented")
+    
+    async def add_embedding(
+        self,
+        embedding_id: str,
+        embedding: EmbeddingVector,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        """
+        Add an embedding to the vector store (async stub).
+        
+        Args:
+            embedding_id: Unique identifier for the embedding
+            embedding: Vector representation
+            metadata: Optional metadata
+            
+        Returns:
+            True if embedding was added successfully
+        """
+        # TODO: Implement async version
+        raise NotImplementedError("Async add_embedding not yet implemented")
+    
+    async def get_embedding(
+        self,
+        embedding_id: str
+    ) -> Optional[Tuple[EmbeddingVector, Dict[str, Any]]]:
+        """
+        Get an embedding by ID (async stub).
+        
+        Args:
+            embedding_id: Embedding ID to retrieve
+            
+        Returns:
+            Tuple of (embedding vector, metadata) if found, None otherwise
+        """
+        # TODO: Implement async version
+        raise NotImplementedError("Async get_embedding not yet implemented")
+    
+    async def search_similar(
+        self,
+        query_embedding: EmbeddingVector,
+        top_k: int = 10,
+        filters: Optional[Dict[str, Any]] = None,
+        threshold: Optional[float] = None
+    ) -> List[VectorSearchResult]:
+        """
+        Search for similar embeddings (async stub).
+        
+        Args:
+            query_embedding: Query vector
+            top_k: Number of results to return
+            filters: Optional filters to apply
+            threshold: Optional similarity threshold
+            
+        Returns:
+            List of similar vectors with scores
+        """
+        # TODO: Implement async version
+        raise NotImplementedError("Async search_similar not yet implemented")
+    
+    async def delete_embedding(self, embedding_id: str) -> bool:
+        """
+        Delete an embedding by ID (async stub).
+        
+        Args:
+            embedding_id: Embedding ID to delete
+            
+        Returns:
+            True if embedding was deleted successfully
+        """
+        # TODO: Implement async version
+        raise NotImplementedError("Async delete_embedding not yet implemented")
+    
+    async def create_index(
+        self,
+        index_type: str = "hnsw",
+        **kwargs: Any
+    ) -> bool:
+        """
+        Create an index for vector search (async stub).
+        
+        Args:
+            index_type: Type of index to create
+            **kwargs: Additional index parameters
+            
+        Returns:
+            True if index was created successfully
+        """
+        # TODO: Implement async version
+        raise NotImplementedError("Async create_index not yet implemented")
+    
+    async def add_node(self, node: GraphNodeData) -> NodeID:
+        """
+        Add a node to the graph (async stub).
+        
+        Args:
+            node: Node data to add
+            
+        Returns:
+            Created node ID
+        """
+        # TODO: Implement async version
+        raise NotImplementedError("Async add_node not yet implemented")
+    
+    async def get_node(self, node_id: str) -> Optional[GraphNodeData]:
+        """
+        Get a node by ID (async stub).
+        
+        Args:
+            node_id: Node ID to retrieve
+            
+        Returns:
+            Node data if found, None otherwise
+        """
+        # TODO: Implement async version
+        raise NotImplementedError("Async get_node not yet implemented")
+    
+    async def update_node(
+        self,
+        node_id: str,
+        updates: Dict[str, Any]
+    ) -> bool:
+        """
+        Update a node (async stub).
+        
+        Args:
+            node_id: Node ID to update
+            updates: Update data
+            
+        Returns:
+            True if node was updated successfully
+        """
+        # TODO: Implement async version
+        raise NotImplementedError("Async update_node not yet implemented")
+    
+    async def delete_node(self, node_id: str) -> bool:
+        """
+        Delete a node (async stub).
+        
+        Args:
+            node_id: Node ID to delete
+            
+        Returns:
+            True if node was deleted successfully
+        """
+        # TODO: Implement async version
+        raise NotImplementedError("Async delete_node not yet implemented")
+    
+    async def add_edge(self, edge: GraphEdgeData) -> EdgeID:
+        """
+        Add an edge to the graph (async stub).
+        
+        Args:
+            edge: Edge data to add
+            
+        Returns:
+            Created edge ID
+        """
+        # TODO: Implement async version
+        raise NotImplementedError("Async add_edge not yet implemented")
+    
+    async def get_edge(self, edge_id: str) -> Optional[GraphEdgeData]:
+        """
+        Get an edge by ID (async stub).
+        
+        Args:
+            edge_id: Edge ID to retrieve
+            
+        Returns:
+            Edge data if found, None otherwise
+        """
+        # TODO: Implement async version
+        raise NotImplementedError("Async get_edge not yet implemented")
+    
+    async def get_neighbors(
+        self,
+        node_id: str,
+        edge_types: Optional[List[RelationType]] = None,
+        direction: str = "both",
+        max_distance: int = 1
+    ) -> List[Tuple[GraphNodeData, GraphEdgeData]]:
+        """
+        Get neighboring nodes (async stub).
+        
+        Args:
+            node_id: Starting node ID
+            edge_types: Optional list of edge types to follow
+            direction: Direction to traverse ("in", "out", "both")
+            max_distance: Maximum distance to traverse
+            
+        Returns:
+            List of (node, edge) tuples
+        """
+        # TODO: Implement async version
+        raise NotImplementedError("Async get_neighbors not yet implemented")
+    
+    async def find_path(
+        self,
+        start_id: str,
+        end_id: str,
+        max_length: int = 5,
+        edge_types: Optional[List[RelationType]] = None
+    ) -> Optional[List[Tuple[GraphNodeData, Optional[GraphEdgeData]]]]:
+        """
+        Find path between nodes (async stub).
+        
+        Args:
+            start_id: Starting node ID
+            end_id: Ending node ID
+            max_length: Maximum path length
+            edge_types: Optional list of edge types to follow
+            
+        Returns:
+            Path as list of (node, edge) tuples if found, None otherwise
+        """
+        # TODO: Implement async version
+        raise NotImplementedError("Async find_path not yet implemented")
+    
+    async def execute_query(
+        self,
+        query: str,
+        parameters: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Execute a graph query (async stub).
+        
+        Args:
+            query: Query string (e.g., AQL for ArangoDB)
+            parameters: Optional query parameters
+            
+        Returns:
+            Query results as list of dictionaries
+        """
+        # TODO: Implement async version
+        raise NotImplementedError("Async execute_query not yet implemented")
     
     def get_statistics(self) -> Dict[str, Any]:
         """
@@ -951,13 +1294,14 @@ class ArangoStorageV2(DocumentRepository, VectorRepository, GraphRepository):
         return StoredItem(
             item_id=f"{storage_location}/{result['_key']}",
             storage_location=storage_location,
-            storage_timestamp=datetime.now(timezone.utc),
-            index_status=ContractProcessingStatus.COMPLETED,
-            retrieval_metadata={
+            storage_type="arango_collection",
+            timestamp=datetime.now(timezone.utc),
+            metadata={
                 "collection": storage_location,
                 "embedding_dimension": len(embedding.enhanced_embedding),
                 "enhancement_score": embedding.enhancement_score,
-                "sequential_isne": True
+                "sequential_isne": True,
+                "index_status": ProcessingStatus.COMPLETED.value
             }
         )
     
@@ -986,12 +1330,15 @@ class ArangoStorageV2(DocumentRepository, VectorRepository, GraphRepository):
             
             for i, item in enumerate(cursor):
                 result = RetrievalResult(
-                    item_id=item['id'],
+                    document_id=DocumentID(item['id']),
                     content=f"Vector search result for {item['content']}",
                     score=item['score'] - (i * 0.1),  # Decreasing scores
-                    metadata=item['metadata'],
-                    chunk_metadata={"source": "vector_search"},
-                    document_metadata={"type": "embedding"}
+                    metadata={
+                        **item['metadata'],
+                        'item_id': item['id'],
+                        'chunk_metadata': {"source": "vector_search"},
+                        'document_metadata': {"type": "embedding"}
+                    }
                 )
                 results.append(result)
             
@@ -1026,8 +1373,6 @@ class ArangoStorageV2(DocumentRepository, VectorRepository, GraphRepository):
                     }}
                 """
                 
-                if self._client is None:
-                    continue
                 cursor = self._client.execute_aql(query, {
                     'search_text': query_data.query,
                     'limit': min(query_data.top_k // len(collections), 10),
@@ -1036,16 +1381,17 @@ class ArangoStorageV2(DocumentRepository, VectorRepository, GraphRepository):
                 
                 for item in cursor:
                     result = RetrievalResult(
-                        item_id=item['id'],
+                        document_id=DocumentID(item['id']),
                         content=item['content'][:500],  # Truncate for display
                         score=0.8,  # Static score for text search
                         metadata={
+                            "item_id": item['id'],
                             "file_path": item['file_path'],
                             "file_type": item['file_type'],
-                            "modality": item['modality']
-                        },
-                        chunk_metadata={"source": "text_search"},
-                        document_metadata={"collection": collection}
+                            "modality": item['modality'],
+                            "chunk_metadata": {"source": "text_search"},
+                            "document_metadata": {"collection": collection}
+                        }
                     )
                     results.append(result)
             
@@ -1077,12 +1423,12 @@ class ArangoStorageV2(DocumentRepository, VectorRepository, GraphRepository):
     
     # ===== CONTEXT MANAGER SUPPORT =====
     
-    def __enter__(self):
+    def __enter__(self) -> "ArangoStorageV2":
         """Context manager entry."""
         self.connect()
         return self
     
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Context manager exit."""
         self.disconnect()
     

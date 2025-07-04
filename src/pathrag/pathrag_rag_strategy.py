@@ -28,6 +28,15 @@ import networkx as nx
 import numpy as np
 from collections import defaultdict, deque
 
+# Import RAG types
+from src.types.pathrag.rag_types import (
+    RAGMode,
+    RAGResult,
+    RAGStrategyInput,
+    RAGStrategyOutput,
+    PathInfo
+)
+
 from src.types.pathrag.strategy import (
     PathRAGConfig,
     PathNode,
@@ -37,7 +46,7 @@ from src.types.pathrag.strategy import (
     QueryDecomposition,
     RetrievalStats
 )
-from src.types.common import ProcessingStatus
+from src.types.common import ProcessingStatus, ComponentType, ComponentMetadata
 
 # Import HADES components - use lazy imports to avoid circular dependencies
 from src.components.registry import get_component
@@ -65,7 +74,7 @@ class PathRAGProcessor:
         """Initialize PathRAG processor."""
         self.name = "pathrag"
         self.version = "1.0.0"
-        self._component_type = "rag_strategy"
+        self._component_type = ComponentType.RETRIEVER  # RAG strategy is a type of retriever
         
         # Configuration
         self.config: Dict[str, Any] = {}
@@ -124,8 +133,8 @@ class PathRAGProcessor:
             embedder_config = self.config.get('embedder', {})
             embedder_type = embedder_config.get('type', 'cpu')
             try:
-                from src.components.embedding.factory import create_embedding_component
-                self.embedder = create_embedding_component(embedder_type, embedder_config)
+                from src.components.embedding.factory import create_embedder
+                self.embedder = create_embedder(embedder_type, embedder_config)
             except ImportError as e:
                 logger.warning(f"Could not load embedding component: {e}")
                 self.embedder = None
@@ -134,8 +143,8 @@ class PathRAGProcessor:
             enhancer_config = self.config.get('graph_enhancer', {})
             enhancer_type = enhancer_config.get('type', 'isne')
             try:
-                from src.components.graph_enhancement.factory import create_graph_enhancement_component
-                self.graph_enhancer = create_graph_enhancement_component(enhancer_type, enhancer_config)
+                from src.components.graph_enhancement.factory import create_graph_enhancer
+                self.graph_enhancer = create_graph_enhancer(enhancer_type, enhancer_config)
             except ImportError as e:
                 logger.warning(f"Could not load graph enhancement component: {e}")
                 self.graph_enhancer = None
@@ -349,28 +358,30 @@ class PathRAGProcessor:
             output = RAGStrategyOutput(
                 query=input_data.query,
                 mode=input_data.mode,
+                mode_used=input_data.mode,  # Required field
                 results=results[:input_data.top_k],  # Limit to requested top_k
+                total_results=len(results),  # Required field
+                execution_time=processing_time,  # Required field
                 generated_answer=generated_answer,
                 answer_confidence=answer_confidence,
-                paths_explored=paths_explored,
+                paths_explored=len(paths_explored) if isinstance(paths_explored, list) else paths_explored,
                 graph_stats=self._get_graph_stats(),
-                metadata=ComponentMetadata(
-                    component_name=self.name,
-                    component_version=self.version,
-                    component_type=self.component_type,
-                    processed_at=datetime.now(timezone.utc),
-                    status=ProcessingStatus.SUCCESS
-                ),
+                metadata={
+                    "component_name": self.name,
+                    "component_version": self.version,
+                    "component_type": str(self.component_type),
+                    "processed_at": datetime.now(timezone.utc).isoformat(),
+                    "status": ProcessingStatus.SUCCESS.value
+                },
                 retrieval_stats={
                     "entity_nodes_found": len(relevant_nodes.get("entity_nodes", [])),
                     "relationship_nodes_found": len(relevant_nodes.get("relationship_nodes", [])),
                     "total_relevant_nodes": len(relevant_nodes.get("entity_nodes", [])) + len(relevant_nodes.get("relationship_nodes", [])),
-                    "paths_explored": len(paths_explored),
+                    "paths_explored": len(paths_explored) if isinstance(paths_explored, list) else paths_explored,
                     "results_generated": len(results),
                     "mode": input_data.mode.value
                 },
-                query_processing_time=processing_time,
-                total_results=len(results)
+                query_processing_time=processing_time
             )
             
             logger.info(f"PathRAG processing completed in {processing_time:.2f}s")
@@ -384,17 +395,21 @@ class PathRAGProcessor:
             return RAGStrategyOutput(
                 query=input_data.query,
                 mode=input_data.mode,
+                mode_used=input_data.mode,  # Required field
                 results=[],
-                metadata=ComponentMetadata(
-                    component_name=self.name,
-                    component_version=self.version,
-                    component_type=self.component_type,
-                    processed_at=datetime.now(timezone.utc),
-                    status=ProcessingStatus.ERROR
-                ),
+                total_results=0,  # Required field
+                execution_time=time.time() - start_time,  # Required field
+                metadata={
+                    "component_name": self.name,
+                    "component_version": self.version,
+                    "component_type": str(self.component_type),
+                    "processed_at": datetime.now(timezone.utc).isoformat(),
+                    "status": ProcessingStatus.ERROR.value
+                },
                 errors=[error_msg],
                 query_processing_time=time.time() - start_time,
-                total_results=0
+                success=False,
+                error_message=error_msg
             )
     
     def retrieve_only(self, input_data: RAGStrategyInput) -> RAGStrategyOutput:

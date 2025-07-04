@@ -101,7 +101,7 @@ class JinaV4Processor:
         self.ast_analyzer = ASTAnalyzer()
         
         # Temporary storage for extracted images
-        self._extracted_images = []
+        self._extracted_images: List[Dict[str, Any]] = []
         
         # Stats
         self.stats = {
@@ -113,7 +113,7 @@ class JinaV4Processor:
         
         logger.info(f"JinaV4Processor initialized on {self.device}")
     
-    def _initialize_model(self):
+    def _initialize_model(self) -> None:
         """Initialize the Jina v4 model via vLLM."""
         try:
             logger.info(f"Initializing Jina v4 with vLLM: {self.model_name}")
@@ -243,7 +243,7 @@ class JinaV4Processor:
         Returns:
             Dictionary with 'text', 'ast_analysis', and optionally 'images'
         """
-        result = {
+        result: Dict[str, Any] = {
             'text': '',
             'ast_analysis': None,
             'images': []
@@ -426,6 +426,7 @@ class JinaV4Processor:
                     return "\n".join(text_parts)
                 except Exception as e:
                     logger.error(f"PyPDF2 extraction failed: {e}")
+                    return f"[PDF extraction failed: {file_path.name}]"
                     
             elif suffix in ['.docx', '.doc']:
                 # Try python-docx as fallback
@@ -438,6 +439,7 @@ class JinaV4Processor:
                     return "\n".join(text_parts)
                 except Exception as e:
                     logger.error(f"python-docx extraction failed: {e}")
+                    return f"[DOCX extraction failed: {file_path.name}]"
                     
             elif suffix in ['.jpg', '.jpeg', '.png', '.gif', '.bmp']:
                 # Image files - return placeholder for now

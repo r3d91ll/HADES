@@ -98,7 +98,9 @@ class ProcessingStatus(str, Enum):
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
+    SUCCESS = "success"  # Alias for completed
     FAILED = "failed"
+    ERROR = "error"  # Alias for failed
     SKIPPED = "skipped"
 
 
@@ -106,6 +108,17 @@ class SchemaVersion(str, Enum):
     """Schema version enumeration for backward compatibility tracking."""
     V1 = "1.0.0"
     V2 = "2.0.0"  # Current version
+
+
+class ComponentType(str, Enum):
+    """Types of components in the HADES system."""
+    STORAGE = "storage"
+    PROCESSOR = "processor"
+    EMBEDDER = "embedder"
+    CHUNKER = "chunker"
+    ENHANCER = "enhancer"
+    RETRIEVER = "retriever"
+    GRAPH_ENHANCEMENT = "graph_enhancement"
 
 # Code structure types
 class Module(TypedDict, total=False):
@@ -323,3 +336,15 @@ class BaseSchema(BaseModel):
             
         # Return the data directly - cast is no longer needed
         return data
+
+
+class ComponentMetadata(BaseSchema):
+    """Metadata for a HADES component."""
+    component_type: ComponentType
+    component_name: str
+    component_version: str
+    config: Dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
+    processed_at: Optional[datetime] = None
+    metrics: Dict[str, Any] = Field(default_factory=dict)

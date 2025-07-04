@@ -16,6 +16,7 @@ import torch
 from torch_geometric.data import Data
 
 from src.types.isne.training import BatchSample, DirectoryMetadata
+from src.types.common import NodeID
 
 
 @dataclass
@@ -323,8 +324,20 @@ class HierarchicalBatchSampler:
         # Extract directory features
         directory_features = self._extract_directory_features(node_ids)
         
+        # Create dummy lists for required fields that aren't used in this context
+        dummy_node_ids = [NodeID(str(i)) for i in node_ids]
+        dummy_embeddings = [[0.0] for _ in node_ids]
+        
         return BatchSample(
-            node_ids=torch.tensor(node_ids),
+            # Required fields
+            anchor_nodes=dummy_node_ids,
+            positive_nodes=dummy_node_ids,
+            negative_nodes=dummy_node_ids,
+            anchor_embeddings=dummy_embeddings,
+            positive_embeddings=dummy_embeddings,
+            negative_embeddings=dummy_embeddings,
+            # Optional fields with actual data
+            node_ids=[NodeID(str(i)) for i in node_ids],
             features=node_features,
             edge_index=remapped_edges,
             directory_features=directory_features,
@@ -411,10 +424,13 @@ class HierarchicalBatchSampler:
         
         # Analyze batch composition
         directories_in_batch: defaultdict[str, int] = defaultdict(int)
-        for node_id in batch.node_ids.tolist():
-            metadata = self.directory_metadata.get(node_id)
-            if metadata:
-                directories_in_batch[metadata.directory_path] += 1
+        if batch.node_ids is not None:
+            # Convert NodeID objects to strings for iteration
+            node_ids = [str(nid) for nid in batch.node_ids]
+            for node_id in node_ids:
+                metadata = self.directory_metadata.get(int(node_id))
+                if metadata:
+                    directories_in_batch[str(metadata.directory_path)] += 1
         
         debug_info = {
             "component": "hierarchical_batch_sampler",
@@ -422,8 +438,8 @@ class HierarchicalBatchSampler:
             "stage": "batch_sampling",
             "batch_idx": batch_idx,
             "data": {
-                "batch_size": len(batch.node_ids),
-                "num_edges": batch.edge_index.shape[1],
+                "batch_size": len(batch.node_ids) if batch.node_ids else 0,
+                "num_edges": batch.edge_index.shape[1] if batch.edge_index is not None else 0,
                 "directory_distribution": dict(directories_in_batch),
                 "depth_distribution": batch.directory_features['depth'].tolist()[:10]
             },

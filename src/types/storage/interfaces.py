@@ -9,6 +9,8 @@ from typing import Protocol, Dict, Any, Optional, List, Tuple, runtime_checkable
 from abc import abstractmethod
 from datetime import datetime
 
+from pydantic import Field
+
 from ..common import (
     BaseSchema,
     NodeID,
@@ -247,6 +249,68 @@ class StorageConfig(BaseSchema):
 
 class StorageMetrics(BaseSchema):
     """Metrics for storage operations."""
+    documents_created: int = 0
+    documents_updated: int = 0
+    documents_deleted: int = 0
+    queries_executed: int = 0
+    errors_count: int = 0
+    total_processing_time: float = 0.0
+
+
+class StoredItem(BaseSchema):
+    """Represents an item that has been stored."""
+    item_id: str
+    storage_location: str
+    storage_type: str
+    timestamp: datetime
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class StorageInput(BaseSchema):
+    """Input data for storage operations."""
+    document_id: DocumentID
+    content: str
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    options: Dict[str, Any] = Field(default_factory=dict)
+
+
+class StorageOutput(BaseSchema):
+    """Output from storage operations."""
+    success: bool
+    stored_items: List[StoredItem]
+    errors: List[str] = Field(default_factory=list)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    document_id: Optional[str] = None
+    documents: List[Dict[str, Any]] = Field(default_factory=list)
+    error_message: Optional[str] = None
+
+
+class QueryInput(BaseSchema):
+    """Input for query operations."""
+    query: str
+    filters: Dict[str, Any] = Field(default_factory=dict)
+    limit: int = 10
+    options: Dict[str, Any] = Field(default_factory=dict)
+    query_embedding: Optional[List[float]] = None
+    top_k: int = 10
+    search_options: Dict[str, Any] = Field(default_factory=dict)
+
+
+class QueryOutput(BaseSchema):
+    """Output from query operations."""
+    results: List[Dict[str, Any]]
+    total_count: int
+    execution_time: float
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class RetrievalResult(BaseSchema):
+    """Result from retrieval operations."""
+    document_id: DocumentID
+    score: float
+    content: str
+    path: Optional[List[str]] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
     total_documents: int = 0
     total_chunks: int = 0
     total_embeddings: int = 0

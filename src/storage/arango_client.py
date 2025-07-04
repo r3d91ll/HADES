@@ -83,20 +83,22 @@ class ArangoClient:
             retry_delay: Delay between retries in seconds (optional, uses config if None)
             connection_pool_size: Size of connection pool (optional, uses config if None)
         """
-        # Get configuration manager
+        # Get configuration manager and load database config
         config_manager = get_config_manager()
+        db_config = config_manager.get_config('database')
+        arango_config = db_config.get('arango', {})
         
         # Use provided values or fallback to configuration
-        self.host = host or config_manager.get('database.arango.host', '127.0.0.1')
-        self.port = port or config_manager.get('database.arango.port', 8529)
-        self.username = username or config_manager.get('database.arango.username', 'root')
-        self.password = password or config_manager.get('database.arango.password', '')
-        self.database_name = database or config_manager.get('database.arango.default_database', 'hades')
-        self.use_ssl = use_ssl if use_ssl is not None else config_manager.get('database.arango.use_ssl', False)
-        self.timeout = timeout or config_manager.get('database.arango.timeout', 30)
-        self.max_retries = max_retries or config_manager.get('database.arango.max_retries', 3)
-        self.retry_delay = retry_delay or config_manager.get('database.arango.retry_delay', 1.0)
-        self.connection_pool_size = connection_pool_size or config_manager.get('database.arango.connection_pool_size', 10)
+        self.host = host or arango_config.get('host', '127.0.0.1')
+        self.port = port or arango_config.get('port', 8529)
+        self.username = username or arango_config.get('username', 'root')
+        self.password = password or arango_config.get('password', '')
+        self.database_name = database or arango_config.get('default_database', 'hades')
+        self.use_ssl = use_ssl if use_ssl is not None else arango_config.get('use_ssl', False)
+        self.timeout = timeout or arango_config.get('timeout', 30)
+        self.max_retries = max_retries or arango_config.get('max_retries', 3)
+        self.retry_delay = retry_delay or arango_config.get('retry_delay', 1.0)
+        self.connection_pool_size = connection_pool_size or arango_config.get('connection_pool_size', 10)
         
         # Build connection URL
         protocol = "https" if self.use_ssl else "http"

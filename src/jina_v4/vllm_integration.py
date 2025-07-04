@@ -58,7 +58,7 @@ class VLLMEmbeddingExtractor:
         else:
             self._init_local_engine()
     
-    def _init_api_client(self):
+    def _init_api_client(self) -> None:
         """Initialize HTTP client for vLLM server API."""
         self.use_api = True
         self.api_url = self.vllm_config['api_url'].rstrip('/')
@@ -73,7 +73,7 @@ class VLLMEmbeddingExtractor:
         
         logger.info(f"Initialized vLLM API client for {self.api_url}")
     
-    def _init_local_engine(self):
+    def _init_local_engine(self) -> None:
         """Initialize local vLLM engine."""
         self.use_api = False
         

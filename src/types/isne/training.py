@@ -34,11 +34,13 @@ class TrainingMetrics(BaseSchema):
     epoch: int
     train_loss: float
     val_loss: Optional[float] = None
+    total_loss: Optional[float] = None  # Combined loss if using multiple objectives
     learning_rate: float
     batch_time_ms: float
     epoch_time_s: float
     gpu_memory_mb: Optional[float] = None
     gradient_norm: Optional[float] = None
+    loss_components: Optional[Dict[str, float]] = None  # Breakdown of loss components
     custom_metrics: Dict[str, float] = Field(default_factory=dict)
 
 
@@ -156,6 +158,7 @@ class DirectoryBatch(BaseSchema):
 class DirectoryMetadata(BaseSchema):
     """Metadata about a directory in the training dataset."""
     path: Path
+    directory_path: Path  # Alias for compatibility
     depth: int
     parent: Optional[Path] = None
     children: List[Path] = Field(default_factory=list)
@@ -163,3 +166,13 @@ class DirectoryMetadata(BaseSchema):
     total_size: int = 0
     file_types: Dict[str, int] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
+    sibling_count: int = 0
+    is_leaf: bool = False
+    
+    def __init__(self, **data):
+        """Initialize with directory_path as alias for path."""
+        if 'directory_path' not in data and 'path' in data:
+            data['directory_path'] = data['path']
+        elif 'path' not in data and 'directory_path' in data:
+            data['path'] = data['directory_path']
+        super().__init__(**data)

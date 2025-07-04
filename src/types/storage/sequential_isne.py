@@ -328,15 +328,15 @@ class SequentialISNESchemaManager:
             FileType.UNKNOWN: "unknown_files"
         }
         
-    async def initialize_schema(self) -> bool:
+    def initialize_schema(self) -> bool:
         """Initialize the database schema."""
         # This would be implemented by the actual storage backend
         self._initialized = True
         return True
         
-    async def initialize_database(self) -> None:
+    def initialize_database(self) -> bool:
         """Initialize the database and collections."""
-        await self.initialize_schema()
+        return self.initialize_schema()
         
     def get_modality_collections(self) -> Dict[str, str]:
         """Get mapping of modality to collection names."""
@@ -352,15 +352,11 @@ class SequentialISNESchemaManager:
             "schema_version": "2.0.0"
         }
         
-    async def validate_schema(self) -> Dict[str, Any]:
+    def validate_schema(self) -> bool:
         """Validate the current schema."""
-        return {
-            "is_valid": self._initialized,
-            "errors": [] if self._initialized else ["Schema not initialized"],
-            "warnings": []
-        }
+        return self._initialized
         
-    async def get_metadata(self) -> Dict[str, Any]:
+    def get_metadata(self) -> Dict[str, Any]:
         """Get current schema metadata."""
         return {
             "version": "2.0.0",

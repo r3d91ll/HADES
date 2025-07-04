@@ -26,7 +26,7 @@ from datetime import datetime, timezone
 import networkx as nx
 
 # Import common types
-from src.types.common import ProcessingStatus
+from src.types.common import ProcessingStatus, ComponentType, ComponentMetadata
 
 # For now, we'll create a simple interface that wraps PathRAG functionality
 # This will be expanded once we migrate the actual PathRAG code

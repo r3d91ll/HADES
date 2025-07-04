@@ -1,0 +1,3 @@
+"""
+Embedding components for HADES.
+"""
