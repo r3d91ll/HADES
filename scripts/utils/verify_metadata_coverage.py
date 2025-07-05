@@ -41,7 +41,7 @@ def check_metadata_coverage(root_path: Path) -> Tuple[List[Path], List[Path]]:
     return with_metadata, without_metadata
 
 
-def main():
+def main() -> None:
     """Check metadata coverage for HADES."""
     project_root = Path(__file__).parent.parent.parent
     

@@ -271,7 +271,7 @@ class BridgeDetector:
                                         path=str(code_path),
                                         section=None,
                                         symbol=node.name,
-                                        lines=[node.lineno, node.end_lineno]
+                                        lines=[node.lineno, node.end_lineno] if node.end_lineno is not None else [node.lineno]
                                     ),
                                     target=SourceTarget(
                                         type="documentation",

@@ -54,8 +54,8 @@ class BridgeTraversal:
         Returns:
             Enhanced retrieval results with bridge-connected nodes
         """
-        enhanced_results = {
-            'primary_nodes': initial_nodes,
+        enhanced_results: Dict[str, Any] = {
+            'primary_nodes': list(initial_nodes),  # Convert to list
             'bridge_nodes': [],
             'bridge_paths': [],
             'context_type': self._determine_query_context(query_context)
@@ -168,7 +168,8 @@ class BridgeTraversal:
     def _get_node_path(self, node_id: str, graph: nx.Graph) -> Optional[str]:
         """Get filesystem path for a node."""
         node_data = graph.nodes.get(node_id, {})
-        return node_data.get('filesystem_path')
+        path = node_data.get('filesystem_path')
+        return path if isinstance(path, str) else None
     
     def _find_relevant_bridges(
         self,
@@ -223,12 +224,12 @@ class BridgeTraversal:
         """Find node ID by filesystem path."""
         for node_id, data in graph.nodes(data=True):
             if data.get('filesystem_path') == path:
-                return node_id
+                return str(node_id) if node_id is not None else None
         return None
     
     def _get_bridge_context(self, bridge: TheoryPracticeBridge) -> Dict[str, Any]:
         """Extract contextual information from a bridge."""
-        context = {
+        context: Dict[str, Any] = {
             'source_type': bridge.source.type,
             'target_type': bridge.target.type,
             'relationship': bridge.relationship

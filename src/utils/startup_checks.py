@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Dict, Any
 
 try:
-    import psutil
+    import psutil  # type: ignore[import-untyped]
 except ImportError:
     psutil = None
 

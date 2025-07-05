@@ -229,9 +229,11 @@ class NanoVectorStorage:
                 vectors = list(vectors)
             
             if metadata is None:
-                metadata = [{}] * len(vectors)
+                metadata_list: List[Optional[Dict[str, Any]]] = [None] * len(vectors)
+            else:
+                metadata_list = list(metadata)
             
-            items = list(zip(keys, vectors, metadata))
+            items = list(zip(keys, vectors, metadata_list))
             self.db.add_batch(items)
             
             # Auto-save if persistence is enabled

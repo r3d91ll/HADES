@@ -171,7 +171,7 @@ class DirectoryMetadata(BaseSchema):
     sibling_count: int = 0
     is_leaf: bool = False
     
-    def __init__(self, **data):
+    def __init__(self, **data: Any) -> None:
         """Initialize with path aliasing."""
         if 'path' in data and 'directory_path' not in data:
             data['directory_path'] = data['path']

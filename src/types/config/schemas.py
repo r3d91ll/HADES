@@ -28,7 +28,7 @@ class ArangoDBConfig(BaseModel):
     graph: Dict[str, Any] = Field(default_factory=dict)
     
     @validator('connection')
-    def validate_connection(cls, v):
+    def validate_connection(cls, v: Dict[str, Any]) -> Dict[str, Any]:
         required = ['url', 'database']
         for field in required:
             if field not in v:
@@ -44,7 +44,7 @@ class ISNEConfig(BaseModel):
     directory_aware: bool = Field(True, description="Enable directory awareness")
     
     @validator('model')
-    def validate_model(cls, v):
+    def validate_model(cls, v: Dict[str, Any]) -> Dict[str, Any]:
         if 'embedding_dim' not in v:
             v['embedding_dim'] = 768  # Jina v4 default
         return v

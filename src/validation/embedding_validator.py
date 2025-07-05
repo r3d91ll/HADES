@@ -135,7 +135,7 @@ def validate_embeddings(embeddings: np.ndarray,
     Returns:
         Validation results dictionary
     """
-    results = {
+    results: Dict[str, Any] = {
         "valid": True,
         "errors": [],
         "warnings": [],
@@ -205,7 +205,7 @@ def validate_torch_embeddings(embeddings: torch.Tensor,
     Returns:
         Validation results
     """
-    results = {
+    results: Dict[str, Any] = {
         "valid": True,
         "errors": [],
         "warnings": [],

@@ -91,7 +91,7 @@ class TemporalRelationship:
     Handles creation, validation, and decay of time-bound connections.
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize temporal relationship manager."""
         self.temporal_bounds: Dict[str, TemporalBound] = {}
         self.relationship_history: List[Dict[str, Any]] = []

@@ -11,10 +11,10 @@ from typing import Dict, List, Any, Optional, Union, Iterator
 from contextlib import contextmanager
 from datetime import datetime, timezone
 
-from arango import ArangoClient as PyArangoClient
-from arango.database import StandardDatabase
-from arango.collection import StandardCollection
-from arango.exceptions import (
+from arango import ArangoClient as PyArangoClient  # type: ignore[import-not-found]
+from arango.database import StandardDatabase  # type: ignore[import-not-found]
+from arango.collection import StandardCollection  # type: ignore[import-not-found]
+from arango.exceptions import (  # type: ignore[import-not-found]
     ArangoError, 
     DatabaseCreateError, 
     DatabaseDeleteError,

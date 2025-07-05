@@ -37,7 +37,7 @@ class QueryNode:
     relationships: List[Dict[str, Any]] = field(default_factory=list)
     paths: List[Dict[str, Any]] = field(default_factory=list)
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Ensure we have a unique ID."""
         if not self.id:
             self.id = f"query_{self.created_at.timestamp()}_{uuid.uuid4().hex[:8]}"

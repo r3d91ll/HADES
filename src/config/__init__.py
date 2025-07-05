@@ -40,7 +40,13 @@ def load_config(config_path: str, use_env: bool = True) -> Dict[str, Any]:
         raise FileNotFoundError(f"Configuration file not found: {full_path}")
     
     with open(full_path, 'r') as f:
-        config = yaml.safe_load(f)
+        loaded = yaml.safe_load(f)
+    
+    # Ensure config is a dict
+    if not isinstance(loaded, dict):
+        config: Dict[str, Any] = {}
+    else:
+        config = loaded
     
     if use_env:
         # Override with environment variables

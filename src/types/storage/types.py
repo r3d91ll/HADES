@@ -39,7 +39,7 @@ class StoredItem(BaseSchema):
     index_status: Optional[str] = Field(None, description="Index status")
     retrieval_metadata: Optional[Dict[str, Any]] = Field(default_factory=lambda: {}, description="Retrieval metadata")
     
-    def __init__(self, **data):
+    def __init__(self, **data: Any) -> None:
         """Initialize with field aliasing."""
         if 'item_id' in data and 'id' not in data:
             data['id'] = data['item_id']
@@ -59,7 +59,7 @@ class StorageOutput(BaseSchema):
     document_id: Optional[DocumentID] = Field(None, description="Document ID")
     documents: Optional[List[Dict[str, Any]]] = Field(None, description="Stored documents")
     
-    def __init__(self, **data):
+    def __init__(self, **data: Any) -> None:
         """Initialize with field aliasing."""
         if 'error_message' in data and 'error' not in data:
             data['error'] = data['error_message']
@@ -81,7 +81,7 @@ class QueryInput(BaseSchema):
     include_metadata: bool = Field(True, description="Whether to include metadata in results")
     search_options: Dict[str, Any] = Field(default_factory=dict, description="Search options")
     
-    def __init__(self, **data):
+    def __init__(self, **data: Any) -> None:
         """Initialize with field aliasing."""
         if 'query_embedding' in data and 'embedding' not in data:
             data['embedding'] = data['query_embedding']
@@ -107,7 +107,7 @@ class RetrievalResult(BaseSchema):
     embedding: Optional[EmbeddingVector] = Field(None, description="Result embedding")
     path_info: Optional[Dict[str, Any]] = Field(None, description="Path information for PathRAG")
     
-    def __init__(self, **data):
+    def __init__(self, **data: Any) -> None:
         """Initialize with field aliasing."""
         if 'item_id' in data and 'id' not in data:
             data['id'] = data['item_id']
@@ -130,7 +130,7 @@ class QueryOutput(BaseSchema):
     search_stats: Optional[Dict[str, Any]] = Field(None, description="Search statistics")
     query_info: Optional[Dict[str, Any]] = Field(None, description="Query information")
     
-    def __init__(self, **data):
+    def __init__(self, **data: Any) -> None:
         """Initialize with field aliasing."""
         if 'search_time' in data and 'query_time_ms' not in data:
             data['query_time_ms'] = data['search_time']

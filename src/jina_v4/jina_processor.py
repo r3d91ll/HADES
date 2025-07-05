@@ -562,7 +562,8 @@ class JinaV4Processor:
             self._has_multimodal_content = True
             
             # Return structured content
-            return result.get('content', f"[Image: {file_path.name}]")
+            content = result.get('content', f"[Image: {file_path.name}]")
+            return str(content) if content is not None else f"[Image: {file_path.name}]"
             
         except Exception as e:
             logger.error(f"Error parsing image {file_path}: {e}")
@@ -733,7 +734,7 @@ class JinaV4Processor:
             }
             
             lines = content.split('\n')
-            current_heading_stack: List[Tuple[int, str]] = []
+            current_heading_stack: List[str] = []
             
             for line_num, line in enumerate(lines):
                 # Extract headings
@@ -866,7 +867,8 @@ class JinaV4Processor:
                 self._has_algorithmic_content = True
             
             # Return structured content
-            return result.get('content', '')
+            content = result.get('content', '')
+            return str(content) if content is not None else ''
             
         except Exception as e:
             logger.error(f"Error parsing LaTeX document {file_path}: {e}")
@@ -919,6 +921,7 @@ class JinaV4Processor:
         """Parse configuration files preserving schema information."""
         try:
             suffix = file_path.suffix.lower()
+            parser: Union[XMLStructureParser, YAMLJSONParser, TOMLParser]
             
             if suffix == '.xml':
                 logger.info(f"Processing XML configuration: {file_path}")
@@ -930,7 +933,8 @@ class JinaV4Processor:
                 if result.get('bridges'):
                     self._detected_bridges.extend(result['bridges'])
                 
-                return result.get('content', '')
+                content = result.get('content', '')
+                return str(content) if content is not None else ''
             
             elif suffix in ['.yaml', '.yml', '.json']:
                 logger.info(f"Processing {suffix} configuration: {file_path}")
@@ -942,7 +946,8 @@ class JinaV4Processor:
                 if result.get('bridges'):
                     self._detected_bridges.extend(result['bridges'])
                 
-                return result.get('content', '')
+                content = result.get('content', '')
+                return str(content) if content is not None else ''
             
             elif suffix == '.toml':
                 logger.info(f"Processing TOML configuration: {file_path}")
@@ -954,7 +959,8 @@ class JinaV4Processor:
                 if result.get('bridges'):
                     self._detected_bridges.extend(result['bridges'])
                 
-                return result.get('content', '')
+                content = result.get('content', '')
+                return str(content) if content is not None else ''
             
             else:
                 return self._basic_text_extraction(file_path)
@@ -1241,13 +1247,13 @@ class JinaV4Processor:
             )
         }
     
-    async def cleanup(self):
+    async def cleanup(self) -> None:
         """Clean up resources."""
         if hasattr(self, 'embedding_extractor'):
             await self.embedding_extractor.close()
         logger.info("Resources cleaned up")
     
-    def clear_cache(self):
+    def clear_cache(self) -> None:
         """Clear any internal caches."""
         # Would clear model caches, etc.
         logger.info("Cache cleared")
@@ -1351,7 +1357,7 @@ class JinaV4Processor:
             logger.error(f"Error in direct transformers processing: {e}")
             raise
     
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"JinaV4Processor(model={self.model_name}, device={self.device}, "
             f"output_mode={self.output_mode}, late_chunking={self.late_chunking_enabled})"

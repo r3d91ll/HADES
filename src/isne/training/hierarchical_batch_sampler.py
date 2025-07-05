@@ -9,7 +9,7 @@ import random
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple, Any
+from typing import Dict, List, Optional, Set, Tuple, Any, Union
 
 import numpy as np
 import torch
@@ -326,7 +326,7 @@ class HierarchicalBatchSampler:
         
         # Create dummy lists for required fields that aren't used in this context
         dummy_node_ids = [NodeID(str(i)) for i in node_ids]
-        dummy_embeddings = [[0.0] * 768 for _ in node_ids]  # Assuming 768-dim embeddings
+        dummy_embeddings: List[Union[List[float], np.ndarray, bytes]] = [[0.0] * 768 for _ in node_ids]  # Assuming 768-dim embeddings
         
         return BatchSample(
             # Required fields
@@ -441,11 +441,11 @@ class HierarchicalBatchSampler:
                 "batch_size": len(batch.node_ids) if batch.node_ids else 0,
                 "num_edges": batch.edge_index.shape[1] if batch.edge_index is not None else 0,
                 "directory_distribution": dict(directories_in_batch),
-                "depth_distribution": batch.directory_features['depth'].tolist()[:10]
+                "depth_distribution": batch.directory_features['depth'].tolist()[:10] if batch.directory_features else []
             },
             "metadata": {
                 "processing_time_ms": 0,  # Would need timing logic
-                "item_count": len(batch.node_ids)
+                "item_count": len(batch.node_ids) if batch.node_ids else 0
             }
         }
         

@@ -38,7 +38,7 @@ class ASTAnalyzer:
     for better embeddings and keyword extraction.
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the AST analyzer."""
         self.symbols: Dict[str, CodeSymbol] = {}
         self.imports: Dict[str, str] = {}  # name -> module mapping

@@ -19,7 +19,7 @@ from torch_geometric.data import Data
 import numpy as np
 from tqdm import tqdm
 
-from src.isne.models.directory_aware_isne import DirectoryAwareISNE
+from src.isne.models.directory_aware_isne import DirectoryAwareISNE  # type: ignore[import-not-found]
 from src.isne.training.hierarchical_batch_sampler import HierarchicalBatchSampler
 from src.types.isne.models import ISNEConfig
 from src.types.isne.training import DirectoryMetadata, TrainingMetrics
@@ -146,10 +146,11 @@ class DirectoryAwareISNETrainer:
                 val_metrics = self._validate(epoch)
                 
                 # Learning rate scheduling
-                self.scheduler.step(val_metrics.total_loss)
+                if val_metrics.total_loss is not None:
+                    self.scheduler.step(val_metrics.total_loss)
                 
                 # Early stopping check
-                if val_metrics.total_loss < best_val_loss:
+                if val_metrics.total_loss is not None and val_metrics.total_loss < best_val_loss:
                     best_val_loss = val_metrics.total_loss
                     epochs_without_improvement = 0
                     
@@ -181,7 +182,7 @@ class DirectoryAwareISNETrainer:
         """Train for one epoch."""
         self.model.train()
         
-        epoch_losses = {
+        epoch_losses: Dict[str, List[float]] = {
             'total': [],
             'feature_reconstruction': [],
             'structural': [],
@@ -254,12 +255,15 @@ class DirectoryAwareISNETrainer:
         # Compute epoch metrics
         metrics = TrainingMetrics(
             epoch=epoch,
+            train_loss=np.mean(epoch_losses['total']),
             total_loss=np.mean(epoch_losses['total']),
             loss_components={
                 key: np.mean(values) if values else 0.0
                 for key, values in epoch_losses.items()
             },
-            learning_rate=self.optimizer.param_groups[0]['lr']
+            learning_rate=self.optimizer.param_groups[0]['lr'],
+            batch_time_ms=0.0,  # TODO: Add timing
+            epoch_time_s=0.0    # TODO: Add timing
         )
         
         if self.debug_mode:
@@ -271,7 +275,7 @@ class DirectoryAwareISNETrainer:
         """Validate the model."""
         self.model.eval()
         
-        val_losses = {
+        val_losses: Dict[str, List[float]] = {
             'total': [],
             'directory_coherence': []
         }
@@ -287,14 +291,19 @@ class DirectoryAwareISNETrainer:
             
             for batch in val_batches:
                 # Move batch to device
-                batch_nodes = batch.node_ids.to(self.device)
+                if batch.node_ids is None or batch.features is None or batch.edge_index is None:
+                    continue
+                batch_nodes = torch.tensor(batch.node_ids) if isinstance(batch.node_ids, list) else batch.node_ids
+                batch_nodes = batch_nodes.to(self.device)
                 batch_features = batch.features.to(self.device)
                 batch_edges = batch.edge_index.to(self.device)
                 
-                directory_features = {
-                    k: v.to(self.device) 
-                    for k, v in batch.directory_features.items()
-                }
+                directory_features = {}
+                if batch.directory_features:
+                    directory_features = {
+                        k: v.to(self.device) 
+                        for k, v in batch.directory_features.items()
+                    }
                 
                 directory_labels = self._create_directory_labels(batch_nodes)
                 

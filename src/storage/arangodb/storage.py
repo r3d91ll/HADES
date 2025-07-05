@@ -29,7 +29,7 @@ from src.types.storage.sequential_isne import (
 # TODO: Need to create or move SequentialISNESchemaManager
 # from src.storage.incremental.sequential_isne_schema import SequentialISNESchemaManager
 
-# Import storage interfaces and types
+# Import storage interfaces
 from src.types.storage.interfaces import (
     DocumentRepository,
     VectorRepository,
@@ -40,20 +40,8 @@ from src.types.storage.interfaces import (
     GraphNodeData,
     GraphEdgeData,
     StorageConfig,
-    StorageMetrics,
-    StoredItem,
-    StorageInput,
-    StorageOutput,
-    QueryInput,
-    QueryOutput,
-    RetrievalResult
+    StorageMetrics
 )
-
-# Import common types
-from src.types.common import DocumentID, NodeID, EdgeID, EmbeddingVector, ProcessingStatus, ComponentMetadata, ComponentType, RelationType
-
-# Import common types
-from src.types.common import ComponentType, ComponentMetadata
 
 # Import storage types
 from src.types.storage.types import (
@@ -62,8 +50,11 @@ from src.types.storage.types import (
     StoredItem,
     QueryInput,
     QueryOutput,
-    RetrievalResult,
+    RetrievalResult
 )
+
+# Import common types
+from src.types.common import DocumentID, NodeID, EdgeID, EmbeddingVector, ProcessingStatus, ComponentMetadata, ComponentType, RelationType
 
 logger = logging.getLogger(__name__)
 
@@ -1306,10 +1297,12 @@ class ArangoStorageV2(DocumentRepository, VectorRepository, GraphRepository):
         # Create stored item reference
         return StoredItem(
             item_id=f"{storage_location}/{result['_key']}",
+            document_id=embedding.chunk_id,  # Using chunk_id as document_id
+            content=json.dumps(embedding_data),  # Store embedding data as JSON string
+            embedding=embedding.enhanced_embedding,
             storage_location=storage_location,
             storage_timestamp=datetime.now(timezone.utc),
-            index_status=ProcessingStatus.COMPLETED,
-            retrieval_metadata={
+            metadata={
                 "collection": storage_location,
                 "embedding_dimension": len(embedding.enhanced_embedding),
                 "enhancement_score": embedding.enhancement_score,
@@ -1386,12 +1379,9 @@ class ArangoStorageV2(DocumentRepository, VectorRepository, GraphRepository):
                     }}
                 """
                 
-                if self._client is None:
-                    continue
-                    
                 cursor = self._client.execute_aql(query, {
                     'search_text': query_data.query,
-                    'limit': min(query_data.top_k // len(collections), 10),
+                    'limit': min(query_data.top_k // len(collections), 10) if query_data.top_k else 10,
                     'modality': self._collection_to_modality(collection)
                 })
                 

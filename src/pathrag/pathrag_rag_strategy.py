@@ -49,15 +49,6 @@ from src.types.pathrag.strategy import (
 from src.types.common import ProcessingStatus, DocumentID, ComponentType, ComponentMetadata
 from .bridge_traversal import BridgeTraversal
 
-# Import PathRAG types
-from src.types.pathrag.types import (
-    RAGStrategyInput,
-    RAGStrategyOutput,
-    RAGMode,
-    RAGResult,
-    PathInfo,
-)
-
 logger = logging.getLogger(__name__)
 
 
@@ -403,9 +394,10 @@ class PathRAGProcessor:
             output = RAGStrategyOutput(
                 success=True,
                 results=results[:input_data.top_k],  # Limit to requested top_k
-                total_count=len(results),
-                execution_time_ms=processing_time * 1000,
+                total_results=len(results),
+                execution_time=processing_time,
                 mode_used=input_data.mode,
+                query=input_data.query,
                 metadata={
                     "generated_answer": generated_answer,
                     "answer_confidence": answer_confidence,
@@ -442,8 +434,8 @@ class PathRAGProcessor:
             return RAGStrategyOutput(
                 success=False,
                 results=[],
-                total_count=0,
-                execution_time_ms=(time.time() - start_time) * 1000,
+                total_results=0,
+                execution_time=(time.time() - start_time),
                 mode_used=input_data.mode,
                 metadata={
                     "component_metadata": ComponentMetadata(
@@ -454,7 +446,7 @@ class PathRAGProcessor:
                         status=ProcessingStatus.FAILED
                     ).model_dump()
                 },
-                error=error_msg,
+                error_message=error_msg,
                 query=input_data.query
             )
     
@@ -943,18 +935,16 @@ Keywords:"""
             node_data = self.knowledge_graph.nodes.get(node_id, {})
             
             result = RAGResult(
-                id=node_id,
                 document_id=DocumentID(node_id),  # Using node_id as document_id
                 content=node_data.get('content', f'Content for {node_id}'),
                 score=max(0.1, 1.0 - (i * 0.1)),  # Decreasing score
+                source=node_id,  # Using node_id as source
                 metadata={
                     "mode": input_data.mode.value,
                     "node_id": node_id,
                     "relevance_score": max(0.1, 1.0 - (i * 0.1)),
                     "diversity_score": 0.5
-                },
-                paths=[],
-                embedding=None
+                }
             )
             results.append(result)
         
@@ -1016,18 +1006,16 @@ Keywords:"""
             content = "; ".join(content_parts) if content_parts else f"Entity: {node_id}"
             
             result = RAGResult(
-                id=f"local_{node_id}",
                 document_id=DocumentID(node_id),
                 content=content,
                 score=max(0.1, 1.0 - (i * 0.1)),
+                source=f"local_{node_id}",
                 metadata={
                     "context_type": "local",
                     "node_id": node_id,
                     "relevance_score": max(0.1, 1.0 - (i * 0.1)),
                     "diversity_score": 0.6
-                },
-                paths=[],
-                embedding=None
+                }
             )
             results.append(result)
         
@@ -1055,19 +1043,17 @@ Keywords:"""
             content = "; ".join(content_parts)
             
             result = RAGResult(
-                id=f"global_{node_id}",
                 document_id=DocumentID(node_id),
                 content=content,
                 score=max(0.1, 1.0 - (i * 0.1)),
+                source=f"global_{node_id}",
                 metadata={
                     "context_type": "global",
                     "node_id": node_id,
                     "neighbors": len(neighbors),
                     "relevance_score": max(0.1, 1.0 - (i * 0.1)),
                     "diversity_score": 0.7
-                },
-                paths=[],
-                embedding=None
+                }
             )
             results.append(result)
         

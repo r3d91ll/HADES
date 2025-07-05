@@ -8,7 +8,7 @@ bridge detection for Rust/Python project configurations.
 import logging
 from typing import Dict, Any, List, Optional, Tuple
 from pathlib import Path
-import toml
+import toml  # type: ignore[import-untyped]
 import re
 from collections import defaultdict
 
@@ -111,13 +111,13 @@ class TOMLParser:
     
     def _extract_hierarchy(self, data: Dict[str, Any], purpose: str) -> Dict[str, Any]:
         """Extract hierarchical structure from TOML data."""
-        hierarchy = {
+        hierarchy: Dict[str, Any] = {
             'sections': [],
             'depth': 0,
             'total_keys': 0
         }
         
-        def traverse(obj, path=None, depth=0):
+        def traverse(obj: Any, path: Optional[List[str]] = None, depth: int = 0) -> None:
             if path is None:
                 path = []
             
@@ -148,7 +148,7 @@ class TOMLParser:
     
     def _extract_metadata(self, data: Dict[str, Any], purpose: str) -> Dict[str, Any]:
         """Extract purpose-specific metadata."""
-        metadata = {
+        metadata: Dict[str, Any] = {
             'purpose': purpose,
             'top_level_sections': list(data.keys())
         }
@@ -169,7 +169,7 @@ class TOMLParser:
             dep_types = ['dependencies', 'dev-dependencies', 'build-dependencies']
             for dep_type in dep_types:
                 if dep_type in data:
-                    metadata[f'{dep_type}_count'] = len(data[dep_type])  # type: ignore
+                    metadata[f'{dep_type}_count'] = len(data[dep_type])
             
             # Extract features
             if 'features' in data:
@@ -188,7 +188,7 @@ class TOMLParser:
                 })
                 
                 if 'dependencies' in project:
-                    metadata['dependencies_count'] = len(project['dependencies'])  # type: ignore
+                    metadata['dependencies_count'] = len(project['dependencies'])
             
             # Check for Poetry configuration
             if 'tool' in data and 'poetry' in data['tool']:
@@ -196,7 +196,7 @@ class TOMLParser:
                 if 'name' in poetry:
                     metadata['project_name'] = poetry['name']
                 if 'dependencies' in poetry:
-                    metadata['poetry_dependencies'] = len(poetry['dependencies'])  # type: ignore
+                    metadata['poetry_dependencies'] = len(poetry['dependencies'])
                     
         elif purpose == 'application_config':
             # Extract configuration sections
@@ -300,7 +300,7 @@ class TOMLParser:
                     
         elif purpose == 'application_config':
             # Configuration bridges to code usage
-            def extract_config_bridges(obj, path=None):
+            def extract_config_bridges(obj: Any, path: Optional[List[str]] = None) -> None:
                 if path is None:
                     path = []
                     
@@ -410,7 +410,7 @@ class TOMLParser:
         lines = []
         line_count = 0
         
-        def format_value(value):
+        def format_value(value: Any) -> str:
             """Format a value for display."""
             if isinstance(value, str):
                 return f'"{value}"' if len(value) < 50 else f'"{value[:47]}..."'
@@ -421,7 +421,7 @@ class TOMLParser:
             else:
                 return str(value)
         
-        def format_section(obj, path=None, indent=0):
+        def format_section(obj: Any, path: Optional[List[str]] = None, indent: int = 0) -> None:
             nonlocal line_count
             if line_count >= max_lines:
                 return

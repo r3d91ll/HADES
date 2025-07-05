@@ -8,7 +8,7 @@ which files should be excluded from graph indexing.
 import logging
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional, Set, Any
-import pathspec
+import pathspec  # type: ignore[import-not-found]
 
 logger = logging.getLogger(__name__)
 

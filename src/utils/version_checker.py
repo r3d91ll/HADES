@@ -7,7 +7,7 @@ to ensure compatibility across the HADES codebase.
 
 import logging
 import sys
-from typing import Dict, Tuple, Optional
+from typing import Dict, Tuple, Optional, Any
 
 logger = logging.getLogger(__name__)
 

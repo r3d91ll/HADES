@@ -83,7 +83,7 @@ class VLLMEmbeddingExtractor:
         self.use_api = False
         
         try:
-            from vllm import LLM, SamplingParams
+            from vllm import LLM, SamplingParams  # type: ignore[import-not-found]
             
             # Prepare vLLM initialization parameters
             vllm_params = {
@@ -427,9 +427,10 @@ class VLLMEmbeddingExtractor:
         """
         # Ensure images is a list
         if isinstance(images, (str, np.ndarray)):
-            images = [images]
+            images_list: List[Union[str, np.ndarray]] = [images]
             single_input = True
         else:
+            images_list = list(images)  # Already a list, ensure it's the right type
             single_input = False
         
         try:
@@ -443,8 +444,8 @@ class VLLMEmbeddingExtractor:
             if batch_size is None:
                 batch_size = self.vllm_config.get('batch_size', 8)  # Smaller for images
             
-            for i in range(0, len(images), batch_size):
-                batch_images = images[i:i + batch_size]
+            for i in range(0, len(images_list), batch_size):
+                batch_images = images_list[i:i + batch_size]
                 
                 with torch.no_grad():
                     if hasattr(self._embedding_model, 'encode_image'):
@@ -488,11 +489,10 @@ class VLLMEmbeddingExtractor:
             logger.error(f"Error extracting image embeddings: {e}")
             # Return fallback
             embed_dim = self.features.get('embedding_dimension', 2048)
-            fallback_embeddings = [np.random.randn(embed_dim).astype(np.float32) for _ in images]
-            if single_input:
-                fallback_embeddings = fallback_embeddings[0]
+            fallback_embeddings = [np.random.randn(embed_dim).astype(np.float32) for _ in images_list]
+            final_embeddings: Union[List[np.ndarray], np.ndarray] = fallback_embeddings[0] if single_input else fallback_embeddings
             return {
-                'embeddings': fallback_embeddings,
+                'embeddings': final_embeddings,
                 'mode': 'single-vector',
                 'task': task,
                 'metadata': {
@@ -532,12 +532,12 @@ class VLLMEmbeddingExtractor:
             }
         }
     
-    async def close(self):
+    async def close(self) -> None:
         """Clean up resources."""
         if hasattr(self, 'http_client'):
             await self.http_client.aclose()
             
-    def __del__(self):
+    def __del__(self) -> None:
         """Cleanup on deletion."""
         if hasattr(self, 'http_client') and not self.http_client.is_closed:
             # Schedule cleanup in the event loop if available

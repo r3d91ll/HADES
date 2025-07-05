@@ -6,11 +6,11 @@ from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import asdict
 import logging
 import numpy as np
-from arango import ArangoClient
-from arango.database import StandardDatabase
-from arango.collection import StandardCollection
-from arango.graph import Graph
-from arango.job import AsyncJob, BatchJob
+from arango import ArangoClient  # type: ignore[import-not-found]
+from arango.database import StandardDatabase  # type: ignore[import-not-found]
+from arango.collection import StandardCollection  # type: ignore[import-not-found]
+from arango.graph import Graph  # type: ignore[import-not-found]
+from arango.job import AsyncJob, BatchJob  # type: ignore[import-not-found]
 import json
 
 from ..core.density_controller import EdgeCandidate
@@ -203,6 +203,10 @@ class ArangoSupraStorage:
         
         for edge in edges:
             # Get database IDs
+            if edge.from_node is None or edge.to_node is None:
+                logger.warning(f"Edge has None node: from={edge.from_node}, to={edge.to_node}")
+                continue
+                
             from_id = id_mapping.get(edge.from_node)
             to_id = id_mapping.get(edge.to_node)
             
@@ -211,24 +215,25 @@ class ArangoSupraStorage:
                 continue
                 
             # Prepare edge document
+            relationships_list: List[Dict[str, Any]] = []
             doc = {
                 '_from': from_id,
                 '_to': to_id,
                 'weight': float(edge.weight),
                 'weight_vector': edge.weight_vector.tolist() if isinstance(edge.weight_vector, np.ndarray) else edge.weight_vector,
-                'relationships': []
+                'relationships': relationships_list
             }
             
             # Add relationship details
-            for rel in edge.relationships:
-                rel_dict = {
-                    'type': rel.type.value,
-                    'strength': rel.strength,
-                    'confidence': rel.confidence
-                }
-                if rel.metadata:
-                    rel_dict['metadata'] = rel.metadata
-                doc['relationships'].append(rel_dict)
+            if edge.relationships:
+                for rel in edge.relationships:
+                    # relationships is a list of strings
+                    rel_dict = {
+                        'type': rel,
+                        'strength': 1.0,  # Default strength
+                        'confidence': 1.0  # Default confidence
+                    }
+                    relationships_list.append(rel_dict)
                 
             # Store edge
             try:

@@ -505,7 +505,7 @@ class YAMLJSONParser:
         """Analyze data types in the structure."""
         type_counts: Dict[str, int] = {}
         
-        def count_types(obj):
+        def count_types(obj: Any) -> None:
             if isinstance(obj, dict):
                 type_counts['object'] = type_counts.get('object', 0) + 1
                 for value in obj.values():
@@ -535,7 +535,7 @@ class YAMLJSONParser:
             'version_strings': []
         }
         
-        def find_patterns(obj, key=None):
+        def find_patterns(obj: Any, key: Optional[str] = None) -> None:
             if isinstance(obj, str):
                 # Environment variables
                 if obj.startswith('$') or obj.startswith('${'):

@@ -8,7 +8,7 @@ import logging
 from typing import Dict, Any, List, Optional, Tuple
 from pathlib import Path
 import numpy as np
-from PIL import Image
+from PIL import Image  # type: ignore[import-untyped]
 import io
 import base64
 import re
@@ -22,9 +22,9 @@ class ImageParser:
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         """Initialize image parser with configuration."""
         self.config = config or {}
-        self.max_dimension = config.get('max_image_dimension', 1024)
-        self.enable_ocr = config.get('enable_ocr', True)
-        self.enable_vision_analysis = config.get('enable_vision_analysis', True)
+        self.max_dimension = self.config.get('max_image_dimension', 1024)
+        self.enable_ocr = self.config.get('enable_ocr', True)
+        self.enable_vision_analysis = self.config.get('enable_vision_analysis', True)
         
     def parse(self, file_path: Path) -> Dict[str, Any]:
         """
@@ -185,7 +185,7 @@ class ImageParser:
     def _extract_text_from_image(self, image: Image.Image) -> str:
         """Extract text from image using OCR."""
         try:
-            import pytesseract
+            import pytesseract  # type: ignore[import-not-found]
             
             # Convert to grayscale for better OCR
             if image.mode != 'L':
@@ -194,7 +194,7 @@ class ImageParser:
                 gray_image = image
             
             # Extract text
-            text = pytesseract.image_to_string(gray_image)
+            text: str = pytesseract.image_to_string(gray_image)
             
             # Also get word bounding boxes for better analysis
             data = pytesseract.image_to_data(gray_image, output_type=pytesseract.Output.DICT)
@@ -425,7 +425,7 @@ class ImageParser:
         # Check edges for UI-like patterns
         edge_variance = np.var(pixels[0, :]) + np.var(pixels[-1, :])
         
-        return edge_variance < 1000  # Low variance suggests UI chrome
+        return bool(edge_variance < 1000)  # Low variance suggests UI chrome
     
     def _analyze_colors(self, image: Image.Image) -> List[str]:
         """Analyze dominant colors in the image."""

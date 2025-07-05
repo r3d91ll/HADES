@@ -36,7 +36,7 @@ class RelationshipWeight:
     confidence: float = 1.0
     metadata: Optional[Dict[str, Any]] = None
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.metadata is None:
             self.metadata = {}
 
@@ -49,7 +49,7 @@ class SupraWeightCalculator:
     For example: co-location + import is stronger than either alone.
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the supra-weight calculator."""
         # Base weights for different relationship types
         self.base_weights = {

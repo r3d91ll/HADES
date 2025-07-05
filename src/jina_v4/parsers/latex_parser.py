@@ -21,7 +21,7 @@ class LaTeXParser:
         """Initialize LaTeX parser with configuration."""
         self.config = config or {}
         self.bibliography: Dict[str, Any] = {}
-        self.labels: Dict[str, str] = {}
+        self.labels: Dict[str, Dict[str, str]] = {}
         self.equations: List[Dict[str, Any]] = []
         self.theorems: List[Dict[str, Any]] = []
         self.algorithms: List[Dict[str, Any]] = []
@@ -461,7 +461,7 @@ class LaTeXParser:
             keywords = [k.strip() for k in match.group(1).split(',')]
         return keywords
     
-    def _extract_sections(self, content: str) -> List[Dict[str, str]]:
+    def _extract_sections(self, content: str) -> List[Dict[str, Any]]:
         """Extract section structure."""
         sections = []
         section_pattern = r'\\(section|subsection|subsubsection|paragraph)\*?\{([^}]+)\}'

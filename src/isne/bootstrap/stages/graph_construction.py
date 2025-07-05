@@ -7,7 +7,7 @@ import os
 import json
 from typing import Dict, Any, List, Tuple, Optional
 from pathlib import Path
-from arango import ArangoClient
+from arango import ArangoClient  # type: ignore[import-not-found]
 
 logger = logging.getLogger(__name__)
 

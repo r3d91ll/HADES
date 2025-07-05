@@ -15,6 +15,11 @@ pypdf2>=3.0.0
 python-docx>=0.8.11
 markdown>=3.4.0
 beautifulsoup4>=4.12.0
+pillow>=10.0.0
+pytesseract>=0.3.10
+PyMuPDF>=1.23.0
+pathspec>=0.11.0
+toml>=0.10.2
 
 # vLLM for Local Inference
 vllm>=0.3.0
@@ -33,6 +38,7 @@ python-dotenv>=1.0.0
 click>=8.1.0
 tqdm>=4.65.0
 rich>=13.5.0
+psutil>=5.9.0
 
 # Development
 pytest>=7.4.0
@@ -41,6 +47,11 @@ pytest-cov>=4.1.0
 mypy>=1.5.0
 black>=23.7.0
 isort>=5.12.0
+
+# Type stubs for mypy
+types-toml>=0.10.8
+types-psutil>=5.9.5
+types-pillow>=10.0.0
 
 # Optional GPU Support
 # Uncomment based on your CUDA version

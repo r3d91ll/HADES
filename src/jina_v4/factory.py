@@ -28,7 +28,7 @@ class JinaV4Factory:
             cls._instance = super().__new__(cls)
         return cls._instance
     
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the factory."""
         if not hasattr(self, '_initialized'):
             self._initialized = True

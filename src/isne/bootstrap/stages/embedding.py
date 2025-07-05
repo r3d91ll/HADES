@@ -71,7 +71,7 @@ class EmbeddingStage:
         # Convert chunks to documents format for execute method
         result = self.execute(chunks)
         
-        if result.success:
+        if result.success and isinstance(result.data, dict):
             return result.data
         else:
             return {

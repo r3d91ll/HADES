@@ -65,7 +65,7 @@ class ConfigurationRouter:
             
             if parser:
                 logger.info(f"Routing {file_path} to {format_type} parser")
-                result = parser.parse(file_path)
+                result: Dict[str, Any] = parser.parse(file_path)
                 
                 # Add routing metadata
                 result['routing'] = {
@@ -129,7 +129,7 @@ class ConfigurationRouter:
                     if isinstance(indicator, str):
                         if indicator in content_preview:
                             return 'toml'
-                    else:  # regex
+                    elif isinstance(indicator, re.Pattern):  # regex Pattern
                         if indicator.search(content_preview):
                             return 'toml'
                             
@@ -236,7 +236,7 @@ class ConfigurationRouter:
     def _detect_basic_structure(self, content: str, format_type: str) -> Dict[str, Any]:
         """Detect basic structure in configuration files."""
         lines = content.split('\n')
-        structure = {
+        structure: Dict[str, Any] = {
             'sections': [],
             'key_value_pairs': 0,
             'comments': 0,
@@ -263,10 +263,13 @@ class ConfigurationRouter:
                 section_match = re.match(r'^\[([^\]]+)\]$', stripped)
                 if section_match:
                     current_section = section_match.group(1)
-                    structure['sections'].append({
-                        'name': current_section,
-                        'line': lines.index(line) + 1
-                    })
+                    for idx, l in enumerate(lines):
+                        if l == line:
+                            structure['sections'].append({
+                                'name': current_section,
+                                'line': idx + 1
+                            })
+                            break
                     continue
                     
             # Count key-value pairs
@@ -341,7 +344,7 @@ class ConfigurationRouter:
         
         Useful for batch processing and analysis.
         """
-        format_groups = {}
+        format_groups: Dict[str, List[Path]] = {}
         
         # Common config file patterns
         config_patterns = [

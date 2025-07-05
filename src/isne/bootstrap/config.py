@@ -124,7 +124,7 @@ class EmbeddingConfig(StageConfig):
     normalize_embeddings: bool = True
     
     # Model-specific settings
-    model_config: Dict[str, Any] = Field(default_factory=dict)
+    model_settings: Dict[str, Any] = Field(default_factory=dict)
     
     # Caching
     cache_embeddings: bool = True

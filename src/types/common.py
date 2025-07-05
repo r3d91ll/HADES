@@ -354,7 +354,7 @@ class ComponentMetadata(BaseSchema):
     metrics: Dict[str, Any] = Field(default_factory=dict, description="Component metrics")
     status: str = Field(default="active", description="Component status")
     
-    def __init__(self, **data):
+    def __init__(self, **data: Any) -> None:
         """Initialize with field aliasing."""
         # Handle aliases
         if 'component_name' in data and 'name' not in data:

@@ -27,7 +27,7 @@ class ANTValidator:
     different types of knowledge actors interact meaningfully.
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize ANT validator with validation criteria."""
         # Minimum thresholds for a healthy ANT network
         self.min_heterogeneity_score = 0.3

@@ -59,7 +59,7 @@ class RAGStrategyInput(BaseSchema):
     top_k: Optional[int] = Field(None, description="Maximum results (alias)")
     parameters: Dict[str, Any] = Field(default_factory=dict, description="Strategy-specific parameters")
     
-    def __init__(self, **data):
+    def __init__(self, **data: Any) -> None:
         """Initialize with field aliasing."""
         if 'top_k' in data and 'limit' not in data:
             data['limit'] = data['top_k']

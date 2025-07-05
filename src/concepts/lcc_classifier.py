@@ -22,7 +22,7 @@ class LCCClassifier:
     semantic relationships that transcend project boundaries.
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the LCC classifier with technical categories."""
         self.categories = self._init_categories()
         self.keyword_mappings = self._build_keyword_mappings()

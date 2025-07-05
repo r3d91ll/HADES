@@ -12,11 +12,11 @@ from typing import Dict, Any, List, Tuple, Optional
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from arango import ArangoClient
+from arango import ArangoClient  # type: ignore[import-not-found]
 import random
 import numpy as np
 
-from src.isne.models.isne_model import ISNEModel
+from src.isne.models.isne_model import ISNEModel  # type: ignore[import-not-found]
 
 logger = logging.getLogger(__name__)
 
@@ -156,7 +156,7 @@ class VanillaISNETrainer:
         
         return walk
     
-    def train(self):
+    def train(self) -> None:
         """Train ISNE model using skip-gram on random walks."""
         # Build graph from .hades relationships
         self.build_adjacency_from_hades()
@@ -239,7 +239,7 @@ class VanillaISNETrainer:
         # Save embeddings to ArangoDB
         self.save_embeddings_to_arango()
     
-    def save_embeddings_to_arango(self):
+    def save_embeddings_to_arango(self) -> None:
         """Save trained ISNE embeddings back to ArangoDB nodes."""
         logger.info("Saving ISNE embeddings to ArangoDB...")
         
@@ -292,7 +292,8 @@ class VanillaISNETrainer:
             [neighbors]
         )
         
-        return embedding[0].detach().numpy()
+        result: np.ndarray = embedding[0].detach().numpy()
+        return result
 
 
 def train_isne_from_hades(config_path: str) -> None:
