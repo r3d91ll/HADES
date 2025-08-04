@@ -4,65 +4,92 @@ __pycache__/
 *$py.class
 *.so
 .Python
-env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
 venv/
 ENV/
+env/
 .venv
 
-# Data and results
-validation/results/
-validation/experiment_*/data/papers_with_embeddings/
-validation/experiment_*/output/
-!validation/experiment_*/docs/
-!validation/experiment_*/*_REPORT.md
-!validation/experiment_*/*.png
-*.npy
-*.npz
-*.h5
-*.pkl
-*.pickle
-
-# Large files
-*.json
-!validation/experiment_*/data/graph_data.json
-*.csv
-*.tsv
-
-# IDE
+# IDEs
 .vscode/
 .idea/
 *.swp
 *.swo
-.DS_Store
+*~
+.project
+.pydevproject
 
 # Logs
 *.log
 logs/
 
-# Environment
-.env
-.env.local
+# Temp files
+*.tmp
+*.temp
+.DS_Store
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Checkpoints and model files
+*.pth
+*.pt
+*.ckpt
+*.h5
+*.safetensors
+
+# Data files (but keep structure)
+*.tar
+*.tar.gz
+*.zip
+data/
+olympus/
+bulk-store/
+mnt/
 
 # Jupyter
 .ipynb_checkpoints/
 *.ipynb
 
-# Model files
-models/
-*.pt
-*.pth
-*.onnx
-*.bin
+# Testing
+.coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
-# Temporary files
-tmp/
-temp/
-*.tmp
-*.bak
+# Documentation build
+docs/_build/
+site/
 
-# ArangoDB dumps
-*.dump
-*.arangodump
-
-validation/data/raw_pdfs/*
-infrastructure_setup/archive_tests/
+# Recovery files
+*.img
+*.rescue
+sda1_rescue.*
+checkpoints/
+experiments/
+infrastructure/setup/checkpoints/*
+paper/validation/experiment_2/*
+infrastructure/archive/
+infrastructure/setup/processing_scripts/archive_old_versions/
+infrastructure/setup/archive_docs/recovery_scripts/
+infrastructure/setup/archive_docs/testing_scripts/
+infrastructure/setup/archive_docs/

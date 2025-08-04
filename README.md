@@ -1,99 +1,93 @@
-# Information Reconstructionism
+# HADES - Heterogeneous Adaptive Dimensional Embedding System
 
-A new theory of observer-dependent information existence with supporting infrastructure for validation.
+Production infrastructure for processing, storing, and serving embedded knowledge from multiple data sources.
 
-## Project Structure
+## Overview
 
-This repository contains two main components that work together:
+HADES is a scalable data infrastructure system designed to:
+- Process and embed large-scale document collections (ArXiv, documentation, codebases)
+- Store embeddings and metadata in ArangoDB
+- Serve data through an MCP (Model Context Protocol) interface
+- Support semantic search and retrieval across heterogeneous data sources
 
-### 📚 Paper (`paper/`)
-The theoretical framework, mathematical proofs, and academic materials for Information Reconstructionism.
-
-- **Core Theory**: Mathematical framework proving information as multiplicative function
-- **Validation**: Wolfram scripts and Python demonstrations
-- **Evidence**: Empirical validation of zero propagation and context amplification
-- See [`paper/PAPER_CLAUDE.md`](paper/PAPER_CLAUDE.md) for theory-specific guidance
-
-### 🏗️ Infrastructure (`infrastructure/`)
-Scalable document processing system for validating the theory on large academic corpora.
-
-- **3-Collection Architecture**: Atomic storage of metadata, documents, and chunks
-- **GPU Processing**: Dual A6000 GPUs with Jina v4 embeddings
-- **Graph Database**: ArangoDB for similarity and relationship queries
-- See [`infrastructure/INFRA_CLAUDE.md`](infrastructure/INFRA_CLAUDE.md) for implementation details
-
-### 🧪 Experiments (`experiments/`)
-Shared experiments that use the infrastructure to validate theoretical claims.
-
-- **Experiment 1**: Multiplicative model validation
-- **Experiment 2**: Large-scale GPU processing and analysis
-
-## Core Equation
+## Architecture
 
 ```
-Information(i→j|S-O) = WHERE × WHAT × CONVEYANCE × TIME × FRAME
+HADES/
+├── processors/           # Data ingestion pipelines
+│   ├── arxiv/           # ArXiv paper processing
+│   ├── documentation/   # Documentation site processing
+│   ├── codebase/        # Source code processing
+│   └── pdf/             # Generic PDF processing
+├── storage/             # Database layer
+│   ├── schemas/         # ArangoDB collection schemas
+│   └── managers/        # Database connection managers
+├── embeddings/          # Embedding generation
+│   └── models/          # Model configurations
+├── mcp_server/          # MCP server interface
+└── utils/               # Shared utilities
 ```
 
-If ANY dimension = 0, then Information = 0
+## Features
 
-## Quick Start
+### Current
+- **ArXiv Processing**: Full pipeline for processing ArXiv papers with GPU-accelerated embeddings
+- **ArangoDB Storage**: Optimized document and graph database storage
+- **Jina Embeddings**: State-of-the-art embedding generation with Jina v3
 
-### Theory Work
+### Planned
+- **PDF Management**: Download, store, and embed full PDF content
+- **Documentation Ingestion**: Scrape and embed technical documentation
+- **Codebase Processing**: AST-aware code embedding with dependency tracking
+- **MCP Server**: Serve processed data through standardized MCP interface
+- **Semantic Search**: Cross-collection semantic search capabilities
+
+## Installation
+
 ```bash
-cd paper/
-# Review theoretical framework
-cat theory/main_theory.md
-# Run Wolfram validation
-mathematica validation/wolfram/zero_propagation.nb
+# Clone the repository
+git clone git@github.com:r3d91ll/HADES.git
+cd HADES
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Configure ArangoDB connection
+export ARANGO_HOST="your-host"
+export ARANGO_PASSWORD="your-password"
 ```
 
-### Infrastructure Setup
+## Usage
+
+### Process ArXiv Papers
+
+```python
+from processors.arxiv.process_arxiv_production import ProductionProcessor, ProcessingConfig
+
+config = ProcessingConfig(
+    db_name="academy_store",
+    collection_name="base_arxiv",
+    gpu_batch_size=1024
+)
+
+processor = ProductionProcessor(config)
+processor.run()
+```
+
+### MCP Server (Coming Soon)
+
 ```bash
-cd infrastructure/
-./setup_venv.sh
-source venv/bin/activate
-pip install -r setup/requirements.txt
+# Start the MCP server
+python -m mcp_server.server
 
-# Process documents
-python setup/process_documents_atomic.py --count 10 --clean-start
+# Connect from Claude or other MCP clients
+mcp connect hades://localhost:8080
 ```
 
-### Running Experiments
-```bash
-cd experiments/
-# Test multiplicative model
-python experiment_1/run_experiment.py
-# Large-scale processing
-./experiment_2/pipeline/launch_gpu_pipeline.sh
-```
+## Development
 
-## Key Innovation
-
-Information Reconstructionism differs from traditional information theory by:
-
-1. **Observer Dependency**: Information exists relative to observers
-2. **Multiplicative Model**: All dimensions must be > 0
-3. **Context Amplification**: Context acts as exponential amplifier (Context^α)
-4. **Theory-Practice Bridges**: High-conveyance connections between abstract and concrete
-
-## Current Status
-
-- ✅ Core theoretical framework documented
-- ✅ Mathematical foundations laid
-- ✅ Infrastructure implemented with atomic transactions
-- 🔄 Validation experiments in progress
-- 📝 Paper preparation for academic publication
-
-## Future Separation
-
-The infrastructure is designed to be easily separated into its own repository when the time comes. Simply move the `infrastructure/` directory and update import paths in experiments.
-
-## Contributing
-
-This is an active research project. For questions or contributions:
-- Theory/Paper: Focus on mathematical rigor and empirical validation
-- Infrastructure: Maintain atomic transaction integrity and GPU optimization
+This repository contains production infrastructure code. Experimental features and research code should be developed in the [reconstructionism](https://github.com/r3d91ll/reconstructionism) repository and merged here when stable.
 
 ## License
 
-Apache 2.0 - See LICENSE file for details
+MIT License - See LICENSE file for details
