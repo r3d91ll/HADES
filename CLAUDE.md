@@ -49,6 +49,37 @@ Hypothesis validation using the infrastructure.
 - Experiment 1: Multiplicative model validation
 - Experiment 2: GPU-accelerated large-scale processing
 
+### 🌉 Theory-Practice Bridge Processors (`processors/`)
+
+Production infrastructure for discovering and analyzing theory-practice connections.
+
+#### ArXiv Processor (`processors/arxiv/`)
+- **Status**: Database rebuild in progress (45.93% complete as of Jan 20, 2025)
+- Processing 2.79M papers with dual-GPU Jina v4 embeddings
+- Expected completion: Jan 21, 2025 (~15 hours remaining)
+- Full documentation in `processors/arxiv/README.md`
+
+#### GitHub Processor (`processors/github/`)
+- **Status**: MVP complete, awaiting integration testing
+- Clones repositories and generates code embeddings with Jina v4
+- Test coverage: ~60-70% unit tests, 0% integration tests
+- **Pending Work**:
+  - Integration testing with real ArangoDB after ArXiv rebuild
+  - Performance benchmarking with GPU acceleration
+  - Error recovery and retry mechanisms
+  - Batch processing optimizations
+- See `processors/github/README.md` for architecture details
+
+#### Web Scraper (`processors/bridges/`)
+- **Status**: Design phase - architecture planning underway
+- Will extract content from documentation sites, blogs, tutorials
+- Focus on technical documentation and implementation guides
+- Planned features:
+  - Intelligent content extraction with readability algorithms
+  - Structured data preservation (code blocks, diagrams)
+  - Metadata extraction (authors, dates, tags)
+  - Rate limiting and respectful crawling
+
 ## Progressive Document Processing Strategy
 
 ### Phase 1: Abstract-Only (Current State)

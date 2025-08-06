@@ -83,14 +83,6 @@ site/
 # Recovery files
 *.img
 *.rescue
-sda1_rescue.*
-checkpoints/
-experiments/
-infrastructure/setup/checkpoints/*
-paper/validation/experiment_2/*
-infrastructure/archive/
-infrastructure/setup/processing_scripts/archive_old_versions/
-infrastructure/setup/archive_docs/recovery_scripts/
-infrastructure/setup/archive_docs/testing_scripts/
-infrastructure/setup/archive_docs/
+
 Acheron/*
+checkpoint*
