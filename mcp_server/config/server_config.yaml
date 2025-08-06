@@ -18,8 +18,8 @@ processing:
   gpu_batch_size: 1024
   max_concurrent_jobs: 3
   checkpoint_interval: 100
-  model_name: "jinaai/jina-embeddings-v3"
-  embedding_dim: 1024
+  model_name: "jinaai/jina-embeddings-v4"
+  embedding_dim: 2048
   
 gpu:
   enabled: true
