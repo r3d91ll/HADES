@@ -5,6 +5,7 @@ Production infrastructure for processing, storing, and serving embedded knowledg
 ## Overview
 
 HADES is a scalable data infrastructure system designed to:
+
 - Process and embed large-scale document collections (ArXiv, documentation, codebases)
 - Store embeddings and metadata in ArangoDB
 - Serve data through an MCP (Model Context Protocol) interface
@@ -31,11 +32,13 @@ HADES/
 ## Features
 
 ### Current
+
 - **ArXiv Processing**: Full pipeline for processing ArXiv papers with GPU-accelerated embeddings
 - **ArangoDB Storage**: Optimized document and graph database storage
 - **Jina Embeddings**: State-of-the-art embedding generation with Jina v3
 
 ### Planned
+
 - **PDF Management**: Download, store, and embed full PDF content
 - **Documentation Ingestion**: Scrape and embed technical documentation
 - **Codebase Processing**: AST-aware code embedding with dependency tracking

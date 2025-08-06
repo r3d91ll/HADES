@@ -1,0 +1,28 @@
+# HADES MCP Server Requirements
+
+# MCP SDK
+mcp>=0.1.0
+
+# Core dependencies
+torch>=2.0.0
+numpy>=1.24.0
+python-arango>=7.9.0
+pyyaml>=6.0
+httpx>=0.24.0
+
+# Embedding models
+sentence-transformers>=2.2.0
+transformers>=4.30.0
+
+# Async support
+asyncio>=3.4.3
+aiofiles>=23.0.0
+
+# Monitoring
+prometheus-client>=0.16.0
+
+# Development
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+black>=23.0.0
+mypy>=1.0.0

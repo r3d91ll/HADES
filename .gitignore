@@ -93,3 +93,4 @@ infrastructure/setup/processing_scripts/archive_old_versions/
 infrastructure/setup/archive_docs/recovery_scripts/
 infrastructure/setup/archive_docs/testing_scripts/
 infrastructure/setup/archive_docs/
+Acheron/*

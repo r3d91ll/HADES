@@ -1,3 +1,58 @@
+[tool.poetry]
+name = "hades"
+version = "0.1.0"
+description = "Heterogeneous Adaptive Dimensional Embedding System - Production infrastructure for processing and serving embedded knowledge"
+authors = ["HADES Team"]
+readme = "README.md"
+packages = [
+    { include = "processors" },
+    { include = "storage" },
+    { include = "embeddings" },
+    { include = "utils" },
+    { include = "mcp_server" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+python-arango = "^7.6.0"
+numpy = "^1.24.0"
+torch = "^2.0.0"
+transformers = "^4.35.0"
+tqdm = "^4.65.0"
+pypdfium2 = "^4.18.0"
+pillow = "^10.0.0"
+python-magic = "^0.4.27"
+docling = "^1.0.0"
+pandas = "^2.0.0"
+lmdb = "^1.4.0"
+sentence-transformers = "^2.2.0"
+matplotlib = "^3.7.0"
+httpx = "^0.24.0"
+pyyaml = "^6.0"
+# mcp = { version = "^0.1.0", optional = true }  # Uncomment when MCP is available
+aiofiles = "^23.0.0"
+einops = "^0.8.1"
+orjson = "^3.11.1"
+gputil = "^1.4.0"
+tenacity = "^9.1.2"
+ray = "^2.48.0"
+
+[tool.poetry.group.dev.dependencies]
+mypy = "^1.5.0"
+black = "^23.0.0"
+ruff = "^0.1.0"
+pytest = "^7.0.0"
+pytest-asyncio = "^0.21.0"
+types-tqdm = "*"
+types-pillow = "*"
+
+# [tool.poetry.extras]
+# mcp = ["mcp"]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
 [tool.mypy]
 python_version = "3.11"
 warn_return_any = true

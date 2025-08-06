@@ -1,0 +1,41 @@
+# HADES MCP Server Configuration
+
+server:
+  name: "hades-arxiv"
+  host: "localhost"
+  port: 8080
+  log_level: "INFO"
+
+database:
+  host: "${ARANGO_HOST:-localhost}"
+  port: 8529
+  username: "${ARANGO_USERNAME:-root}"
+  password: "${ARANGO_PASSWORD}"
+  default_db: "academy_store"
+  default_collection: "base_arxiv"
+
+processing:
+  gpu_batch_size: 1024
+  max_concurrent_jobs: 3
+  checkpoint_interval: 100
+  model_name: "jinaai/jina-embeddings-v3"
+  embedding_dim: 1024
+  
+gpu:
+  enabled: true
+  devices: [0, 1]  # Use both GPUs
+  memory_fraction: 0.9
+  fp16: true
+
+storage:
+  embeddings_cache: "/tmp/hades_embeddings_cache"
+  checkpoint_dir: "/tmp/hades_checkpoints"
+  
+limits:
+  max_search_results: 100
+  max_batch_size: 10000
+  search_timeout_seconds: 30
+  
+monitoring:
+  enable_metrics: true
+  metrics_port: 9090
