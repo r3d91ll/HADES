@@ -12,7 +12,7 @@ reviews:
   high_level_summary: true
   
   # Generate poems or creative content (set to false for professional reviews)
-  poem: false
+  poem: true
   
   # Enable review status checks
   review_status: true
@@ -23,7 +23,7 @@ reviews:
   # Automatically approve dependency updates
   auto_review:
     enabled: true
-    drafts: false
+    drafts: true
   
   # Path-specific instructions
   path_instructions:
