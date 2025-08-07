@@ -7,6 +7,8 @@ Late chunking preserves the contextual relationships across text boundaries,
 maintaining the WHERE dimension of information even when physically chunked.
 """
 
+# cspell:ignore jina Jina embedder Embedder
+
 import torch
 import numpy as np
 from typing import List, Optional
@@ -161,7 +163,7 @@ class JinaV4Embedder:
         return [embeddings[i] for i in range(len(chunks))]
 
 
-def test_jina_v4():
+def test_jina_v4() -> bool:
     """Test Jina v4 embedder."""
     print("Testing Jina v4 Embedder...")
     

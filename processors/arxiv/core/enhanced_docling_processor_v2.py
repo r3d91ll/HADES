@@ -15,19 +15,71 @@ import time
 import logging
 import hashlib
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any, TypedDict, Union
 from dataclasses import dataclass
 import json
 import io
 
-from docling.backend.docling_parse_backend import DoclingParseDocumentBackend
-from docling.datamodel.pipeline_options import PipelineOptions
 from docling.document_converter import DocumentConverter
+from docling.datamodel.document import DocumentConversionInput  
+from docling.datamodel.pipeline_options import PipelineOptions, TableStructureOptions, OcrOptions
 import fitz  # PyMuPDF
 from PIL import Image
 import numpy as np
 
 logger = logging.getLogger(__name__)
+
+
+class ProcessingStats(TypedDict):
+    """Type definition for processing statistics."""
+    total_images_found: int
+    images_validated: int
+    images_kept: int
+    images_skipped: int
+    skip_reasons: Dict[str, int]
+
+
+class ImageData(TypedDict, total=False):
+    """Type definition for image data during processing."""
+    image: Image.Image
+    page: int
+    width: int
+    height: int
+    file_size: int
+    img_data: bytes
+    filename: str
+
+
+class ProcessingResult(TypedDict):
+    """Type definition for processing result."""
+    success: bool
+    arxiv_id: str
+    processing_time: Optional[float]
+    num_equations: Optional[int]
+    num_images: Optional[int]
+    output_path: Optional[str]
+    error: Optional[str]
+    stats: ProcessingStats
+    metadata: Optional[Dict[str, Union[bool, int, str, Dict[str, int]]]]
+
+
+class SavedPaths(TypedDict):
+    """Type definition for saved file paths."""
+    markdown_path: Path
+    images_dir: Optional[Path]
+    metadata_path: Path
+
+
+class MetadataDict(TypedDict):
+    """Type definition for metadata."""
+    arxiv_id: str
+    num_equations: int
+    num_images: int
+    processing_time: float
+    enhanced: bool
+    stats: ProcessingStats
+    equation_blocks: List[Dict[str, Union[str, int]]]
+    images: List[Dict[str, Union[int, str, List[int], bool]]]
 
 
 @dataclass(frozen=True)
@@ -141,7 +193,7 @@ class ImageValidator:
         return False
     
     @classmethod
-    def rank_images(cls, images: List[Dict]) -> List[Dict]:
+    def rank_images(cls, images: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
         Rank images by quality/importance.
         
@@ -153,7 +205,7 @@ class ImageValidator:
         scored_images = []
         
         for img_data in images:
-            score = 0
+            score = 0.0  # Use float for score
             img = img_data['image']
             width, height = img.size
             
@@ -196,15 +248,15 @@ class EnhancedDoclingProcessorV2:
         pipeline_options = PipelineOptions(
             do_ocr=False,
             do_table_structure=True,
-            table_structure_options={
-                "do_cell_matching": True,
-                "mode": "1"  # Changed from "fast" to "1" per API requirements
-            }
+            table_structure_options=TableStructureOptions(
+                do_cell_matching=True
+            )
         )
         
-        # DocumentConverter no longer takes pipeline_options in constructor
-        self.converter = DocumentConverter()
-        self.pipeline_options = pipeline_options
+        # Create DocumentConverter with pipeline options
+        self.converter = DocumentConverter(
+            pipeline_options=pipeline_options
+        )
         
         # Image validator
         self.image_validator = ImageValidator()
@@ -213,7 +265,7 @@ class EnhancedDoclingProcessorV2:
     
     def process_pdf(self, arxiv_id: str, pdf_path: str, 
                    max_images: int = 20,
-                   skip_tiny_images: bool = True) -> Dict:
+                   skip_tiny_images: bool = True) -> ProcessingResult:
         """
         Process PDF with smart image handling.
         
@@ -227,19 +279,20 @@ class EnhancedDoclingProcessorV2:
             Processing result dictionary
         """
         start_time = time.time()
-        stats = {
-            'total_images_found': 0,
-            'images_validated': 0,
-            'images_kept': 0,
-            'images_skipped': 0,
-            'skip_reasons': {}
-        }
+        stats: ProcessingStats = ProcessingStats(
+            total_images_found=0,
+            images_validated=0,
+            images_kept=0,
+            images_skipped=0,
+            skip_reasons={}
+        )
         
         try:
             # Process with Docling for text and structure
-            # Convert the PDF directly with path
-            results = self.converter.convert(pdf_path)
-            result = next(results)
+            # Create input object and convert
+            doc_input = DocumentConversionInput.from_paths(paths=[Path(pdf_path)])
+            results = self.converter.convert(doc_input)
+            result = next(iter(results))
             
             # Get base markdown
             markdown_content = result.output.export_to_markdown()
@@ -265,45 +318,52 @@ class EnhancedDoclingProcessorV2:
             
             processing_time = time.time() - start_time
             
-            return {
-                'success': True,
-                'arxiv_id': arxiv_id,
-                'processing_time': processing_time,
-                'num_equations': len(equations),
-                'num_images': len(images_data),
-                'output_path': str(output_data['markdown_path']),
-                'stats': stats,
-                'metadata': {
+            return ProcessingResult(
+                success=True,
+                arxiv_id=arxiv_id,
+                processing_time=processing_time,
+                num_equations=len(equations),
+                num_images=len(images_data),
+                output_path=str(output_data['markdown_path']),
+                error=None,
+                stats=stats,
+                metadata={
                     'enhanced': True,
                     'max_images_enforced': max_images,
                     'image_validation_enabled': skip_tiny_images,
                     'images_skipped': stats['images_skipped'],
                     'skip_reasons': stats['skip_reasons']
                 }
-            }
+            )
             
         except Exception as e:
             logger.error(f"Error processing {arxiv_id}: {e}")
-            return {
-                'success': False,
-                'arxiv_id': arxiv_id,
-                'error': str(e),
-                'stats': stats
-            }
+            return ProcessingResult(
+                success=False,
+                arxiv_id=arxiv_id,
+                processing_time=None,
+                num_equations=None,
+                num_images=None,
+                output_path=None,
+                error=str(e),
+                stats=stats,
+                metadata=None
+            )
     
     def _extract_and_validate_images(self, pdf_path: str, max_images: int, 
-                                    validate: bool, stats: Dict) -> List[Dict]:
+                                    validate: bool, stats: ProcessingStats) -> List[Dict[str, Any]]:
         """
         Extract and validate images from PDF.
         """
-        extracted_images = []
+        extracted_images: List[Dict[str, Any]] = []
         
         try:
             doc = fitz.open(pdf_path)
             all_images = []
             
             # First pass: extract all images
-            for page_num, page in enumerate(doc):
+            for page_num in range(len(doc)):
+                page = doc[page_num]
                 image_list = page.get_images()
                 stats['total_images_found'] += len(image_list)
                 
@@ -355,7 +415,8 @@ class EnhancedDoclingProcessorV2:
                         stats['images_kept'] += 1
                     else:
                         stats['images_skipped'] += 1
-                        stats['skip_reasons'][reason] = stats['skip_reasons'].get(reason, 0) + 1
+                        if reason:  # Only add if reason is not None
+                            stats['skip_reasons'][reason] = stats['skip_reasons'].get(reason, 0) + 1
                 else:
                     valid_images.append(img_data)
             
@@ -394,7 +455,8 @@ class EnhancedDoclingProcessorV2:
         try:
             doc = fitz.open(pdf_path)
             
-            for page_num, page in enumerate(doc):
+            for page_num in range(len(doc)):
+                page = doc[page_num]
                 # Get page text with detailed layout
                 blocks = page.get_text("dict")
                 
@@ -448,7 +510,7 @@ class EnhancedDoclingProcessorV2:
         
         lines = markdown.split('\n')
         enhanced_lines = []
-        used_equations = set()
+        used_equations: set[EquationBlock] = set()
         
         for line in lines:
             enhanced_lines.append(line)
@@ -492,7 +554,7 @@ class EnhancedDoclingProcessorV2:
     
     def _save_processed_data(self, arxiv_id: str, markdown: str, 
                             equations: List[EquationBlock], 
-                            images: List[Dict], stats: Dict) -> Dict:
+                            images: List[Dict[str, Any]], stats: ProcessingStats) -> SavedPaths:
         """
         Save processed data to filesystem.
         
@@ -515,9 +577,13 @@ class EnhancedDoclingProcessorV2:
         
         markdown_path.write_text(markdown, encoding='utf-8')
         
+        # Initialize images_dir to None by default
+        images_dir = None
+        
         # Save images if any
         if images:
-            images_dir = output_subdir / f"{arxiv_id.replace('/', '_')}_images"
+            safe_id = arxiv_id.replace('/', '_') if arxiv_id else 'unknown'
+            images_dir = output_subdir / f"{safe_id}_images"
             images_dir.mkdir(parents=True, exist_ok=True)
             
             for img_data in images:
@@ -560,7 +626,7 @@ class EnhancedDoclingProcessorV2:
         }
 
 
-def reconstruct_markdown_from_database(arxiv_id: str, db_connection) -> str:
+def reconstruct_markdown_from_database(arxiv_id: str, db_connection: Any) -> str:  # TODO: Replace Any with proper ArangoDB type
     """
     Reconstruct the markdown document from database storage.
     
