@@ -27,7 +27,7 @@ reviews:
   
   # Path-specific instructions
   path_instructions:
-    - path: "processors/arxiv/**"
+    - path: "processors/**"
       instructions: |
         - Check for proper GPU resource management (CUDA_VISIBLE_DEVICES)
         - Verify ArangoDB connection patterns and atomic transactions
