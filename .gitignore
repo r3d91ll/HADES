@@ -61,8 +61,8 @@ logs/
 *.tar
 *.tar.gz
 *.zip
+
 data/
-olympus/
 bulk-store/
 mnt/
 
