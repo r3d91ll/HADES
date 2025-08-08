@@ -23,7 +23,7 @@ arxiv/
 ├── scripts/                       # Executable scripts (minimal set)
 │   ├── rebuild_dual_gpu.py       # Dual-GPU rebuild with Ray (ACTIVE)
 │   ├── daily_arxiv_update.py     # Daily updates with Jina v4 (CRON DISABLED)
-│   └── process_pdf_on_demand.py  # On-demand PDF processing
+│   └── process_pdf_with_citations_v6.7.py  # PDF processing with citations
 ├── monitoring/                    # Monitoring tools
 │   └── monitor_system_resources.py
 ├── utils/                         # Utilities
@@ -94,7 +94,22 @@ The migration from v3 to v4 brings significant improvements:
 
 ## Usage Guide
 
-### Running the Dual-GPU Rebuild
+### Script Documentation
+
+#### 1. rebuild_dual_gpu.py - Full Database Rebuild
+
+Rebuilds the entire ArXiv database with Jina v4 embeddings using Ray for multi-GPU parallelism.
+
+**Command-line Arguments:**
+- `--source SOURCE`: Path to source JSON file (default: arxiv snapshot)
+- `--limit LIMIT`: Limit number of papers for testing
+- `--batch-size BATCH_SIZE`: Batch size split across GPUs (default: 256)
+- `--clean-start`: Clear existing data before starting
+- `--db-host DB_HOST`: Database host (default: localhost)
+- `--db-name DB_NAME`: Database name (default: academy_store)
+- `--num-gpus NUM_GPUS`: Number of GPUs to use (default: 2)
+
+**Examples:**
 
 ```bash
 # Set environment
@@ -119,6 +134,186 @@ nohup python3 scripts/rebuild_dual_gpu.py \
 ```
 
 
+#### 2. daily_arxiv_update.py - Daily Paper Updates
+
+Fetches recent ArXiv papers and adds them to the database with embeddings. Designed for cron job execution.
+
+**Command-line Arguments:**
+- `--days-back DAYS_BACK`: Number of days to look back (default: 1 for yesterday)
+- `--db-host DB_HOST`: ArangoDB host (default: 192.168.1.69)
+- `--db-name DB_NAME`: Database name (default: academy_store)
+- `--skip-embeddings`: Skip embedding generation (fetch metadata only)
+
+**Examples:**
+
+```bash
+# Process yesterday's papers
+export ARANGO_PASSWORD='your_password'
+python3 scripts/daily_arxiv_update.py
+
+# Catch up on last 3 days
+python3 scripts/daily_arxiv_update.py --days-back 3
+
+# Test without embeddings
+python3 scripts/daily_arxiv_update.py --skip-embeddings
+
+# Catch up multiple days
+for i in {1..7}; do
+    python3 scripts/daily_arxiv_update.py --days-back $i
+done
+```
+
+**Cron Setup (currently disabled):**
+```bash
+# Edit crontab
+crontab -e
+
+# Add line for daily updates at 01:00 UTC
+0 1 * * * ARANGO_PASSWORD='your_password' /usr/bin/python3 /home/todd/olympus/HADES/processors/arxiv/scripts/daily_arxiv_update.py >> /home/todd/olympus/HADES/logs/daily_arxiv_cron.log 2>&1
+```
+
+#### 3. process_pdf_with_citations_v6.7.py - Advanced PDF Processing
+
+Production-ready PDF processor with citation extraction, late chunking, and source-fidelity design.
+
+**Command-line Arguments:**
+- `arxiv_id`: ArXiv ID to process (required positional argument)
+- `--pdf-path PDF_PATH`: Path to existing PDF file (optional, will download if not provided)
+- `--output-dir OUTPUT_DIR`: Directory for downloaded PDFs (default: /tmp/arxiv_pdfs)
+- `--clean`: Clean all existing data for this paper before processing
+- `--dry-run`: Estimate processing without database writes
+- `--skip-embeddings`: Skip embedding generation
+- `--force`: Force reprocessing even if content unchanged
+- `--db-host DB_HOST`: ArangoDB host (default: localhost)
+- `--db-port DB_PORT`: ArangoDB port (default: 8529)
+- `--db-name DB_NAME`: Database name (default: _system)
+- `--db-user DB_USER`: Database user (default: root)
+- `--base-collection BASE_COLLECTION`: Base repository collection name (default: base_arxiv)
+- `--verbose`: Verbose logging
+
+**Key Features:**
+- **Citation Extraction**: Extracts numbered, arXiv, DOI, and author-year citations
+- **Late Chunking**: 4k char windows with 1k overlap for context-aware embeddings
+- **Content-Hash Guard**: Skips reprocessing if content unchanged
+- **Source-Fidelity Design**: Single polymorphic collection with `kind` field
+- **Sparse Indexes**: Optimized for mixed document types
+- **Idempotent Writes**: Safe for re-runs with UPSERT operations
+- **Network Resilience**: Retry logic with exponential backoff
+- **Provenance Tracking**: Includes processor version, Docling version, ingest run ID
+
+**Examples:**
+
+```bash
+# Basic processing
+export ARANGO_PASSWORD='your_password'
+python3 scripts/process_pdf_with_citations_v6.7.py 2407.18384 --db-host 192.168.1.69
+
+# Process with local PDF
+python3 scripts/process_pdf_with_citations_v6.7.py 2407.18384 \
+    --pdf-path /path/to/local.pdf \
+    --db-host 192.168.1.69
+
+# Clean and reprocess
+python3 scripts/process_pdf_with_citations_v6.7.py 2407.18384 \
+    --clean \
+    --db-host 192.168.1.69
+
+# Force reprocessing (bypass content-hash check)
+python3 scripts/process_pdf_with_citations_v6.7.py 2407.18384 \
+    --force \
+    --db-host 192.168.1.69
+
+# Dry run to estimate processing
+python3 scripts/process_pdf_with_citations_v6.7.py 2407.18384 \
+    --dry-run \
+    --verbose
+
+# Skip embeddings (metadata and citations only)
+python3 scripts/process_pdf_with_citations_v6.7.py 2407.18384 \
+    --skip-embeddings \
+    --db-host 192.168.1.69
+
+# Custom database configuration
+python3 scripts/process_pdf_with_citations_v6.7.py 2407.18384 \
+    --db-host 192.168.1.69 \
+    --db-port 8529 \
+    --db-name academy_store \
+    --base-collection base_arxiv
+```
+
+**Database Schema (v6.7):**
+```python
+# Paper document (kind='paper')
+{
+    "_key": "2407_18384",
+    "uid": "arxiv:2407.18384",
+    "kind": "paper",
+    "repository": "arxiv",
+    
+    # Metadata
+    "arxiv_id": "2407.18384",
+    "title": "...",
+    "abstract": "...",
+    "authors": [...],
+    "categories": [...],
+    
+    # PDF processing
+    "pdf_status": "processed",
+    "pdf_local_path": "/tmp/arxiv_pdfs/2407.18384.pdf",
+    "full_text_hash": "sha256...",
+    "full_text_path": "/tmp/arxiv_pdfs/2407.18384.md.gz",
+    
+    # Citations (array, no edges)
+    "citations": [
+        {
+            "target_id": "2301.12345",
+            "type": "arxiv",
+            "confidence": 0.98,
+            "occurrence_count": 3
+        },
+        ...
+    ],
+    "citation_count": 316,
+    
+    # Embeddings
+    "embedding": [...],  # 2048-dim
+    "embedding_model": "jinaai/jina-embeddings-v4",
+    
+    # Provenance
+    "processing_date": "2025-01-20T...",
+    "processor_version": "v6.7",
+    "docling_version": "2.12.0",
+    "ingest_run_id": "uuid..."
+}
+
+# Chunk document (kind='chunk')
+{
+    "_key": "2407_18384_chunk_0",
+    "uid": "arxiv:2407.18384#chunk_0",
+    "kind": "chunk",
+    "repository": "arxiv",
+    "doc_id": "2407_18384",
+    "chunk_index": 0,
+    
+    # Content
+    "text": "...",
+    "start_char": 0,
+    "end_char": 1000,
+    "section": "Introduction",
+    
+    # Embeddings
+    "embedding": [...],  # 2048-dim
+    "embedding_method": "late_chunking_weighted",
+    
+    # Citations in this chunk
+    "citation_ids": ["ref_1", "ref_2"],
+    
+    # Provenance
+    "processing_date": "2025-01-20T...",
+    "ingest_run_id": "uuid..."
+}
+```
+
 ### Monitoring Progress
 
 ```bash
@@ -139,11 +334,20 @@ watch -n 1 nvidia-smi
 ps aux | grep rebuild_dual_gpu
 ```
 
-### On-Demand PDF Processing
+### Batch Processing
 
 ```bash
-# Process specific paper with PDF
-python3 scripts/process_pdf_on_demand.py 2310.08560
+# Process multiple papers in sequence
+for arxiv_id in "2407.18384" "2310.08560" "2301.12345"; do
+    python3 scripts/process_pdf_with_citations_v6.7.py $arxiv_id \
+        --db-host 192.168.1.69
+done
+
+# Process from a list file
+while IFS= read -r arxiv_id; do
+    python3 scripts/process_pdf_with_citations_v6.7.py "$arxiv_id" \
+        --db-host 192.168.1.69
+done < arxiv_ids_to_process.txt
 ```
 
 ### Daily Updates (After Rebuild Completes)

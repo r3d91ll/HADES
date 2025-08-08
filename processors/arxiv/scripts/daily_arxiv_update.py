@@ -120,8 +120,15 @@ class ArXivDailyUpdater:
                     embeddings = embeddings.cpu().numpy()
                 elif torch.is_tensor(embeddings):
                     embeddings = embeddings.detach().cpu().numpy()
+                elif isinstance(embeddings, list):
+                    # Already a list, return as is
+                    return embeddings
                 
-                return embeddings.tolist()
+                # Only call tolist() if we have a numpy array
+                if hasattr(embeddings, 'tolist'):
+                    return embeddings.tolist()
+                else:
+                    return embeddings
                 
         except Exception as e:
             logger.error(f"Failed to generate embeddings: {e}")
@@ -281,7 +288,11 @@ class ArXivDailyUpdater:
                 
                 if embeddings:
                     for j, paper in enumerate(batch):
-                        paper['abstract_embeddings'] = embeddings[j]
+                        # Ensure embedding is a list, not a tensor
+                        embedding = embeddings[j]
+                        if hasattr(embedding, 'tolist'):
+                            embedding = embedding.tolist()
+                        paper['abstract_embeddings'] = embedding
                         paper['embedding_model'] = 'jinaai/jina-embeddings-v4'
                         paper['embedding_dim'] = 2048
                         paper['embedding_date'] = datetime.utcnow().isoformat()

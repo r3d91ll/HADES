@@ -126,7 +126,7 @@ class JinaV4Embedder:
     def embed_with_late_chunking(self,
                                  text: str,
                                  chunk_size: int = 28000,
-                                 chunk_overlap: int = 5600) -> List[np.ndarray]:
+                                 chunk_overlap: int = 5600) -> List[dict]:
         """
         Embed text with late chunking for better context preservation.
         
@@ -136,13 +136,14 @@ class JinaV4Embedder:
             chunk_overlap: Overlap between chunks
             
         Returns:
-            List of chunk embeddings
+            List of dicts with keys: 'start', 'end', 'embedding'
         """
         # For Jina v4, we can process up to 32k tokens at once
         # Late chunking means we process the full text first
         
-        # Split text into overlapping chunks
+        # Split text into overlapping chunks with position tracking
         chunks = []
+        positions = []
         start = 0
         text_len = len(text)
         
@@ -150,17 +151,22 @@ class JinaV4Embedder:
             end = min(start + chunk_size, text_len)
             chunk = text[start:end]
             chunks.append(chunk)
+            positions.append((start, end))
             
             if end >= text_len:
                 break
                 
-            start += (chunk_size - chunk_overlap)
+            start = end - chunk_overlap  # Fixed: proper overlap calculation
         
         # Process all chunks with context awareness
         # Jina v4 maintains context across the batch
         embeddings = self.embed_texts(chunks, task="retrieval")
         
-        return [embeddings[i] for i in range(len(chunks))]
+        # Return with position information
+        return [
+            {'start': pos[0], 'end': pos[1], 'embedding': embeddings[i]}
+            for i, pos in enumerate(positions)
+        ]
 
 
 def test_jina_v4() -> bool:
