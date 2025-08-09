@@ -1,7 +1,9 @@
 # GitHub Processor - Phase 1 Implementation
+
 ## Achieving Parity with ArXiv Processor v7.0
 
 ### Document Version
+
 - **Date**: 2025-01-20
 - **Goal**: Match ArXiv v7.0 architecture exactly
 - **Status**: Implementation Ready
@@ -11,6 +13,7 @@
 ## Current Gap Analysis
 
 ### What ArXiv v7.0 Has (Target)
+
 ```
 ✅ base_arxiv collection with papers
 ✅ base_arxiv_chunks with embeddings
@@ -24,6 +27,7 @@
 ```
 
 ### What GitHub MVP Has (Current)
+
 ```
 ✅ base_github collection exists
 ❌ No chunk collection
@@ -53,6 +57,7 @@ edge_collections = [
 ### Simplified Data Model (Phase 1)
 
 #### base_github (Repository level - like base_arxiv)
+
 ```javascript
 {
     "_key": "pytorch__pytorch",  // Deterministic: owner__repo
@@ -85,6 +90,7 @@ edge_collections = [
 ```
 
 #### base_github_chunks (Code chunks - like base_arxiv_chunks)
+
 ```javascript
 {
     "_key": "pytorch__pytorch_chunk_0",  // Simple incremental
@@ -291,6 +297,7 @@ class GitHubProcessorPhase1:
 ## Phase 1 Execution Plan
 
 ### Step 1: Setup Collections (Today)
+
 ```python
 # Run this to create collections
 python -c "
@@ -301,6 +308,7 @@ print('Collections created')
 ```
 
 ### Step 2: Test with Small Repo
+
 ```python
 # Test with a small repository first
 processor = GitHubProcessorPhase1()
@@ -309,6 +317,7 @@ print(f"Processed: {result['chunk_count']} chunks")
 ```
 
 ### Step 3: Verify Data Structure
+
 ```aql
 // Check repository
 FOR repo IN base_github
@@ -329,6 +338,7 @@ FOR edge IN edges_contains
 ```
 
 ### Step 4: Test Search
+
 ```aql
 // Vector search (should work immediately)
 LET query_embedding = (
@@ -364,6 +374,7 @@ FOR chunk IN base_github_chunks
 ## Success Criteria
 
 Phase 1 is complete when:
+
 - [ ] Collections match ArXiv structure
 - [ ] Can process a Python repository
 - [ ] Chunks have Jina v4 embeddings
