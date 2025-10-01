@@ -1,0 +1,66 @@
+[tool.poetry]
+name = "hades"
+version = "0.1.0"
+description = "HADES production runtime: ArangoDB UDS client, Conveyance metrics, extractors, and orchestration stubs"
+authors = ["HADES Team <devnull@example.com>"]
+readme = "README.md"
+packages = [{ include = "core" }]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+httpx = "^0.27.0"
+grpcio = "^1.64.0"
+numpy = "^1.26.0"
+tree-sitter-languages = "^1.10.2"
+transformers = {version = "^4.44.0", optional = true}
+accelerate = {version = "^1.2.0", optional = true}
+autoawq = {version = "^0.2.0", optional = true}
+pytest = "^8.4.2"
+mcp-server-tree-sitter = "^0.5.1"
+h2 = "^4.3.0"
+tree-sitter = "^0.25.2"
+tree-sitter-python = "^0.25.0"
+tree-sitter-javascript = "^0.25.0"
+tree-sitter-go = "^0.25.0"
+sentence-transformers = "^3.3.1"
+docling = {version = "^2.54.0", optional = true}
+torch-geometric = {version = "^2.6.0", optional = true}
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.2.0"
+ruff = "^0.6.3"
+types-requests = "^2.32.0.20240914"
+pytest-cov = "^5.0.0"
+
+[tool.poetry.extras]
+qwen = [
+    "transformers",
+    "accelerate",
+    "autoawq",
+]
+pdf = [
+    "docling",
+]
+gnn = [
+    "torch-geometric",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["core/database/arango/proxies/bin"]
+
+[tool.ruff.lint]
+select = [
+  "E","F","W",  # pycodestyle/pyflakes
+  "I",            # isort
+]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[build-system]
+requires = ["poetry-core>=1.9.0"]
+build-backend = "poetry.core.masonry.api"

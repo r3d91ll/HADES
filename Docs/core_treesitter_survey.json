@@ -1,0 +1,585 @@
+[
+  {
+    "path": "core/extractors/extractors_factory.py",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    },
+    "py_imports": [],
+    "py_missing_core_imports": []
+  },
+  {
+    "path": "core/extractors/extractors_base.py",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    },
+    "py_imports": [],
+    "py_missing_core_imports": []
+  },
+  {
+    "path": "core/extractors/extractors_code.py",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    },
+    "py_imports": [],
+    "py_missing_core_imports": []
+  },
+  {
+    "path": "core/extractors/extractors_robust.py",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    },
+    "py_imports": [],
+    "py_missing_core_imports": []
+  },
+  {
+    "path": "core/extractors/extractors_docling.py",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    },
+    "py_imports": [],
+    "py_missing_core_imports": []
+  },
+  {
+    "path": "core/extractors/extractors_treesitter.py",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    },
+    "py_imports": [],
+    "py_missing_core_imports": []
+  },
+  {
+    "path": "core/extractors/__init__.py",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    },
+    "py_imports": [],
+    "py_missing_core_imports": []
+  },
+  {
+    "path": "core/extractors/extractors_latex.py",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    },
+    "py_imports": [],
+    "py_missing_core_imports": []
+  },
+  {
+    "path": "core/config/config_manager.py",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    },
+    "py_imports": [],
+    "py_missing_core_imports": []
+  },
+  {
+    "path": "core/config/config_base.py",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    },
+    "py_imports": [],
+    "py_missing_core_imports": []
+  },
+  {
+    "path": "core/config/__init__.py",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    },
+    "py_imports": [],
+    "py_missing_core_imports": []
+  },
+  {
+    "path": "core/config/config_loader.py",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    },
+    "py_imports": [],
+    "py_missing_core_imports": []
+  },
+  {
+    "path": "core/workflows/embed_paper_code_pair.py",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    },
+    "py_imports": [
+      "core.paper_code_pipeline",
+      "core.paper_code_pipeline.embedding_runner"
+    ],
+    "py_missing_core_imports": [
+      "core.paper_code_pipeline",
+      "core.paper_code_pipeline.embedding_runner"
+    ]
+  },
+  {
+    "path": "core/embedders/embedders_jina.py",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    },
+    "py_imports": [],
+    "py_missing_core_imports": []
+  },
+  {
+    "path": "core/embedders/embedders_factory.py",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    },
+    "py_imports": [],
+    "py_missing_core_imports": []
+  },
+  {
+    "path": "core/embedders/__init__.py",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    },
+    "py_imports": [],
+    "py_missing_core_imports": []
+  },
+  {
+    "path": "core/embedders/embedders_base.py",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    },
+    "py_imports": [],
+    "py_missing_core_imports": []
+  },
+  {
+    "path": "core/embedders/embedders_sentence.py",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    },
+    "py_imports": [],
+    "py_missing_core_imports": []
+  },
+  {
+    "path": "core/logging/conveyance.py",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    },
+    "py_imports": [],
+    "py_missing_core_imports": []
+  },
+  {
+    "path": "core/logging/__init__.py",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    },
+    "py_imports": [],
+    "py_missing_core_imports": []
+  },
+  {
+    "path": "core/logging/logging.py",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    },
+    "py_imports": [],
+    "py_missing_core_imports": []
+  },
+  {
+    "path": "core/config/events/schema_v1_2_0.py",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    },
+    "py_imports": [],
+    "py_missing_core_imports": []
+  },
+  {
+    "path": "core/database/arango/optimized_client.py",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    },
+    "py_imports": [],
+    "py_missing_core_imports": []
+  },
+  {
+    "path": "core/database/arango/__init__.py",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    },
+    "py_imports": [],
+    "py_missing_core_imports": []
+  },
+  {
+    "path": "core/database/arango/memory_client.py",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    },
+    "py_imports": [],
+    "py_missing_core_imports": []
+  },
+  {
+    "path": "core/database/arango/php_unix_bridge.php",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    }
+  },
+  {
+    "path": "core/database/arango/proxies/rw_proxy.go",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    }
+  },
+  {
+    "path": "core/database/arango/proxies/proxy_common.go",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    }
+  },
+  {
+    "path": "core/database/arango/proxies/ro_proxy.go",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    }
+  },
+  {
+    "path": "core/database/arango/proxies/cmd/roproxy/main.go",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    }
+  },
+  {
+    "path": "core/database/arango/proxies/cmd/rwproxy/main.go",
+    "language": null,
+    "symbols": {
+      "functions": 0,
+      "classes": 0,
+      "imports": 0,
+      "variables": 0,
+      "exports": 0
+    },
+    "metrics": {
+      "lines_of_code": 0,
+      "complexity": 0,
+      "max_depth": 0,
+      "node_count": 0
+    }
+  }
+]
