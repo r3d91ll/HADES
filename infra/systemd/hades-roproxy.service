@@ -1,0 +1,23 @@
+[Unit]
+Description=HADES Arango Read-Only Proxy (UDS)
+After=network.target
+
+[Service]
+Type=simple
+User=arangodb
+Group=hades
+Environment=LISTEN_SOCKET=/run/hades/readonly/arangod.sock
+Environment=UPSTREAM_SOCKET=/run/arangodb3/arangodb.sock
+EnvironmentFile=-/etc/default/hades-arango-proxy
+ExecStartPre=/usr/bin/install -d -m 0750 -o arangodb -g hades /run/hades/readonly
+ExecStart=/usr/local/bin/hades-roproxy
+Restart=always
+RestartSec=0.5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target

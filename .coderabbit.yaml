@@ -1,0 +1,149 @@
+# CodeRabbit AI Configuration for HADES
+# Project: Agent runtime with experiential memory (GraphSAGE + PathRAG + ArangoDB)
+# Stack: Python 3.12+, Go (proxies), ArangoDB, PyTorch, Transformers
+
+language: en-US
+tone_instructions: "Be concise, technically precise, and focus on performance, correctness, and maintainability. Prioritize security in database operations and memory management."
+
+early_access: false
+auto_review:
+  enabled: true
+  auto_incremental_review: true
+  ignore_title_keywords:
+    - "WIP"
+    - "DO NOT REVIEW"
+    - "DRAFT"
+
+reviews:
+  profile: "assertive"
+  request_changes_workflow: true
+  high_level_summary: true
+  high_level_summary_placeholder: "<!-- CodeRabbit AI Summary -->"
+  auto_title_placeholder: "<!-- CodeRabbit AI Title -->"
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  sequence_diagrams: true
+  changed_files_summary: true
+  labeling_instructions: []
+
+  # Path-specific review focus
+  path_instructions:
+    # Core runtime memory system
+    - path: "core/runtime/memory/**/*.py"
+      instructions: |
+        - Focus on PathRAG retrieval correctness, SLO compliance (p99 ≤ 250ms), and graph traversal logic
+        - Validate caps enforcement: H≤2, F≤3, B≤8
+        - Check timeout handling and reason code emission
+        - Review Pydantic model definitions for type safety
+        - Ensure proper error handling for ArangoDB operations
+        - Validate experiential memory operations (observations, reflections, entities)
+
+    # ArangoDB client and proxies
+    - path: "core/database/arango/**/*.{py,go}"
+      instructions: |
+        - Verify socket permission handling (RO: 0660, RW: 0600)
+        - Check HTTP/2 connection pooling and keep-alive
+        - Validate SLO compliance (p50≤0.4ms upstream, p50≤0.8ms proxy)
+        - Review AQL query efficiency and injection prevention
+        - Ensure proper resource cleanup (connections, cursors)
+        - Check Go proxy error handling and logging
+
+    # GNN/GraphSAGE components
+    - path: "core/gnn/**/*.py"
+      instructions: |
+        - Review multi-relational aggregator implementation
+        - Check inductive learning capability for new nodes
+        - Validate dimension matching (2048→1024→512)
+        - Verify contrastive loss implementation
+        - Ensure inference latency <150ms p95
+        - Check PyTorch Geometric graph construction
+
+    # Embedders (Jina v4, sentence transformers)
+    - path: "core/embedders/**/*.py"
+      instructions: |
+        - Validate batch size handling and memory efficiency
+        - Check CUDA/CPU device management
+        - Ensure proper error handling for model loading
+        - Review late chunking implementation
+        - Verify embedding dimension consistency (2048 for Jina v4)
+
+    # Extractors (TreeSitter, Docling, code parsing)
+    - path: "core/extractors/**/*.py"
+      instructions: |
+        - Check TreeSitter grammar loading and error handling
+        - Validate code structure extraction accuracy
+        - Review PDF/LaTeX extraction robustness
+        - Ensure proper file encoding handling
+        - Check exclusion pattern support (.hades.ignore)
+
+    # Scripts (operational CLIs)
+    - path: "scripts/**/*.py"
+      instructions: |
+        - Validate CLI argument parsing and help text
+        - Check error messages are user-friendly
+        - Review progress reporting and logging
+        - Ensure idempotency where expected (ingestion)
+        - Validate database connection configuration
+
+    # Tests
+    - path: "tests/**/*.py"
+      instructions: |
+        - Ensure proper test isolation and cleanup
+        - Check mock usage is appropriate
+        - Validate assertions are specific and meaningful
+        - Review test coverage for critical paths
+        - Ensure benchmarks validate SLOs
+
+    # Configuration and schemas
+    - path: "core/config/**/*.py"
+      instructions: |
+        - Validate environment variable handling
+        - Check default values are sensible
+        - Ensure schema versioning is clear
+        - Review configuration validation logic
+
+  # Tool integration
+  tools:
+    shellcheck:
+      enabled: true
+    ruff:
+      enabled: true
+    markdownlint:
+      enabled: true
+
+  # Security and best practices
+  abort_on_close: true
+
+chat:
+  auto_reply: true
+
+# File patterns to ignore
+exclude:
+  - "**/*.lock"
+  - "**/*.pyc"
+  - "**/__pycache__/**"
+  - "**/node_modules/**"
+  - "**/.venv/**"
+  - "**/.mypy_cache/**"
+  - "**/acheron/**"  # Archived legacy code
+  - "**/models/checkpoints/**"  # Model weights
+  - "**/models/*.pt"
+  - "**/models/*.pth"
+  - "**/.git/**"
+  - "**/bin/**"  # Compiled binaries
+  - "core/database/arango/proxies/bin/**"
+
+# Known issues/patterns to watch for
+knowledge_base:
+  learnings:
+    - "ArangoDB operations must enforce strict SLOs (p50≤0.4ms upstream, p50≤0.8ms proxy)"
+    - "PathRAG must enforce caps: H≤2, F≤3, B≤8 and timeout at 2s global"
+    - "GraphSAGE embeddings: 2048→1024→512 dimensions, inductive learning required"
+    - "Memory retrieval p99 ≤ 250ms, vector search p99 ≤ 750ms"
+    - "Qwen3 model: 262k context window, AWQ quantization, FlashAttention-2"
+    - "Jina v4: 32k context, 2048 dimensions, late chunking support"
+    - "Socket permissions critical: RO 0660 group hades, RW 0600 owner"
+    - "Conveyance metrics: boundary W·R·H tracking only, no internal ops"
+    - "Experiential memory types: observations, reflections, entities, relationships"
+    - "Ingestion pipeline: normalize → embed → late-chunk → write (idempotent)"

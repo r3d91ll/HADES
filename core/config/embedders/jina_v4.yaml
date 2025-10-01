@@ -1,0 +1,27 @@
+# Jina v4 Embedder Configuration
+# ================================
+# Default configuration for Jina v4 embeddings
+# Used by HADES Lab for standardized document embeddings
+
+# Model Configuration
+model_name: jinaai/jina-embeddings-v4
+device: cuda  # Automatically falls back to CPU if CUDA not available
+use_fp16: true  # Use half precision for better performance on GPU
+normalize_embeddings: true  # L2 normalize embeddings
+
+# Batch Processing
+batch_size: 48  # Optimal batch size for A6000/A100 GPUs
+# Increase to 128 for high-throughput scenarios with sufficient memory
+
+# Chunking Configuration (Late Chunking)
+chunk_size_tokens: 500  # Most ArXiv abstracts fit in 500 tokens
+chunk_overlap_tokens: 200  # 40% overlap for context preservation
+
+# Model Properties (Read-only - defined by model)
+max_tokens: 32768  # 32k context window
+embedding_dimension: 2048  # Output dimension
+
+# Performance Notes:
+# - With batch_size=48 and fp16, achieves 40+ papers/sec on 2x A6000
+# - chunk_size_tokens=500 handles 99% of abstracts without chunking
+# - Late chunking preserves context across chunk boundaries

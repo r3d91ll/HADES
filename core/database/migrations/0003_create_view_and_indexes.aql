@@ -1,0 +1,5 @@
+// Create ArangoSearch view over messages.text and archival_docs.text with English analyzer
+// Create vector index on archival_docs.embedding when running 3.12+
+// Add TTL on recall_log per retention policy
+
+// Placeholder: implement in deployment tooling with proper analyzers and link definitions

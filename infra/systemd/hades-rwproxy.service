@@ -1,0 +1,23 @@
+[Unit]
+Description=HADES Arango Read-Write Proxy (UDS)
+After=network.target
+
+[Service]
+Type=simple
+User=arangodb
+Group=hades
+Environment=LISTEN_SOCKET=/run/hades/readwrite/arangod.sock
+Environment=UPSTREAM_SOCKET=/run/arangodb3/arangodb.sock
+EnvironmentFile=-/etc/default/hades-arango-proxy
+ExecStartPre=/usr/bin/install -d -m 0770 -o arangodb -g hades /run/hades/readwrite
+ExecStart=/usr/local/bin/hades-rwproxy
+Restart=always
+RestartSec=0.5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target

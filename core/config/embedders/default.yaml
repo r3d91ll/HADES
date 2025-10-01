@@ -1,0 +1,10 @@
+# Default Embedder Configuration
+# ===============================
+# Fallback configuration when no specific config is provided
+# Points to Jina v4 as the standard embedder for HADES Lab
+
+# Inherit from Jina v4 configuration
+extends: jina_v4.yaml
+
+# Override any specific settings here if needed
+# (Currently using all Jina v4 defaults)

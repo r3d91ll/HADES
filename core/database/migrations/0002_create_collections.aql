@@ -1,0 +1,9 @@
+// Create collections (doc + edge) if not exist
+// doc: core_memory, messages, archival_docs, memories, concepts
+// edge: recall_log, links_mem_mem, links_mem_concept
+
+// Example (AQL pseudo):
+// FOR c IN ["core_memory","messages","archival_docs","memories","concepts"]
+//   LET exists = LENGTH(FOR cc IN _collections FILTER cc.name == c RETURN 1) > 0
+//   FILTER !exists
+//   RETURN CREATE_COLLECTION(c)

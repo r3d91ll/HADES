@@ -1,0 +1,143 @@
+// Migration 0005: Create Modality-Aware Collections
+// Purpose: Separate code and text modalities with directory-based graph structure
+//
+// Collections:
+// - directories: Directory nodes (filesystem structure)
+// - code_files: Python/code files with symbol tables and surprise metrics
+// - text_files: Markdown/documentation files
+// - text_chunks: Surprise-based semantic chunks from text files
+//
+// Edge Collections:
+// - code_edges: imports, references between code files
+// - contains_edges: directories → files (hierarchical structure)
+// - documents_edges: text → code (documentation links)
+
+// Create document collections
+db._create("directories");
+db._create("code_files");
+db._create("text_files");
+db._create("text_chunks");
+
+// Create edge collections
+db._createEdgeCollection("code_edges");
+db._createEdgeCollection("contains_edges");
+db._createEdgeCollection("documents_edges");
+
+// Create indexes for efficient queries
+
+// directories indexes
+db.directories.ensureIndex({
+    type: "persistent",
+    fields: ["path"],
+    unique: true,
+    name: "idx_directories_path"
+});
+
+db.directories.ensureIndex({
+    type: "persistent",
+    fields: ["parent_path"],
+    name: "idx_directories_parent"
+});
+
+// code_files indexes
+db.code_files.ensureIndex({
+    type: "persistent",
+    fields: ["modality", "language"],
+    name: "idx_code_modality_lang"
+});
+
+db.code_files.ensureIndex({
+    type: "persistent",
+    fields: ["dir"],
+    name: "idx_code_dir"
+});
+
+db.code_files.ensureIndex({
+    type: "persistent",
+    fields: ["path"],
+    unique: true,
+    name: "idx_code_path"
+});
+
+// text_files indexes
+db.text_files.ensureIndex({
+    type: "persistent",
+    fields: ["dir"],
+    name: "idx_text_dir"
+});
+
+db.text_files.ensureIndex({
+    type: "persistent",
+    fields: ["path"],
+    unique: true,
+    name: "idx_text_path"
+});
+
+// text_chunks indexes
+db.text_chunks.ensureIndex({
+    type: "persistent",
+    fields: ["doc_key"],
+    name: "idx_chunks_doc"
+});
+
+db.text_chunks.ensureIndex({
+    type: "persistent",
+    fields: ["doc_key", "chunk_index"],
+    name: "idx_chunks_doc_index"
+});
+
+// Edge indexes for traversal performance
+db.code_edges.ensureIndex({
+    type: "persistent",
+    fields: ["type"],
+    name: "idx_code_edges_type"
+});
+
+db.contains_edges.ensureIndex({
+    type: "persistent",
+    fields: ["type"],
+    name: "idx_contains_type"
+});
+
+db.documents_edges.ensureIndex({
+    type: "persistent",
+    fields: ["type"],
+    name: "idx_documents_type"
+});
+
+// Vector indexes (ArangoDB 3.12+)
+// Note: These will fail gracefully on older versions
+try {
+    db.code_files.ensureIndex({
+        type: "vector",
+        fields: ["embedding"],
+        params: {dimensions: 768, metric: "cosine"},
+        name: "idx_code_embedding"
+    });
+} catch (e) {
+    print("Warning: Vector index for code_files not supported on this ArangoDB version");
+}
+
+try {
+    db.text_files.ensureIndex({
+        type: "vector",
+        fields: ["embedding"],
+        params: {dimensions: 768, metric: "cosine"},
+        name: "idx_text_embedding"
+    });
+} catch (e) {
+    print("Warning: Vector index for text_files not supported on this ArangoDB version");
+}
+
+try {
+    db.text_chunks.ensureIndex({
+        type: "vector",
+        fields: ["embedding"],
+        params: {dimensions: 768, metric: "cosine"},
+        name: "idx_text_chunks_embedding"
+    });
+} catch (e) {
+    print("Warning: Vector index for text_chunks not supported on this ArangoDB version");
+}
+
+print("Migration 0005 complete: Modality-aware collections created");

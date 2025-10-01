@@ -1,0 +1,2 @@
+// Create `_applied` tracking collection for migration versions if not exist
+// Contains fields: { _key: <filename>, ts: <timestamp> }
