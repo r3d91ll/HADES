@@ -209,3 +209,5 @@ core/database/arango/proxies/.modcache/*
 acheron/*
 models/checkpoints/*
 
+core/database/arango/proxies/bin/roproxy
+core/database/arango/proxies/bin/rwproxy
